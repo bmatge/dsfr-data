@@ -58,7 +58,8 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 - `getData()` : retourne les données ACTUELLES (tableau d'objets). `null` avant le premier
   chargement et PENDANT UNE PANNE : les lignes d'avant la panne ne sont jamais rendues comme à jour.
 - `getLastKnownData()` : `{ data, loadedAt, stale? }` — les lignes du dernier chargement réussi et
-  leur date. Pendant une panne, `stale` vaut `{ since, cause, originId }` ; absent sinon.
+  leur date. Pendant une panne, `stale` vaut `{ since, cause, originId }` (plus `staleIfError` et
+  `sameRequest` quand la source porte `stale-if-error`) ; absent sinon.
 - `isStale()` : `true` de la panne jusqu'au prochain chargement réussi (nouvel essai compris).
 
 ### Exemples
@@ -235,8 +236,8 @@ La phrase dépend de la cause :
 - Sans bandeau, chaque bloc en erreur porte son propre « Réessayer » (dans une tuile de KPI : un
   bouton compact, et « Détails » replié à la suite de la phrase). Avec le bandeau, la tuile de KPI
   n'a ni bouton, ni lien, ni détail.
-- AUCUN bloc ne garde à l'écran une ligne du dernier chargement (#1288) — sans date, elle serait
-  prise pour le chiffre du jour :
+- PAR DÉFAUT, aucun bloc ne garde à l'écran une ligne du dernier chargement (#1288) — sans date,
+  elle serait prise pour le chiffre du jour :
   - `dsfr-data-a11y` retire son tableau et désactive « Télécharger en CSV » (aucun fichier ne
     sort) : « Données momentanément indisponibles. Le tableau et le téléchargement reviendront avec
     les données. » ;
@@ -254,6 +255,29 @@ La phrase dépend de la cause :
     (le filtre posé peut être la cause du refus).
   Ces phrases suivent la cause du tableau ci-dessus et `error-message`. Pendant un nouvel essai,
   tableau équivalent, carte et filtres gardent leur rendu de panne jusqu'au résultat.
+- LE DERNIER RELEVÉ, SUR DEMANDE (#1288) : `stale-if-error="<secondes>"` sur la source. Pendant
+  une panne PASSAGÈRE (service indisponible, hors connexion, service très sollicité, réponse
+  bloquée), les blocs gardent leurs derniers chiffres, atténués, sous l'étiquette « Non actualisé »
+  et l'heure de leur relevé — celle où la page les a reçus :
+  - KPI : le chiffre reste, « Relevé à 14 h 32 · non actualisé » sous le libellé, filet pointillé,
+    ni couleur de seuil ni tendance ; graphique (cadre officiel compris), liste, fiches, podium :
+    mention « Chiffres relevés aujourd'hui à 14 h 32. » au-dessus ; carte : formes grises à contour
+    pointillé sur TOUTE la carte, ligne « Points relevés aujourd'hui à 14 h 32. » (avec plusieurs
+    couches : « Couche « Bornes de recharge » : points relevés… » — poser `label` sur chaque
+    couche) ; tableau équivalent : légende visible et datée, export CSV PERMIS avec un bouton et un
+    nom de fichier datés (`données_relevé-2026-10-13-14h32.csv`), contenu brut inchangé ;
+  - un autre jour que celui du relevé : « le 12 octobre à 18 h 05 », jamais « hier » ;
+  - la valeur EST la durée maximale, comptée depuis le relevé : passé ce délai, le bloc revient de
+    lui-même au message de panne. Pas de valeur par défaut, pas de relevé sans durée ;
+  - JAMAIS de relevé quand : l'attribut est absent ; les données sont introuvables (404, 410),
+    l'accès restreint (401, 403) ou la page mal réglée ; l'appel en échec n'est pas celui qui a
+    produit les chiffres (filtre, page, tri ou emprise `bbox` changés) ; rien n'a encore été reçu
+    (page ouverte pendant la panne). Les filtres restent désactivés pendant la panne ;
+  - en pagination ou tri SERVEUR, la page affichée reste et les autres sont neutralisées ;
+  - le bandeau dit alors « Une partie des chiffres de cette page n'a pas pu être actualisée » ;
+  - À POSER sur un jeu qui change peu (recensement, budget voté, référentiel). À NE PAS POSER sur
+    une donnée qui sert à agir tout de suite (prix, stock, places libres, alerte) : un tiret y
+    trompe moins qu'une valeur d'il y a une heure.
 - L'événement `dsfr-data-error` et la trace console ne changent pas : le code HTTP reste dans
   `error.message`.
 - PENDANT la panne, les lignes du dernier chargement réussi ne sont pas jetées, mais elles ne
@@ -265,7 +289,9 @@ La phrase dépend de la cause :
   `{ data, loadedAt, stale: { since, cause, originId } }`. `cause` est celle du tableau ci-dessus
   (`service-indisponible`, `hors-connexion`, `service-sollicite`, `donnees-introuvables`,
   `acces-restreint`, `page-mal-reglee`, `reponse-bloquee`). Le marquage se lève au premier
-  chargement réussi. Aucun composant n'affiche ces lignes périmées : rien ne change à l'écran.
+  chargement réussi. Sans `stale-if-error`, aucun composant n'affiche ces lignes périmées ; avec,
+  seuls les composants d'affichage les lisent — `getData()` et `getDataCache` rendent toujours
+  vide pendant la panne.
 
 ```html
 <dsfr-data-source-status source="prix"></dsfr-data-source-status>
@@ -274,6 +300,12 @@ La phrase dépend de la cause :
   source-page="https://data.economie.gouv.fr/explore/dataset/prix-carburants/">
 </dsfr-data-source>
 <dsfr-data-kpi source="prix" valeur="avg:prix" label="Prix moyen"></dsfr-data-kpi>
+
+<!-- Un jeu qui change peu : ses derniers chiffres restent une heure, datés, pendant une panne -->
+<dsfr-data-source id="recensement" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
+  dataset-id="populations-legales" stale-if-error="3600">
+</dsfr-data-source>
+<dsfr-data-kpi source="recensement" value="population:sum" label="Population"></dsfr-data-kpi>
 ```
 
 ### Référence `<dsfr-data-source>` (générée depuis le code)
@@ -312,6 +344,7 @@ La phrase dépend de la cause :
 | `select` | `string` | `""` (vide) | Clause SELECT, liste séparée par des virgules. Sa grammaire dépend de l'adaptateur (table des capacités d'ARCHITECTURE, ligne « projection select ») : clause complète ou simple liste de noms de colonnes ; un adaptateur sans projection l'ignore. **Clause complète** : `select="count(*) as total, region"`. Une expression (fonction, alias `as`, `*`, chemin pointé, opérateur) est transmise telle quelle ; un nom de champ qui n'est pas un identifiant nu (espace, accent, chiffre initial comme `1_uai`) est échappé automatiquement (#767). Une virgule à l'intérieur d'une fonction ou d'une chaîne ne sépare pas. Un `select` fait UNIQUEMENT d'agrégats, sans `group-by` (`select="sum(montant) as total"`) se charge en une requête d'une ligne, la valeur calculée par le serveur sur tout le jeu (#810) ; si le filtre ne garde aucune ligne, un `count` vaut 0 et les autres fonctions `null`. Quand une `dsfr-data-query` délègue son regroupement à cette source, le `select` émis est COMPOSÉ depuis l'`aggregate` de la query (colonnes d'agrégat + colonnes du `group-by`) : ce `select` ne l'écrase pas, sinon la colonne d'alias n'existerait pas dans la réponse et le chiffre affiché serait faux (#859). S'il définit une colonne par une expression aliasée (`year(date) as annee`) que le regroupement vise, la délégation est refusée — avertissement en console, regroupement calculé côté client. **Liste de noms de colonnes** (projection seule, #985) : `select="nom, Code sexe"`, espaces et accents admis — l'API ne rend que ces colonnes, soit dix fois moins d'octets sur un jeu large. Aucune colonne n'est ajoutée d'office : une colonne lue en aval (graphique, liste, facette, filtre client) doit y figurer, et un nom inconnu du jeu fait répondre l'API en erreur. Sans effet quand un `group-by` ou un `aggregate` est posé (sur la source ou délégué par une query), si l'API refuse la projection à côté d'un agrégateur. Une expression (fonction, alias, `*`) est ignorée avec un avertissement : toutes les colonnes sont chargées. |
 | `server-side` | `boolean` | `false` | Mode pagination serveur (datalist, tableaux). Ce qui est délégué ne change pas avec ce mode : une page porte les mêmes filtres, le même regroupement et les mêmes agrégats qu'un chargement complet — seule la façon dont les lignes arrivent change (#852). La source ne livre qu'UNE page : rien de ce qui se calcule côté client sur l'ensemble des lignes n'a de sens derrière elle. Une `dsfr-data-query` en aval dont le regroupement ou l'agrégat n'est pas délégué — part ou cumul, `explode`, agrégat sans `group-by`, fonction que l'adaptateur ne traduit pas, transformateur amont qui change les colonnes, source lue par d'autres composants, source déjà regroupée — passe en **erreur de configuration** au lieu d'émettre un chiffre partiel (#1242). Deux corrections : - retirer `server-side` : la source charge le jeu entier, dans la limite de `max-records` ; - si le jeu dépasse ce plafond, ou si une liste paginée lit la même source : donner à la requête sa propre source sans `server-side`, qui porte le regroupement délégable (`group-by`, `aggregate`) — le serveur regroupe alors le jeu entier, et la part ou le cumul se calcule en aval, sur les groupes. Une requête qui délègue réellement son regroupement, ou qui ne regroupe pas (filtre et tri d'un tableau paginé), n'est pas concernée. Les pages sont servies une à une et le jeu n'est jamais relu : seul le serveur peut tenir l'ordre d'une page à l'autre, faute de quoi un usager qui feuillette voit des lignes en double et n'en voit jamais d'autres. Chaque page est donc demandée sur un ordre total (#1274, #1233) : sur Opendatasoft, le tri de la liste (ou aucun) complété de toutes les colonnes triables du jeu, lues une fois dans ses métadonnées ; sur Tabular, le tri demandé complété de l'identifiant de ligne — sans tri, l'API suit déjà cet identifiant, rien n'est ajouté. Sur un très gros jeu sans filtre, ce tri allonge la réponse de la première page (mesuré sur 1,7 million de lignes : 5,5 s à froid, 0,7 s ensuite, contre 0,2 s sans tri) : un `order-by` sur une colonne unique ne coûte pas moins, un `where` qui réduit le jeu, si. Si l'API refuse la clé de départage, la page est servie comme avant et le volet Diagnostic le signale. |
 | `source-page` | `string` | `""` (vide) | Adresse de la page PUBLIQUE de ces données (#1222) : la page du jeu sur le portail du producteur, celle qu'un usager peut lire — pas l'adresse d'API. `source-page="https://data.economie.gouv.fr/explore/dataset/prix-carburants/"` : quand la source répond « introuvable » (404, 410), le bloc en erreur et le bandeau `dsfr-data-source-status` proposent le lien « Consulter la page de ces données ». Sans cet attribut, aucun lien : la bibliothèque ne déduit l'adresse ni de `base-url`, ni de `dataset-id`, ni de `resource`, et ne montre jamais l'adresse d'API ni celle du relais (`relay-url`). Sans effet sur les autres pannes (service indisponible, hors connexion, accès restreint…) et sur le chargement : l'attribut ne déclenche aucune requête. N'est admise qu'une adresse `http(s)` ou relative ; toute autre (`javascript:`, `data:`…) est ignorée, avec un avertissement en console. |
+| `stale-if-error` | `number` | `0` | Garder à l'écran le DERNIER RELEVÉ pendant une panne passagère (#1288) : durée, en secondes, pendant laquelle les derniers chiffres reçus restent affichables. Absent ou `0` (défaut) : une source en panne ne laisse aucun ancien chiffre à l'écran, chaque bloc dit la panne. `stale-if-error="3600"` : si la source échoue après avoir livré, les blocs branchés dessus (KPI, graphique, liste, fiches, podium, carte, tableau équivalent) gardent leurs chiffres, atténués, sous l'étiquette « Non actualisé » et la phrase « Chiffres relevés aujourd’hui à 14 h 32. » — l'heure est celle où la page a reçu ces chiffres. L'export CSV reste possible, daté dans son libellé et dans le nom du fichier. Passé la durée (comptée depuis le relevé), les blocs reviennent d'eux-mêmes au message de panne. C'est à l'intégrateur de le décider, jeu par jeu : un chiffre d'il y a une heure a un sens pour un recensement, pas pour un stock ou des places libres. La valeur EST la borne : il n'existe pas de relevé sans durée. Le relevé n'est jamais affiché, quelle que soit la valeur, quand : la cause n'est pas passagère (données introuvables 404 / 410, accès restreint 401 / 403, page mal réglée) ; l'appel en échec n'est pas celui qui a produit les chiffres (filtre, page, tri ou emprise changés) ; rien n'a encore été reçu. Les filtres (`dsfr-data-facets`, `dsfr-data-search`) restent désactivés pendant la panne. Mémoire : celle de la page. Une page OUVERTE pendant la panne n'a rien à montrer. `getData()` et `getDataCache` rendent toujours vide pendant la panne : seuls les afficheurs de la bibliothèque lisent le relevé, par `getLastKnownData()`. |
 | `transform` | `string` | `""` (vide) | Chemin JSONPath vers le tableau de données dans la réponse. Ex: `"results"`, `"data.items"`. |
 | `url` | `string` | `""` (vide) | URL de l'API a interroger (mode URL brute). Vide en mode adapter ou en mode `data` inline. |
 | `use-proxy` | `boolean` | `false` | Force le passage par le proxy CORS générique (pour les APIs externes sans CORS). Ne vaut qu'en mode URL (`url="…"`) : avec un `api-type`, l'attribut est sans effet sur un hôte que le proxy ne relaie pas par un endpoint dédié (un portail Opendatasoft, par exemple) — la requête part en direct, et la source le signale une fois en console. Sans effet sur une requête qui part au relais (`relay-url`) : le relais prend toutes les requêtes GET vers une autre origine, `use-proxy` ne garde que ce que le relais ne porte pas (requêtes POST, cible hors `https`). |

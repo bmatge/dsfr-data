@@ -199,6 +199,7 @@ function renderMethods(decl: CemDeclaration): string {
         'onSourceData',
         'onSourceError',
         'onSourceReset',
+        'onSourceStale',
         'onTransformerData',
       ].includes(m.name)
   );

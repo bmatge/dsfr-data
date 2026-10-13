@@ -631,9 +631,9 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   `dispatchDataLoaded` (nouvelle date) ; purgé par `clearDataCache` (étape retirée du DOM) et par
   `dispatchDataIdle` (`require-where` qui repasse en attente n'est pas une panne). La `meta`
   (`__dsfrDataMeta`) n'est pas déplacée : la négociation d'une query la relit pendant la panne.
-  **Aucun afficheur ne rend ces lignes** : l'affichage « dernières données connues, datées »
-  (proposition 3 de #1203) est la proposition B de #1288, encore à faire. La proposition A — donner
-  un rendu de panne aux afficheurs qui n'en avaient pas — est le point suivant.
+  **Par défaut, aucun afficheur ne rend ces lignes** : la proposition A de #1288 — donner un rendu
+  de panne aux afficheurs qui n'en avaient pas — est le point suivant ; l'affichage « dernier
+  relevé, daté », sur demande de l'intégrateur (proposition B), celui d'après.
 - **Dire la panne partout** (#1288, proposition A) — sortir les lignes du cache ne suffisait pas : un
   afficheur qui garde SA copie continuait de la montrer. Quatre familles, une règle (aucune ligne du
   dernier chargement à l'écran sans être marquée, donc aucune) :
@@ -659,6 +659,51 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   Annonce : le tableau équivalent (s'il accompagne une cible) et les filtres ne sont jamais des
   régions live ; la carte l'est si aucun bandeau ne couvre la source ; la page refusée est dite par
   la région live que la liste avait déjà.
+- **Dernier relevé, sur demande** (#1288, proposition B) — `stale-if-error="<secondes>"` sur la
+  source : pendant une panne PASSAGÈRE de la MÊME requête, les afficheurs gardent leurs derniers
+  chiffres, marqués « Non actualisé » et datés de leur relevé, jusqu'à la durée donnée. Sans
+  l'attribut, le rendu est celui de A, à l'identique. ADR-158 n'est pas touchée : `getDataCache` et
+  `getData()` rendent toujours vide, seuls les afficheurs lisent `getLastKnownData`. Cinq pièces :
+  - **La consigne et l'empreinte voyagent par le registre** (`data-bridge.ts`). La source joint à son
+    erreur `staleIfError` (`normalizeStaleIfError` : une durée finie et > 0, sinon rien) et
+    `requestKey`, l'empreinte de l'appel — `_requestKey()`, lue AU DÉPART du fetch, qui ajoute à
+    `_cacheFingerprint()` les regroupements délégués par commande. `dispatchDataLoaded` range
+    l'empreinte des lignes (`__dsfrDataRequestKeys`) ; `dispatchDataError` les compare et écrit
+    `sameRequest` dans l'état d'erreur ET dans l'entrée périmée (qui survit au nouvel essai).
+    `relayedFrom` relaie les deux le long de la chaîne : un transformateur ne juge rien lui-même.
+    Une ré-émission des mêmes lignes passe `{ reemit: true }` : ni date ni empreinte ne changent.
+  - **Une règle, un seul endroit** — `utils/stale-reading.ts`, fonctions pures :
+    `judgeStaleReading(known, now)` rend un `StaleReading` (`data`, `loadedAt`, `cause`, `originId`,
+    `expiresAt`) ou la raison du refus (`sans-consigne`, `cause-durable` — exactement les causes où
+    `retry` est faux —, `autre-requete`, `echu`, `rien-recu`). Le même fichier écrit tous les textes
+    (`formatReadingMoment`, `readingSentence`, `readingFilename`…) : l'horloge est un paramètre.
+  - **Le mixin lit et tient l'échéance** — `SourceSubscriberMixin._sourceStale`, jugé AVANT
+    `onSourceError` à chaque échec, relu à l'abonnement (bloc monté pendant la panne) et à
+    `dsfr-data-loading`, levé par un chargement réussi ou une attente. Une minuterie fait basculer
+    le bloc seul au message de panne (`expiresAt`), et le relit à minuit (« aujourd'hui » devient
+    une date). Hook `onSourceStale(reading | null)` : un hôte qui garde sa copie des lignes la
+    reprend du relevé, puis la lâche à l'échéance.
+  - **Un gabarit commun** — `renderStaleNotice` (`status-templates.ts`) : étiquette, phrase,
+    `<time datetime>`, « Réessayer » adressé à `reading.originId` (pendant l'essai le registre
+    d'erreur est vide) qui dit « Nouvel essai en cours… », « Détails techniques ». Couvert par un
+    bandeau : ni bouton, ni détail, ni `role`. Le KPI, la carte et le tableau équivalent composent
+    leur propre forme avec les mêmes pièces (`resolveStaleNotice`, `renderReadingTime`,
+    `renderStaleBadge`). Le bandeau lit la même règle sur la source d'ORIGINE et change de titre.
+  - **Un calcul refusé pendant la panne retire le relevé** — `markStaleSuperseded` : un attribut
+    d'un transformateur qui change (`willUpdate`), ou une émission refusée hors de l'arrivée d'une
+    entrée (`_deliveringInput`), veut dire qu'on lui demande autre chose ; son dernier résultat ne
+    s'affiche plus comme « relevé », et l'aval est prévenu (erreur relayée avec `superseded`, ou
+    chargement si un essai est en vol). Le rechargement de l'AUTRE entrée d'une jointure ne marque
+    rien.
+  Par afficheur : le KPI garde son chiffre (ni seuil, ni tendance, ni lignes complémentaires) ; le
+  graphique rend la mention puis `_renderChart()`, et pose `dsfr-data-chart--stale` sur l'hôte ; la
+  liste et les fiches reprennent leurs lignes (`PaginationController.onStale` : la page n'est pas
+  ramenée à 1) et neutralisent pagination et tri SERVEUR ; le tableau équivalent lit
+  `_sourceStale.data`, rend sa légende visible et date le nom du fichier ; la couche de carte garde
+  ses formes (`getSourceStale()`, `getSourceFailure()` rend alors `null`), la carte pose
+  `dsfr-data-map--stale` et une ligne d'état datée. Mesuré par `e2e/dernier-releve.spec.ts`
+  (horloge `page.clock`, contrastes sur les pixels peints, clair et sombre), gardé par sept
+  contrôles de donnée (`releve-*`, `export-date`).
 - **Les lecteurs, un par un** (#1272) — `SourceSubscriberMixin` : rien au cache, erreur relue au
   registre ; ni erreur ni lignes mais `isDataStale` → un nouvel essai est en vol, le bloc monté à cet
   instant est en chargement. `TransformerMixin` : au branchement, l'erreur de l'amont est relue au
@@ -698,7 +743,8 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   bouton, ni lien, ni détail. Les autres afficheurs gardent le gabarit complet. La hauteur est mesurée
   par `e2e/kpi-source-en-panne.spec.ts` (140 px, bureau et 375 px). Les autres blocs en panne
   (tableau équivalent, carte, pagination serveur, filtres) sont mesurés par
-  `e2e/panne-partout.spec.ts` (#1288), dans le même job `e2e-layout`.
+  `e2e/panne-partout.spec.ts` (#1288), dans le même job `e2e-layout` ; la tuile qui montre un
+  relevé (`stale-if-error`) l'est par `e2e/dernier-releve.spec.ts`, aux mêmes 140 px.
 - **Un bloc monté APRÈS la panne** (#1222) — `SourceSubscriberMixin` relit le registre d'erreur à
   l'abonnement, comme il relit `isDataIdle`. Depuis #1272 le cache ne porte plus les lignes d'une
   étape en panne : sans ce relevé, le bloc tardif ne montrerait plus l'ancien chiffre, mais resterait
@@ -1552,6 +1598,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 - **DSFR Chart pose deux attributs par `innerHTML`, et un nettoyeur maison n'est sûr que s'il lit une balise comme le navigateur** (#1289) — `packages/core/src/utils/chart-databox.ts`, `packages/shared/src/dashboard/sanitize-template.ts`. Le `<data-box>` rend sa fenêtre (`modal-content`) par `innerHTML` **dès l'affichage du cadre**, téléportée dans `body` : une charge s'y exécutait sans clic. Les six types à canvas font de même de l'unité (`unit-tooltip`, `unit-tooltip-bar` / `-line`) dans leur infobulle, au survol. Tout le reste — titre, source, date, tendance, infobulle du cadre, libellés d'action, noms de séries, libellés lus dans les données — est rendu comme du texte (`e2e/chart-cadre-html.spec.ts` le mesure, attribut par attribut, et rougit si une montée de version change un puits). `dsfr-data-chart` nettoie donc ces deux valeurs par `nettoyerGabarit` avant de les relayer (`_htmlRelaye`) ; **tout nouvel attribut relayé à DSFR Chart se sonde d'abord** (une charge `<img onerror>`, dans un navigateur). Trois pièges non évidents : (a) le nettoyeur est un analyseur maison parce que l'export du Studio tourne sous Node — onze contournements mesurés dans Chromium tenaient à un écart de lecture (élément à texte brut qui avale sa fermeture, nom d'attribut en `=`, `&#106avascript:` sans point-virgule, animation SVG d'un `href`) ou à un **recollement** après retrait (`<<script></script>img onerror=…>`) : la sortie est relue jusqu'au point fixe, et happy-dom ne voit RIEN de tout cela (il n'exécute pas `onerror` et ne lit pas `<textarea>` comme Chromium) ; (b) le serveur de dev sert `@dsfr-data/shared` depuis `packages/shared/dist` : une modification du nettoyeur n'atteint l'e2e qu'après `npm run build:shared` — une preuve de mutation faite sans rebuild passe au vert à tort ; (c) `actions` passe par `JSON.parse` puis `libelle.normalize()` dans DSFR Chart : toute valeur qui n'est pas un tableau de chaînes y lève et **emporte le cadre entier** — `parseDataboxActions` ne relaie que les entrées valides, re-sérialisées. Le menu, l'infobulle et la fenêtre du cadre sont des composants du DSFR : sans `dsfr.module.min.js` ils ne s'ouvrent pas (critère : `typeof window.dsfr === 'function'`, vérifié après `load` + délai, jamais à chaud — un module différé s'exécute après un composant chargé en UMD).
 - **Le tri du pipeline d'une query passe AVANT ses colonnes de fenêtre** (#1244) — `dsfr-data-query.ts` (`_processClientSide` : 3 tri, 3 bis fenêtres, 3 ter tri rejoué ; `_delegateOrderBy`, `_orderByReadsWindowColumn`). Un cumul se calcule après le tri, donc une part, un cumul ou un écart n'existent pas encore quand `order-by` est appliqué : un tri qui les nomme ne trouvait rien à trier, et côté négociation il partait au serveur, qui ne les connaît pas (`order_by=n__share_percent`, refusé par Tabular). Deux règles en découlent : une clé de tri qui nomme une colonne de fenêtre interdit la délégation du tri ENTIER, et le tri est rejoué après les fenêtres, avant `limit`. Les clés qui portent sur des colonnes déjà là gardent seules le premier passage — ce sont elles qui ordonnent un cumul. Toute nouvelle colonne produite par la query après le tri doit entrer dans `_windowColumns()`. Garde : `tests/query-order-by-client-column.test.ts` (cinq adaptateurs) et les contrôles `delegation/tri-sur-*`.
 - **Un afficheur qui garde sa copie des lignes doit la lâcher à l'erreur** (#1288) — `packages/core/src/utils/source-subscriber.ts`, et tout hôte de `SourceSubscriberMixin`. Le mixin pose `_sourceError` mais **ne vide pas `_sourceData`**, et ne purge l'état dérivé de l'hôte (`onSourceReset`) qu'au réabonnement et au retour en attente : un composant dont le `render()` ne teste pas `_sourceError` AVANT de lire ses lignes continue de les montrer, sous des voisins qui disent « indisponible ». C'est ce qui est arrivé au tableau équivalent, à la couche de carte et à leurs exports. Tout nouvel afficheur implémente donc `onSourceError` (ou teste `_sourceError` en tête de rendu) et s'ajoute à `e2e/panne-partout.spec.ts`. Trois pièges à distance : (a) `_sourceError` **survit à `dsfr-data-loading`** (il n'est levé que par un chargement réussi ou une attente), mais le registre d'erreur, lui, est effacé — un bloc qui garde son rendu de panne pendant l'essai lit `resolveSourceErrorKept`, pas `resolveSourceError`, sinon `error-message` disparaît et la cause est reclassée ; (b) après un changement de page refusé, **la source reste sur la page demandée** : lui renvoyer la même page est une commande dédupliquée (#276) qui ne produit rien — `PaginationController.changePage` envoie alors `requestSourceRetry` ; (c) un contrôle `aria-disabled` **n'est pas désactivé pour le navigateur** : `dsfr-data-facets` arrête les gestes en phase de capture (`_blockUnavailableGesture`), et un contrôle ajouté hors d'un `.dsfr-data-facets__group` y échapperait. Gardes : `tests/panne-partout.test.ts`, `e2e/panne-partout.spec.ts`, contrôles `tableau-equivalent-source-en-panne`, `carte-couche-source-en-panne`, `liste-page-refusee`, `filtres-source-en-panne`.
+- **Un afficheur qui montre un relevé teste `_sourceStale` AVANT tout autre état** (#1288, `stale-if-error`) — `packages/core/src/utils/source-subscriber.ts`, `stale-reading.ts`, et tout hôte du mixin. Pendant un nouvel essai `_sourceLoading` est vrai ET `_sourceStale` est posé : un `render()` qui teste le chargement d'abord fait clignoter la page à chaque `refresh` raté. Six pièges à distance : (a) **l'empreinte se lit au DÉPART du fetch** (`_requestKey()`), pas à son retour — une commande arrivée pendant le vol rebaptiserait la réponse, et le relevé d'« Occitanie » s'afficherait sous un filtre « Bretagne » ; tout nouveau chemin de chargement de la source passe `requestKey` à `dispatchDataLoaded` ET à `_errorOptions`, sinon `sameRequest` vaut faux et le relevé n'apparaît jamais ; (b) **une ré-émission n'est pas un chargement** : `dispatchDataLoaded(id, data)` sans `{ reemit: true }` date les lignes de maintenant, et l'heure affichée pendant la panne suivante serait celle de la dernière commande sans effet ; (c) **jamais de `filter` CSS sur un ANCÊTRE du tracé** : l'infobulle de DSFR Chart (`.tooltip`) et la fenêtre du cadre officiel sont en `position: fixed`, un filtre sur le conteneur en fait leur bloc englobant — le gris se pose sur `canvas`, `svg` et `.chart_legend` ; (d) **jamais `border-style` tout court sur la tuile de KPI** : ses côtés sans liseré ont une largeur (`medium`) que seul leur style `none` retient, la tuile prenait 6 px et quittait ses 140 px ; (e) **un bouton dans une enveloppe en ligne crée une boîte de ligne** (+9 px sur la tuile) : la classe de placement va sur le bouton lui-même (`renderStaleRetryButton(…, extraClass)`) ; (f) **la ligne d'état de la carte est sœur du conteneur Leaflet**, donc positionnée dans l'hôte : une légende sous la carte l'allonge — `_placeLayerStatus()` rattrape l'écart, et se rejoue au `ResizeObserver`. Côté contrôles de donnée : faire échouer LE MÊME appel demande `avecPanne()` (`tests/verif-donnees/fixtures.ts`) — viser un jeu retiré change d'adresse, donc de requête, et le relevé est refusé pour cette raison-là, pas pour celle qu'on croit tester.
 - **Les lignes d'une étape en panne ne sont plus dans `__dsfrDataCache`** (#1272) — `packages/core/src/utils/data-bridge.ts` (`retireDataCache`, `getLastKnownData`, `isDataStale`), `transformer-mixin.ts` (`_unusableInput`, `_refuseStaleEmission`), `dsfr-data-source.ts` (`_hasCurrentData`). `dispatchDataError` DÉPLACE les lignes vers `__dsfrDataStale` (datées, cause du barème) au lieu de les laisser au cache : tout lecteur du chemin par défaut reçoit `undefined`, y compris un bundle d'une version antérieure chargé sur la même page et le collecteur de diagnostic. Trois pièges à distance : (a) **un composant qui garde SA copie des lignes doit se taire pendant la panne** — c'est `emitTransformedData` qui s'y refuse pour tous les transformateurs, et un hôte qui appellerait `dispatchDataLoaded` lui-même effacerait l'erreur de l'étape (l'aval repasse de « indisponible » à l'ancien chiffre) ; (b) **`dispatchDataLoading` efface l'erreur mais pas le marquage** : pendant un nouvel essai, « pas d'erreur » ne veut pas dire « lignes à jour » — lire `isDataStale` ; (c) **`getData()` d'une source ou d'un transformateur rend vide quand `isStale()`**, et la ré-émission d'une commande dédupliquée (#276) est suspendue : un test qui pose `_data` à la main sur une source dont un vrai fetch a échoué en arrière-plan ne verra plus de ré-émission. Tout nouvel adaptateur qui teste `!response.ok` passe par `httpError` / `releaseBody` (`utils/http-error.ts`) : un corps d'erreur non lu laisse la requête ouverte, et `networkidle` n'arrive jamais. Gardé par `tests/cache-perime-date.test.ts`, `tests/debug/lignes-perimees.test.ts` et trois contrôles de `tests/verif-donnees/affichages.ts`.
 
 ---

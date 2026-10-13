@@ -294,6 +294,17 @@
             },
             {
               "kind": "method",
+              "name": "_stale",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "StaleNoticeView | null"
+                }
+              },
+              "description": "Ce que la section dit du relevé qu'elle montre (#1288, `stale-if-error`),\nou `null`. Les lignes viennent alors du relevé lui-même, qui les rend avec\nleur date — pas de `_sourceData`, qu'un bloc monté pendant la panne n'a\njamais reçu."
+            },
+            {
+              "kind": "method",
               "name": "_currentRows",
               "privacy": "private",
               "return": {
@@ -301,7 +312,7 @@
                   "text": "unknown"
                 }
               },
-              "description": "Les lignes à rendre et à exporter : aucune pendant une panne (#1288)."
+              "description": "Les lignes à rendre et à exporter : aucune pendant une panne (#1288),\nsauf celles du relevé quand l'intégrateur l'a demandé."
             },
             {
               "kind": "method",
@@ -332,6 +343,13 @@
               "parameters": [
                 {
                   "name": "csv",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "filename",
+                  "default": "this.filename",
                   "type": {
                     "text": "string"
                   }
@@ -621,6 +639,13 @@
                   "default": "null",
                   "type": {
                     "text": "SourceErrorView | null"
+                  }
+                },
+                {
+                  "name": "stale",
+                  "default": "null",
+                  "type": {
+                    "text": "StaleNoticeView | null"
                   }
                 }
               ]
@@ -1505,6 +1530,35 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "onSourceStale",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "reading",
+                  "type": {
+                    "text": "StaleReading | null"
+                  }
+                }
+              ],
+              "description": "Dernier relevé (#1288). Le graphique garde `_data` à l'erreur — c'est\n`render()` qui refuse de le tracer — : seul un bloc monté pendant la panne\na quelque chose à reprendre du relevé. À l'échéance il n'y a rien à\nlâcher, `render()` revient au message de panne."
+            },
+            {
+              "kind": "method",
+              "name": "_staleNotice",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "StaleNoticeView | null"
+                }
+              },
+              "description": "Ce que le graphique dit du relevé qu'il trace (#1288), ou `null`."
             },
             {
               "kind": "method",
@@ -5268,6 +5322,46 @@
             },
             {
               "kind": "method",
+              "name": "onSourceStale",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "reading",
+                  "type": {
+                    "text": "StaleReading | null"
+                  }
+                }
+              ],
+              "description": "Dernier relevé (#1288, `stale-if-error`) — même contrat que\ndsfr-data-list : les éléments lâchés par `onSourceError` sont repris du\nrelevé, puis lâchés de nouveau quand il échoit."
+            },
+            {
+              "kind": "method",
+              "name": "_staleNotice",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "StaleNoticeView | null"
+                }
+              },
+              "description": "Ce que les fiches disent du relevé qu'elles montrent (#1288), ou `null`."
+            },
+            {
+              "kind": "method",
+              "name": "_serverLocked",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Relevé affiché en pagination serveur (#1288) : une autre page est une autre requête."
+            },
+            {
+              "kind": "method",
               "name": "selectionWhereKeyPrefix",
               "privacy": "protected",
               "return": {
@@ -6909,6 +7003,13 @@
                   "optional": true,
                   "type": {
                     "text": "string"
+                  }
+                },
+                {
+                  "name": "superseded",
+                  "optional": true,
+                  "type": {
+                    "text": "boolean"
                   }
                 }
               ],
@@ -9441,6 +9542,54 @@
             },
             {
               "kind": "method",
+              "name": "onSourceStale",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "reading",
+                  "type": {
+                    "text": "StaleReading | null"
+                  }
+                }
+              ],
+              "description": "Bloc monté pendant la panne (#1288) : il n'a jamais reçu de lignes, il\nles prend du relevé. Sinon `_sourceData` porte déjà ces mêmes lignes — le\nmixin ne le vide pas à l'erreur, et rien ne le lit hors relevé."
+            },
+            {
+              "kind": "method",
+              "name": "_staleNotice",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "StaleNoticeView | null"
+                }
+              },
+              "description": "Ce que la tuile dit du relevé qu'elle montre (#1288), ou `null`."
+            },
+            {
+              "kind": "method",
+              "name": "_renderStaleLine",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "TemplateResult"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "notice",
+                  "type": {
+                    "text": "StaleNoticeView"
+                  }
+                }
+              ],
+              "description": "Ligne du relevé (#1288), sous le libellé : « Relevé à 14 h 32 · non\nactualisé ». Même place et même corps que la phrase de panne de la forme\ncompacte : la tuile garde ses 140 px. Sans bandeau, « Détails » replié."
+            },
+            {
+              "kind": "method",
               "name": "_unavailablePhrase",
               "privacy": "private",
               "return": {
@@ -10278,6 +10427,46 @@
             },
             {
               "kind": "method",
+              "name": "onSourceStale",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "reading",
+                  "type": {
+                    "text": "StaleReading | null"
+                  }
+                }
+              ],
+              "description": "Dernier relevé (#1288, `stale-if-error`). `onSourceError` vient de lâcher\nles lignes : la liste les reprend du relevé, qui les rend avec leur date,\net les lâche de nouveau quand il échoit. Recherche, filtres de colonne,\ntri et pagination LOCAUX restent possibles — ils ne posent aucune requête."
+            },
+            {
+              "kind": "method",
+              "name": "_staleNotice",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "StaleNoticeView | null"
+                }
+              },
+              "description": "Ce que la liste dit du relevé qu'elle montre (#1288), ou `null`. Jamais\nsur une page refusée : les lignes gardées sont alors celles de la page\nprécédente, dites pour ce qu'elles sont par `renderPageLoadError`."
+            },
+            {
+              "kind": "method",
+              "name": "_serverLocked",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Relevé affiché en pagination serveur (#1288) : page et tri serveur neutralisés."
+            },
+            {
+              "kind": "method",
               "name": "selectionWhereKeyPrefix",
               "privacy": "protected",
               "return": {
@@ -10583,6 +10772,36 @@
                 }
               },
               "description": "La liste est-elle en panne, sans aucune ligne à montrer (#1288) ? Faux\nquand un changement de page a seulement été refusé : la page affichée est\ndite pour ce qu'elle est, et s'exporte."
+            },
+            {
+              "kind": "method",
+              "name": "_exportSuffix",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Complément d'un bouton d'export pendant un relevé (#1288) : « (chiffres\nrelevés à 14 h 32) ». Le fichier, lui, porte la date dans son nom ; son\ncontenu reste brut."
+            },
+            {
+              "kind": "method",
+              "name": "_exportFilename",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "filename",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Nom du fichier exporté : daté du relevé pendant la panne (#1288)."
             },
             {
               "kind": "method",
@@ -12389,13 +12608,52 @@
             },
             {
               "kind": "method",
+              "name": "_dropRows",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Lâche les lignes et ce qu'elles avaient tracé (panne sans relevé, relevé échu)."
+            },
+            {
+              "kind": "method",
+              "name": "onSourceStale",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "reading",
+                  "type": {
+                    "text": "StaleReading | null"
+                  }
+                }
+              ],
+              "description": "Dernier relevé (#1288). Une couche montée pendant la panne (ou vidée par\nun échec précédent, sans relevé) reprend les lignes du relevé ; à\nl'échéance, elle les lâche comme pour toute panne. La carte hôte est\nprévenue par `updated()`, qui suit ce hook."
+            },
+            {
+              "kind": "method",
               "name": "getSourceFailure",
               "return": {
                 "type": {
                   "text": "{ error: Error; sourceId: string } | null"
                 }
               },
-              "description": "Panne de la source de cette couche (#1288), ou `null` : vrai de l'échec au\nprochain chargement réussi, nouvel essai compris. Lu par la carte hôte,\nqui pose le message."
+              "description": "Panne de la source de cette couche (#1288), ou `null` : vrai de l'échec au\nprochain chargement réussi, nouvel essai compris. Lu par la carte hôte,\nqui pose le message. `null` aussi quand la couche montre son dernier\nrelevé : elle trace, et se dit par `getSourceStale`."
+            },
+            {
+              "kind": "method",
+              "name": "getSourceStale",
+              "return": {
+                "type": {
+                  "text": "{\n    reading: StaleReading;\n    error: Error | null;\n    sourceId: string;\n    loading: boolean;\n    subject: ReadingSubject;\n  } | null"
+                }
+              },
+              "description": "Le relevé que cette couche trace (#1288), ou `null`. Lu par la carte\nhôte, qui atténue ses formes et pose la ligne d'état datée."
             },
             {
               "kind": "field",
@@ -12405,7 +12663,25 @@
               },
               "privacy": "private",
               "default": "null",
-              "description": "Dernière panne signalée à la carte : elle n'est prévenue que d'un changement."
+              "description": "Dernier état signalé à la carte : elle n'est prévenue que d'un changement."
+            },
+            {
+              "kind": "field",
+              "name": "_staleNotified",
+              "type": {
+                "text": "StaleReading | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_staleLoadingNotified",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
             },
             {
               "kind": "method",
@@ -12416,7 +12692,7 @@
                   "text": "void"
                 }
               },
-              "description": "Signale à la carte hôte que la panne de cette couche a changé (#1288)."
+              "description": "Signale à la carte hôte que la panne de cette couche a changé (#1288) :\nerreur, relevé affiché ou échu, nouvel essai en vol sur un relevé."
             },
             {
               "kind": "method",
@@ -13170,6 +13446,34 @@
                 }
               ],
               "description": "A11y bindings for Leaflet popups (both companion popup mode and legacy)"
+            },
+            {
+              "kind": "field",
+              "name": "_openPopup",
+              "type": {
+                "text": "LeafletPopupEvent['popup'] | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Bulle de cette couche actuellement ouverte : sa note suit l'état du relevé."
+            },
+            {
+              "kind": "method",
+              "name": "_markPopupStale",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "popup",
+                  "type": {
+                    "text": "LeafletPopupEvent['popup']"
+                  }
+                }
+              ]
             },
             {
               "kind": "method",
@@ -14142,9 +14446,35 @@
                   "type": {
                     "text": "Record<string, unknown>"
                   }
+                },
+                {
+                  "name": "staleAt",
+                  "optional": true,
+                  "type": {
+                    "text": "number"
+                  }
                 }
               ],
-              "description": "Show content for a record. Called by the layer on feature click."
+              "description": "Show content for a record. Called by the layer on feature click.\n\n`staleAt` (#1288) : date du relevé quand la couche montre des points NON\nACTUALISÉS (`stale-if-error` de sa source) — le volet ou la modale\ns'ouvrent alors sur la note « Non actualisé · Relevé aujourd’hui à\n14 h 32. ». Un instant, pas du HTML : la note est écrite ici."
+            },
+            {
+              "kind": "method",
+              "name": "_staleNote",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "staleAt",
+                  "type": {
+                    "text": "number | undefined"
+                  }
+                }
+              ],
+              "description": "Note d'un relevé, en tête du corps (#1288). SEULE autre origine de ce qui\nentre dans les `innerHTML` de `_showPanel` et `_showModal` : une étiquette\nconstante et une date formatée par la bibliothèque — aucune donnée."
             },
             {
               "kind": "method",
@@ -14165,6 +14495,13 @@
                   "name": "fields",
                   "type": {
                     "text": "string[]"
+                  }
+                },
+                {
+                  "name": "staleAt",
+                  "optional": true,
+                  "type": {
+                    "text": "number"
                   }
                 }
               ],
@@ -15624,6 +15961,55 @@
             },
             {
               "kind": "method",
+              "name": "_staleLayers",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "StaleLayer[]"
+                }
+              },
+              "description": "Couches directes qui tracent leur dernier relevé (#1288). Jamais dans un\nencart pour la ligne d'état : la carte hôte la porte."
+            },
+            {
+              "kind": "method",
+              "name": "_staleHead",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "stale",
+                  "type": {
+                    "text": "StaleLayer"
+                  }
+                }
+              ],
+              "description": "« Points relevés » sur une carte à une couche ; « Couche « Bornes de\nrecharge » : points relevés » dès qu'il y en a plusieurs — toute la carte\nest atténuée, la ligne dit LAQUELLE n'est pas à jour."
+            },
+            {
+              "kind": "method",
+              "name": "_staleDescription",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "stale",
+                  "type": {
+                    "text": "StaleLayer"
+                  }
+                }
+              ],
+              "description": "La même phrase, pour la description lue : la date AVEC « non actualisés »."
+            },
+            {
+              "kind": "method",
               "name": "_failedLayers",
               "privacy": "private",
               "return": {
@@ -15692,6 +16078,17 @@
                 }
               },
               "description": "Pose, met à jour ou retire le rendu de panne (#1288).\n\n- plus aucune couche ne trace : le gabarit commun (`renderSourceError`),\n  centré SUR le fond comme le message d'attente — le fond reste\n  manipulable autour, le bloc lui-même garde ses clics (« Réessayer »,\n  « Détails techniques ») sans les passer à Leaflet ;\n- une autre couche trace encore : une ligne par couche en panne, en bas\n  de carte, mise à jour EN PLACE (une région live recréée n'est pas\n  annoncée de façon fiable).\n\nRien n'est redessiné pendant un nouvel essai : le message reste tel quel\njusqu'au chargement réussi, qui le retire."
+            },
+            {
+              "kind": "method",
+              "name": "_placeLayerStatus",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "description": "Place la ligne d'état en bas de la CARTE (#1288). Elle est sœur du\nconteneur Leaflet, donc positionnée dans l'hôte : une légende posée sous\nla carte allonge l'hôte, et la ligne se retrouvait sur la légende, hors de\nla carte. Elle reste au-dessus des bandeaux « N affichés sur M » des\ncouches qui tracent. Rejoué quand l'hôte change de taille."
             },
             {
               "kind": "method",
@@ -17821,6 +18218,35 @@
                   }
                 }
               ]
+            },
+            {
+              "kind": "method",
+              "name": "onSourceStale",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "reading",
+                  "type": {
+                    "text": "StaleReading | null"
+                  }
+                }
+              ],
+              "description": "Dernier relevé (#1288). Le podium garde `_data` à l'erreur — c'est\n`render()` qui refuse de le montrer — : seul un bloc monté pendant la\npanne a quelque chose à reprendre du relevé."
+            },
+            {
+              "kind": "method",
+              "name": "_staleNotice",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "StaleNoticeView | null"
+                }
+              },
+              "description": "Ce que le podium dit du relevé qu'il montre (#1288), ou `null`."
             },
             {
               "kind": "field",
@@ -20372,6 +20798,24 @@
             },
             {
               "kind": "method",
+              "name": "onSourceStale",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "reading",
+                  "type": {
+                    "text": "StaleReading | null"
+                  }
+                }
+              ],
+              "description": "Dernier relevé (#1288). Les lignes du répéteur restent en place à\nl'erreur : seul un répéteur monté pendant la panne a quelque chose à\nreprendre du relevé."
+            },
+            {
+              "kind": "method",
               "name": "_origin",
               "privacy": "private",
               "return": {
@@ -21677,7 +22121,7 @@
       "declarations": [
         {
           "kind": "class",
-          "description": "<dsfr-data-source-status> - Dire une panne de données UNE fois, en tête de page\n\nSans lui, chaque bloc branché sur une source en panne dit la panne à sa place et porte son\npropre « Réessayer » : huit blocs, huit messages. Avec lui, la panne est dite une fois par\nsource, ici, avec le seul bouton « Réessayer » ; les blocs concernés gardent leur place et un\nmessage court, sans bouton ni annonce répétée. Les blocs d'une AUTRE source ne sont pas touchés.\n\nComposant d'ÉTAT, à poser là où le message doit se lire (en général en haut du contenu). Il\nn'affiche rien tant qu'aucune source n'est en panne.\n\n- `source=\"id\"` : ne suit que cette source (et les étapes branchées dessus) ;\n- sans `source` : suit toutes les sources de la page, un message par source en panne.\n\nLa phrase lue par l'usager vient du barème de la bibliothèque (service indisponible, hors\nconnexion, service très sollicité, données introuvables, accès restreint, page mal réglée) ou de\nl'attribut `error-message` de la source. Le code HTTP, l'adresse appelée et l'heure restent\nrepliés dans « Détails techniques ».\n\n« Réessayer » relance la source à l'identique. Il n'apparaît que lorsque réessayer a un sens :\npas sur des données introuvables (404), un accès restreint (401, 403) ni une page mal réglée.\nHors connexion, la source se relance d'elle-même au retour du réseau ; sur un service très\nsollicité (429), jamais automatiquement.\n\nSur des données introuvables (404, 410), le bandeau propose le lien « Consulter la page de ces\ndonnées » quand la source porte `source-page` ; sans cet attribut, aucun lien.\n\nUn `dsfr-data-kpi` en panne garde une forme compacte : « — » à la place du chiffre, son libellé,\net une phrase courte. Avec le bandeau, la tuile ne porte ni bouton, ni lien, ni détail technique.\n\nAccessibilité : le bandeau est une région `role=\"status\"` (annonce polie, non interruptive),\nprésente dès le montage pour que la panne y soit annoncée quand elle survient. Les blocs\ncouverts cessent d'être des régions live : la panne n'est annoncée qu'une fois. Le bouton fait\nau moins 44 px de haut et reste en place, donc garde le focus, pendant le nouvel essai.",
+          "description": "<dsfr-data-source-status> - Dire une panne de données UNE fois, en tête de page\n\nSans lui, chaque bloc branché sur une source en panne dit la panne à sa place et porte son\npropre « Réessayer » : huit blocs, huit messages. Avec lui, la panne est dite une fois par\nsource, ici, avec le seul bouton « Réessayer » ; les blocs concernés gardent leur place et un\nmessage court, sans bouton ni annonce répétée. Les blocs d'une AUTRE source ne sont pas touchés.\n\nComposant d'ÉTAT, à poser là où le message doit se lire (en général en haut du contenu). Il\nn'affiche rien tant qu'aucune source n'est en panne.\n\n- `source=\"id\"` : ne suit que cette source (et les étapes branchées dessus) ;\n- sans `source` : suit toutes les sources de la page, un message par source en panne.\n\nLa phrase lue par l'usager vient du barème de la bibliothèque (service indisponible, hors\nconnexion, service très sollicité, données introuvables, accès restreint, page mal réglée) ou de\nl'attribut `error-message` de la source. Le code HTTP, l'adresse appelée et l'heure restent\nrepliés dans « Détails techniques ».\n\n« Réessayer » relance la source à l'identique. Il n'apparaît que lorsque réessayer a un sens :\npas sur des données introuvables (404), un accès restreint (401, 403) ni une page mal réglée.\nHors connexion, la source se relance d'elle-même au retour du réseau ; sur un service très\nsollicité (429), jamais automatiquement.\n\nSur des données introuvables (404, 410), le bandeau propose le lien « Consulter la page de ces\ndonnées » quand la source porte `source-page` ; sans cet attribut, aucun lien.\n\nQuand la source porte `stale-if-error` et que la panne est passagère, les blocs gardent leur\ndernier relevé, daté : le bandeau dit alors « Une partie des chiffres de cette page n'a pas pu\nêtre actualisée », et renvoie à l'heure écrite sur chaque bloc. Passé la durée donnée, il\nreprend de lui-même son texte ordinaire.\n\nUn `dsfr-data-kpi` en panne garde une forme compacte : « — » à la place du chiffre, son libellé,\net une phrase courte. Avec le bandeau, la tuile ne porte ni bouton, ni lien, ni détail technique.\n\nAccessibilité : le bandeau est une région `role=\"status\"` (annonce polie, non interruptive),\nprésente dès le montage pour que la panne y soit annoncée quand elle survient. Les blocs\ncouverts cessent d'être des régions live : la panne n'est annoncée qu'une fois. Le bouton fait\nau moins 44 px de haut et reste en place, donc garde le focus, pendant le nouvel essai.",
           "name": "DsfrDataSourceStatus",
           "members": [
             {
@@ -21714,6 +22158,46 @@
               },
               "privacy": "private",
               "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_staleTimer",
+              "type": {
+                "text": "ReturnType<typeof setTimeout> | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Échéance du plus proche relevé affiché (#1288) : le texte du bandeau en dépend."
+            },
+            {
+              "kind": "method",
+              "name": "_clearStaleTimer",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_readings",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Map<string, StaleReading>"
+                }
+              },
+              "description": "Le relevé de la source d'origine, s'il est affichable (#1288) — la même\nrègle que les blocs (`judgeStaleReading`). Le bandeau lit l'ORIGINE : un\nbloc branché sur une jointure peut dater d'un autre moment, et c'est lui\nqui l'écrit."
+            },
+            {
+              "kind": "method",
+              "name": "_armStaleTimer",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "readings",
+                  "type": {
+                    "text": "Map<string, StaleReading>"
+                  }
+                }
+              ],
+              "description": "Arme le retour au texte ordinaire à l'échéance du relevé le plus proche."
             },
             {
               "kind": "method",
@@ -21826,6 +22310,12 @@
                   "name": "outage",
                   "type": {
                     "text": "Outage"
+                  }
+                },
+                {
+                  "name": "stale",
+                  "type": {
+                    "text": "boolean"
                   }
                 }
               ]
@@ -22207,6 +22697,16 @@
             },
             {
               "kind": "field",
+              "name": "staleIfError",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "Garder à l'écran le DERNIER RELEVÉ pendant une panne passagère (#1288) :\ndurée, en secondes, pendant laquelle les derniers chiffres reçus restent\naffichables. Absent ou `0` (défaut) : une source en panne ne laisse aucun\nancien chiffre à l'écran, chaque bloc dit la panne.\n\n`stale-if-error=\"3600\"` : si la source échoue après avoir livré, les blocs\nbranchés dessus (KPI, graphique, liste, fiches, podium, carte, tableau\néquivalent) gardent leurs chiffres, atténués, sous l'étiquette « Non\nactualisé » et la phrase « Chiffres relevés aujourd’hui à 14 h 32. » —\nl'heure est celle où la page a reçu ces chiffres. L'export CSV reste\npossible, daté dans son libellé et dans le nom du fichier. Passé la durée\n(comptée depuis le relevé), les blocs reviennent d'eux-mêmes au message de\npanne.\n\nC'est à l'intégrateur de le décider, jeu par jeu : un chiffre d'il y a une\nheure a un sens pour un recensement, pas pour un stock ou des places\nlibres. La valeur EST la borne : il n'existe pas de relevé sans durée.\n\nLe relevé n'est jamais affiché, quelle que soit la valeur, quand :\nla cause n'est pas passagère (données introuvables 404 / 410, accès\nrestreint 401 / 403, page mal réglée) ; l'appel en échec n'est pas celui\nqui a produit les chiffres (filtre, page, tri ou emprise changés) ; rien\nn'a encore été reçu. Les filtres (`dsfr-data-facets`, `dsfr-data-search`)\nrestent désactivés pendant la panne.\n\nMémoire : celle de la page. Une page OUVERTE pendant la panne n'a rien à\nmontrer. `getData()` et `getDataCache` rendent toujours vide pendant la\npanne : seuls les afficheurs de la bibliothèque lisent le relevé, par\n`getLastKnownData()`.",
+              "attribute": "stale-if-error"
+            },
+            {
+              "kind": "field",
               "name": "_loading",
               "type": {
                 "text": "boolean"
@@ -22531,10 +23031,51 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "{ userMessage?: string; sourcePage?: string }"
+                  "text": "DataErrorOptions"
                 }
               },
-              "description": "Phrase de l'intégrateur jointe à un échec de chargement (#1203)."
+              "parameters": [
+                {
+                  "name": "requestKey",
+                  "optional": true,
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Ce que la source joint à un échec de chargement : la phrase de\nl'intégrateur (#1203), la page publique (#1222), et pour le dernier relevé\n(#1288) sa consigne `stale-if-error` et l'empreinte de l'appel qui vient\nd'échouer."
+            },
+            {
+              "kind": "field",
+              "name": "_staleIfErrorWarned",
+              "type": {
+                "text": "number | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Valeur de `stale-if-error` déjà signalée comme refusée (warn-once par valeur)."
+            },
+            {
+              "kind": "method",
+              "name": "_staleIfErrorSeconds",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number | undefined"
+                }
+              },
+              "description": "`stale-if-error` exploitable (#1288), sinon rien — et un avertissement."
+            },
+            {
+              "kind": "method",
+              "name": "_requestKey",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Empreinte de la requête en cours (#1288) : ce qui distingue l'appel qui a\nproduit les lignes de celui qui échoue. Lue AU DÉPART de chaque fetch —\nune commande arrivée pendant le vol ne doit pas rebaptiser sa réponse."
             },
             {
               "kind": "field",
@@ -22811,6 +23352,12 @@
                   "name": "overlay",
                   "type": {
                     "text": "ServerSideOverlay | undefined"
+                  }
+                },
+                {
+                  "name": "requestKey",
+                  "type": {
+                    "text": "string"
                   }
                 }
               ],
@@ -23296,6 +23843,15 @@
               "default": "''",
               "description": "Adresse de la page PUBLIQUE de ces données (#1222) : la page du jeu sur le\nportail du producteur, celle qu'un usager peut lire — pas l'adresse d'API.\n\n`source-page=\"https://data.economie.gouv.fr/explore/dataset/prix-carburants/\"` :\nquand la source répond « introuvable » (404, 410), le bloc en erreur et le\nbandeau `dsfr-data-source-status` proposent le lien « Consulter la page de\nces données ». Sans cet attribut, aucun lien : la bibliothèque ne déduit\nl'adresse ni de `base-url`, ni de `dataset-id`, ni de `resource`, et ne\nmontre jamais l'adresse d'API ni celle du relais (`relay-url`).\n\nSans effet sur les autres pannes (service indisponible, hors connexion,\naccès restreint…) et sur le chargement : l'attribut ne déclenche aucune\nrequête. N'est admise qu'une adresse `http(s)` ou relative ; toute autre\n(`javascript:`, `data:`…) est ignorée, avec un avertissement en console.",
               "fieldName": "sourcePage"
+            },
+            {
+              "name": "stale-if-error",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "description": "Garder à l'écran le DERNIER RELEVÉ pendant une panne passagère (#1288) :\ndurée, en secondes, pendant laquelle les derniers chiffres reçus restent\naffichables. Absent ou `0` (défaut) : une source en panne ne laisse aucun\nancien chiffre à l'écran, chaque bloc dit la panne.\n\n`stale-if-error=\"3600\"` : si la source échoue après avoir livré, les blocs\nbranchés dessus (KPI, graphique, liste, fiches, podium, carte, tableau\néquivalent) gardent leurs chiffres, atténués, sous l'étiquette « Non\nactualisé » et la phrase « Chiffres relevés aujourd’hui à 14 h 32. » —\nl'heure est celle où la page a reçu ces chiffres. L'export CSV reste\npossible, daté dans son libellé et dans le nom du fichier. Passé la durée\n(comptée depuis le relevé), les blocs reviennent d'eux-mêmes au message de\npanne.\n\nC'est à l'intégrateur de le décider, jeu par jeu : un chiffre d'il y a une\nheure a un sens pour un recensement, pas pour un stock ou des places\nlibres. La valeur EST la borne : il n'existe pas de relevé sans durée.\n\nLe relevé n'est jamais affiché, quelle que soit la valeur, quand :\nla cause n'est pas passagère (données introuvables 404 / 410, accès\nrestreint 401 / 403, page mal réglée) ; l'appel en échec n'est pas celui\nqui a produit les chiffres (filtre, page, tri ou emprise changés) ; rien\nn'a encore été reçu. Les filtres (`dsfr-data-facets`, `dsfr-data-search`)\nrestent désactivés pendant la panne.\n\nMémoire : celle de la page. Une page OUVERTE pendant la panne n'a rien à\nmontrer. `getData()` et `getDataCache` rendent toujours vide pendant la\npanne : seuls les afficheurs de la bibliothèque lisent le relevé, par\n`getLastKnownData()`.",
+              "fieldName": "staleIfError"
             }
           ],
           "superclass": {

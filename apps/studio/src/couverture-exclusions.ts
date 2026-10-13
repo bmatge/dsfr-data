@@ -98,6 +98,11 @@ export const EXCLUSIONS: readonly ExclusionDeclaree[] = [
     attributs: ['source-page'],
     raison: `Adresse de la page publique du jeu (#1222), lue seulement quand la source répond « introuvable » : le Studio ne la connaît pas — il tient une adresse d'API, et la lib refuse d'en déduire une page. Sans elle, l'export garde le message du barème, sans lien ; un intégrateur la pose à la main sur la page publiée. ${SOURCE_DU_STUDIO}`,
   },
+  {
+    composant: 'dsfr-data-source',
+    attributs: ['stale-if-error'],
+    raison: `Durée pendant laquelle les derniers chiffres reçus restent affichés, datés, quand la source est en panne (#1288). C'est un jugement sur le jeu — un recensement supporte un chiffre d'une heure, un stock non — que le Studio ne peut pas porter à la place de l'auteur de la page : sans l'attribut, l'export garde le rendu de panne par défaut, sans aucun ancien chiffre ; un intégrateur le pose à la main sur la page publiée. ${SOURCE_DU_STUDIO}`,
+  },
 
   // --- Attributs retires --------------------------------------------------
   {
