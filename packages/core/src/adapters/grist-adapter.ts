@@ -39,7 +39,12 @@ import {
   isMultiFieldClause,
 } from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { GRIST_CONFIG, resolveTransportUrl, transportFetch } from '@dsfr-data/shared/lib';
+import {
+  GRIST_CONFIG,
+  resolveTransportUrl,
+  transportFetch,
+  serverComputesClause,
+} from '@dsfr-data/shared/lib';
 import { httpError, releaseBody } from '../utils/http-error.js';
 
 /** Construit les options fetch avec headers optionnels */
@@ -308,6 +313,21 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
   // Search template
   // =========================================================================
+
+  /**
+   * Ce que l'API calcule COMME le client (#1285, ADR-139). `contains` et
+   * `notcontains` partent en `LIKE '%valeur%'` de SQLite, qui n'est PAS la
+   * sous-chaîne du client : la casse n'y est ignorée que pour l'ASCII
+   * (« école » ne trouve pas « École »), `%` et `_` de la valeur sont des
+   * jokers, et `NOT LIKE` écarte les valeurs absentes que le client garde.
+   * Les deux restent donc au client, comme `wordstart`, qui n'a pas
+   * d'équivalent SQL. (Sémantique documentée de SQLite, moteur de l'endpoint
+   * `/sql` de Grist ; non mesurée sur une instance.)
+   */
+  supportsServerClause(clause: string): boolean {
+    // Table de vérité partagée avec les exports (`@dsfr-data/shared`).
+    return serverComputesClause(this.type, clause);
+  }
 
   getDefaultSearchTemplate(): null {
     return null;

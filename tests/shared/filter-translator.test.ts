@@ -16,7 +16,6 @@ const ROWS = [
 describe('filterToOdsql (#315)', () => {
   it('échappe les guillemets et antislashes dans les valeurs', () => {
     expect(filterToOdsql('nom:eq:Saint-"Quote"')).toBe('nom = "Saint-\\"Quote\\""');
-    expect(filterToOdsql('nom:contains:a\\b')).toBe('nom like "%a\\\\b%"');
     expect(filterToOdsql('nom:in:A"B|C')).toBe('nom in ("A\\"B", "C")');
   });
 
@@ -32,15 +31,14 @@ describe('filterToOdsql (#315)', () => {
     expect(filterToOdsql(expr)).toBe('region = "Provence, Alpes"');
   });
 
-  it('couvre les 12 opérateurs', () => {
+  it('couvre les 11 opérateurs qui ont une traduction ODSQL (#1285)', () => {
     expect(filterToOdsql('a:eq:1')).toContain('=');
     expect(filterToOdsql('a:neq:1')).toContain('!=');
     expect(filterToOdsql('a:gt:1')).toContain('>');
     expect(filterToOdsql('a:gte:1')).toContain('>=');
     expect(filterToOdsql('a:lt:1')).toContain('<');
     expect(filterToOdsql('a:lte:1')).toContain('<=');
-    expect(filterToOdsql('a:contains:x')).toContain('like');
-    expect(filterToOdsql('a:notcontains:x')).toContain('NOT a like');
+    expect(filterToOdsql('a:wordstart:x')).toBe('a like "x*"');
     expect(filterToOdsql('a:in:x|y')).toContain('in (');
     expect(filterToOdsql('a:notin:x|y')).toContain('NOT a in (');
     expect(filterToOdsql('a:isnull')).toBe('a is null');

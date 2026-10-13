@@ -115,10 +115,24 @@ export type { DSFRChartType } from './charts/chart-types.js';
 // Query / Filters
 export {
   filterToOdsql,
+  odsqlCanExpress,
+  splitFilterForOdsql,
   applyLocalFilter,
   validateColonFilter,
   COLON_FILTER_OPERATORS,
 } from './query/filter-translator.js';
+// Opérateur `wordstart` — « un mot commence par » (#1285). Frontière #319 :
+// dans les DEUX barrels, lib.ts et index.ts.
+export { serverComputesClause, splitFilterForProvider } from './query/server-clause.js';
+export type { FilterSplit } from './query/server-clause.js';
+export {
+  WORD_START_OPERATOR,
+  wordTokens,
+  foldWord,
+  matchesWordStart,
+  matchesWordStartTokens,
+  wordStartLikePattern,
+} from './query/word-start.js';
 export type { ContextFilterLike } from './query/context-filter.js';
 
 // API / Proxy

@@ -21,6 +21,9 @@ const OPERATORS: { value: string; label: string; noValue?: boolean }[] = [
   { value: 'lt', label: '<' },
   { value: 'lte', label: '<=' },
   { value: 'contains', label: 'contient' },
+  // « Un mot commence par » (#1285) : ce qu'un portail Opendatasoft sait
+  // chercher lui-même, là où « contient » charge le jeu dans le navigateur.
+  { value: 'wordstart', label: 'un mot commence par' },
   { value: 'in', label: 'dans la liste' },
   { value: 'isnull', label: 'est vide', noValue: true },
   { value: 'isnotnull', label: 'non vide', noValue: true },

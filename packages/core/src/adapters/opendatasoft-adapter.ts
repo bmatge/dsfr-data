@@ -34,6 +34,7 @@ import {
   resolveTransportUrl,
   transportFetch,
   normalizeProviderAuthHeaders,
+  serverComputesClause,
 } from '@dsfr-data/shared/lib';
 import { httpError, releaseBody } from '../utils/http-error.js';
 
@@ -1090,6 +1091,19 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    */
   translateWhere(colonWhere: string): string {
     return ODSQL_WHERE_DIALECT.translate(colonWhere);
+  }
+
+  /**
+   * Ce que le portail calcule COMME le client (#1285). Son `like` compare des
+   * MOTS : `categorie_produit like "%aliment%"` rend 0 ligne là où 14 366
+   * valent « alimentation » (mesuré le 2026-10-12). `contains` et
+   * `notcontains`, recherches de sous-chaîne, n'ont donc aucun équivalent
+   * ODSQL et restent au client ; `wordstart` part en `like "mot*"`, sauf
+   * quand un mot de la saisie porte un signe. Table de vérité partagée avec
+   * les exports : `serverComputesClause` de `@dsfr-data/shared`.
+   */
+  supportsServerClause(clause: string): boolean {
+    return serverComputesClause(this.type, clause);
   }
 
   /** Clauses ODSQL jointes par ` AND ` (#271, #1135). */

@@ -126,6 +126,13 @@ export interface SourceCommandEvent {
   origin?: string;
   page?: number; // pagination
   where?: string; // recherche serveur (ODSQL pour ODS)
+  /**
+   * Part du filtre de cet émetteur que l'API ne sait PAS calculer comme le
+   * navigateur (#1285), en grammaire colon : la source la calcule elle-même,
+   * sur les lignes chargées. Même `whereKey` que `where`, dont elle est le
+   * complément (`splitWhere`). Vide ou absente = rien à calculer côté client.
+   */
+  clientWhere?: string;
   whereKey?: string; // identifie la source du where (permet merge multi-sources)
   orderBy?: string; // tri serveur ("field:direction")
   groupBy?: string; // group-by serveur (delegue par dsfr-data-query)

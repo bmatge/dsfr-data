@@ -1,7 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath, setByPath } from '../utils/json-path.js';
-import { isUnsafeKey, toNumber, looseEquals, looseNotEquals } from '@dsfr-data/shared/lib';
+import {
+  isUnsafeKey,
+  toNumber,
+  looseEquals,
+  looseNotEquals,
+  matchesWordStart,
+} from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
@@ -21,6 +27,8 @@ import { computeExtremum, countDistinct } from '../utils/aggregations.js';
 import {
   unescapeColonValue,
   translateWhere,
+  splitWhere,
+  describeClientWhere,
   parseOrderBy,
   splitColonFields,
 } from '../utils/where.js';
@@ -50,6 +58,7 @@ export const FILTER_OPERATORS = [
   'lte',
   'contains',
   'notcontains',
+  'wordstart',
   'in',
   'notin',
   'isnull',
@@ -676,6 +685,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _pagedAggregateError: string | null = null;
 
+  /**
+   * Erreur de configuration « filtre calculé sur une page » (#1285), posée au
+   * TRAITEMENT comme `_pagedAggregateError` ; null quand le montage est sain.
+   */
+  private _pagedWhereError: string | null = null;
+
   /** Avertissement #1242 déjà émis (le message, pour ne le dire qu'une fois). */
   private _pagedAggregateWarned: string | null = null;
 
@@ -866,6 +881,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // retire avec les autres, il sera repose si le montage est encore fautif.
     this._pagedAggregateError = null;
     this._pagedAggregateCaveat = false;
+    this._pagedWhereError = null;
 
     // Negotiate server-side delegation BEFORE subscribing to data.
     // This sends commands to dsfr-data-source so it re-fetches with the right params.
@@ -924,15 +940,22 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * posé. Une transition d'état rejoue le traitement local, car l'amont ne
    * réémet pas forcément (source inline, commande dédupliquée).
    */
-  protected onTransformerCommand(cmd: { where?: string; whereKey?: string }): void {
+  protected onTransformerCommand(cmd: {
+    where?: string;
+    clientWhere?: string;
+    whereKey?: string;
+  }): void {
     if (cmd.where === undefined) return;
     const key = cmd.whereKey || '__default';
     const previous = this._receivedWhere.get(key) ?? '';
-    if (cmd.where === previous) return;
+    // Les deux parts d'UN filtre (#1285) : celle que l'API calcule, et celle
+    // que la source calcule elle-même. L'une ou l'autre suffit à faire un filtre.
+    const received = [cmd.where, cmd.clientWhere].filter(Boolean).join(', ');
+    if (received === previous) return;
 
     const wasFiltered = this._hasFilter();
-    if (cmd.where) {
-      this._receivedWhere.set(key, cmd.where);
+    if (received) {
+      this._receivedWhere.set(key, received);
     } else {
       this._receivedWhere.delete(key);
     }
@@ -1127,6 +1150,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     ];
     if (
       !whereDelegation.ok ||
+      // Une clause que l'API ne sait pas calculer comme le navigateur (#1285,
+      // `contains` sur Opendatasoft) reste au client, sur les lignes BRUTES :
+      // le regroupement doit donc y rester aussi, après elle.
+      whereDelegation.client ||
       !this._canDelegateFields(adapter, fields) ||
       !this._canDelegateAggregates(adapter, aggregates)
     ) {
@@ -1175,7 +1202,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     if (!this.filter && !this.where) return;
 
     const whereOnly = this._buildWhereDelegation(this.filter || this.where, adapter);
-    if (!whereOnly.ok || !whereOnly.where || !this._canDelegateFields(adapter, whereOnly.fields)) {
+    if (
+      !whereOnly.ok ||
+      (!whereOnly.where && !whereOnly.client) ||
+      !this._canDelegateFields(adapter, whereOnly.fields)
+    ) {
       return;
     }
     // BUG-027 : une clause sur un alias que la source fabrique (`n` de
@@ -1183,6 +1214,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     const aliases = sourceAliases(fetchingSourceOf(this.source));
     if (whereOnly.fields.some((f) => aliases.has(f.trim()))) return;
     cmd.where = whereOnly.where;
+    // Les clauses que l'API ne sait pas calculer comme le navigateur (#1285)
+    // sont confiées à la SOURCE elle aussi, à part : elle les calcule sur les
+    // lignes que les autres ont gardées (`clientWhere`). Le filtre entier
+    // reste donc porté par la source — `require-where` est levé (#854), et
+    // son total compte les lignes réellement retenues.
+    if (whereOnly.client) cmd.clientWhere = whereOnly.client;
     cmd.whereKey = this._whereOverlayKey();
     this._serverDelegated.where = true;
   }
@@ -1510,31 +1547,30 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   private _buildWhereDelegation(
     filterExpr: string,
     adapter?: ApiAdapter
-  ): { ok: boolean; where: string; fields: string[] } {
-    if (!filterExpr) return { ok: true, where: '', fields: [] };
+  ): { ok: boolean; where: string; fields: string[]; client: string } {
+    if (!filterExpr) return { ok: true, where: '', fields: [], client: '' };
 
     // Meme grammaire que la validation #277 : une clause non parsable rend
     // le where intraduisible → aucune delegation.
     if (this._validateFilterExpr(filterExpr) !== null) {
-      return { ok: false, where: '', fields: [] };
+      return { ok: false, where: '', fields: [], client: '' };
     }
 
+    // L'API sait-elle calculer chaque clause COMME le navigateur (#1285,
+    // ADR-139), et l'adaptateur sait-il l'ecrire (#1026) ? Ce qu'elle ne sait
+    // pas — `contains` sur Opendatasoft, dont le `like` compare des mots ;
+    // `wordstart` ailleurs ; un OU entre champs sur INSEE — reste au filtre
+    // client, sur les lignes brutes : `client`. Le reste part : `where`.
+    const { server, client } = splitWhere(adapter, filterExpr);
+
     // Champs multiples (#1026) : chaque champ d'un `a|b` est un champ delegue
-    const fields = filterExpr
+    const fields = server
       .split(',')
       .map((p) => p.trim())
       .filter(Boolean)
       .flatMap((part) => splitColonFields(part.split(':')[0]));
 
-    // L'adaptateur sait-il ecrire la clause (#1026) ? Un OU entre champs que
-    // son API ne sait pas dire (INSEE, generic, valeur non transmissible a
-    // Tabular) reste au filtre client, sur les lignes brutes.
-    if (adapter?.supportsServerWhere?.(filterExpr) === false) {
-      return { ok: false, where: '', fields: [] };
-    }
-
-    const where = translateWhere(adapter, filterExpr);
-    return { ok: true, where, fields };
+    return { ok: true, where: translateWhere(adapter, server), fields, client };
   }
 
   /**
@@ -1620,6 +1656,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     }
     // Regroupement gardé côté client sur UNE page de la source (#1242).
     if (this._refusePagedAggregate()) return;
+    // Clause de filtre gardée côté client sur UNE page de la source (#1285).
+    if (this._refusePagedClientWhere()) return;
     try {
       this.emitTransformerLoading();
       this._processClientSide();
@@ -1749,6 +1787,66 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     return false;
   }
 
+  // --- Filtre sur une page (#1285) ---
+
+  /**
+   * Une clause de filtre que l'API ne sait pas calculer comme le navigateur
+   * — `contains` sur un portail Opendatasoft, dont le `like` compare des
+   * mots ; `wordstart` ailleurs — reste côté client, sur les lignes REÇUES ;
+   * or une source en pagination serveur n'en livre qu'UNE page. La liste
+   * afficherait les lignes de la page qui passent la clause, sous un total
+   * qui les ignore : même défaut que le regroupement de #1242, même règle.
+   *
+   * La requête passe en ERREUR DE CONFIGURATION (marqueur
+   * `data-dsfr-config-error`, état d'erreur en aval), qui nomme la clause, la
+   * source et les corrections : retirer `server-side`, ou remplacer `contains`
+   * par `wordstart` quand l'API le délègue, ou passer par `dsfr-data-search
+   * server-search` quand elle a une recherche. Retourne `true`.
+   *
+   * Seule la clause que l'ADAPTATEUR refuse est visée : jugée sur le montage,
+   * pas sur l'état de la délégation.
+   */
+  private _refusePagedClientWhere(): boolean {
+    const filterExpr = this.filter || this.where;
+    const meta = getDataMeta(this.source);
+    const fetching = fetchingSourceOf(this.source) as
+      (Element & { serverSide?: boolean; getAdapter?: () => ApiAdapter | null }) | null;
+    const adapter = fetching?.getAdapter?.() ?? null;
+    const refused =
+      filterExpr &&
+      meta?.serverSide &&
+      fetching?.serverSide === true &&
+      adapter &&
+      this._validateFilterExpr(filterExpr) === null
+        ? splitWhere(adapter, filterExpr).client
+        : '';
+
+    if (!refused || !adapter) {
+      if (this._pagedWhereError !== null) {
+        if (this.getAttribute('data-dsfr-config-error') === this._pagedWhereError) {
+          clearConfigError(this);
+        }
+        this._pagedWhereError = null;
+      }
+      return false;
+    }
+
+    const sourceId = fetching?.id || this.source;
+    const { cause, alternatives } = describeClientWhere(adapter, refused);
+    const message =
+      `la clause "${refused}" est calculée côté client, sur les seules lignes reçues — ${cause}` +
+      ` — or dsfr-data-source "${sourceId}" est en pagination serveur (server-side) et ne livre ` +
+      `qu'une page : le résultat serait partiel. Retirez server-side de dsfr-data-source ` +
+      `"${sourceId}" (le jeu est alors chargé en entier, dans la limite de max-records)` +
+      `${alternatives}.`;
+    if (this._pagedWhereError !== message) {
+      this._pagedWhereError = message;
+      reportConfigError(this, `dsfr-data-query[${this.id}]`, message);
+    }
+    this.emitTransformerError(new Error(message));
+    return true;
+  }
+
   // --- Client-side processing ---
 
   /**
@@ -1876,6 +1974,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
               // Pour in/notin, on ne garde que string/number
               return typeof parsed === 'boolean' ? String(parsed) : parsed;
             }) as (string | number)[];
+          } else if (
+            operator === 'contains' ||
+            operator === 'notcontains' ||
+            operator === 'wordstart'
+          ) {
+            // Recherche dans du TEXTE (#1285) : la valeur reste le texte écrit.
+            // Convertie en nombre, `code:contains:007` cherchait « 7 ».
+            value = unescapeColonValue(rawValue);
           } else {
             value = this._parseValue(unescapeColonValue(rawValue));
           }
@@ -1961,6 +2067,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
           value === undefined ||
           !String(value).toLowerCase().includes(String(filter.value).toLowerCase())
         );
+      case 'wordstart':
+        // « Un mot commence par » (#1285) : mots, casse et accents replies,
+        // comme le `like "mot*"` du portail auquel la clause est deleguee.
+        return matchesWordStart(value, String(filter.value ?? ''));
       case 'in':
         // Meme semantique lache que eq sur chaque valeur (#278) —
         // dept:in:75|13 matche "75" string comme dept:eq:75

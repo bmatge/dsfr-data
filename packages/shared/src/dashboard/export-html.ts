@@ -20,7 +20,7 @@
 
 import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
 import { escapeColonValue, splitColonFields } from '../utils/colon-escape.js';
-import { filterToOdsql } from '../query/filter-translator.js';
+import { filterToOdsql, splitFilterForOdsql } from '../query/filter-translator.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
 import type {
@@ -1171,6 +1171,11 @@ function kpiDedicated(c: ChartConfig, base: DashboardSource): DedicatedSource['k
   if (base.provider !== 'opendatasoft' || typeof resourceIds.datasetId !== 'string') return null;
   const fn = c.aggregation ?? 'sum';
   if (!ODSQL_KPI_FUNCTIONS.has(fn) || (fn !== 'count' && !c.valueField)) return null;
+  // Filtre que le portail ne sait pas calculer (`contains`, #1285 : son `like`
+  // compare des mots, pas une sous-chaîne) : pas d'agrégat serveur, il
+  // porterait sur des lignes non filtrées. Le KPI reste sur la source
+  // partagée, derrière une query qui filtre les lignes chargées.
+  if (c.where && splitFilterForOdsql(c.where).client) return null;
   const alias = aggregatedAlias(c.valueField || 'lignes', fn);
   const expr = fn === 'count' ? 'count(*)' : `${fn}(${odsqlIdentifier(c.valueField)})`;
   return {

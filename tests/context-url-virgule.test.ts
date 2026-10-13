@@ -53,6 +53,8 @@ import {
 
 interface Captured {
   where?: string;
+  /** Part du filtre que la cible calcule elle-même (#1285). */
+  clientWhere?: string;
 }
 
 const CIBLE = 'cible-1243';
@@ -81,7 +83,14 @@ function cible(): () => string | undefined {
   document.body.appendChild(el);
   const commands: Captured[] = [];
   unsubs.push(subscribeToSourceCommands(CIBLE, (cmd) => commands.push(cmd as Captured)));
-  return () => commands.at(-1)?.where;
+  // Le filtre que la cible reçoit, ses deux parts réunies (#1285) : ce que
+  // son API calcule (`where`) et ce qu'elle calcule elle-même (`clientWhere`,
+  // ici `wordstart`, qu'un adaptateur colon quelconque ne délègue pas).
+  return () => {
+    const last = commands.at(-1);
+    if (!last) return undefined;
+    return [last.where, last.clientWhere].filter(Boolean).join(', ');
+  };
 }
 
 async function settle(ms = 20): Promise<void> {
@@ -303,7 +312,7 @@ describe('#1243 — dsfr-data-search en mode context', () => {
     await search.updateComplete;
     search.search('Paris, France');
     await settle();
-    expect(where()).toBe('lieu:contains:Paris%2C France');
+    expect(where()).toBe('lieu:wordstart:Paris%2C France');
     expect(param('lieu')).toBe('Paris%2C France');
 
     recharger();
@@ -312,20 +321,20 @@ describe('#1243 — dsfr-data-search en mode context', () => {
     const reloaded = document.getElementById('s-1243') as DsfrDataSearch;
     await reloaded.updateComplete;
     expect((reloaded.querySelector('input') as HTMLInputElement).value).toBe('Paris, France');
-    expect(where()).toBe('lieu:contains:Paris%2C France');
+    expect(where()).toBe('lieu:wordstart:Paris%2C France');
   });
 
   it('lien ancien : sans virgule identique, à virgule nue relu tel qu’écrit', async () => {
     window.history.replaceState(null, '', '?lieu=immo');
     let where = cible();
     await monter(PAGE);
-    expect(where()).toBe('lieu:contains:immo');
+    expect(where()).toBe('lieu:wordstart:immo');
 
     demonter();
     window.history.replaceState(null, '', '?lieu=Paris, France');
     where = cible();
     await monter(PAGE);
-    expect(where()).toBe('lieu:contains:Paris%2C France');
+    expect(where()).toBe('lieu:wordstart:Paris%2C France');
   });
 });
 

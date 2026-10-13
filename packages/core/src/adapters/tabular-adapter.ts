@@ -20,6 +20,7 @@ import {
   transportFetch,
   looseEquals,
   TABULAR_CONFIG,
+  serverComputesClause,
 } from '@dsfr-data/shared/lib';
 import { getByPath } from '../utils/json-path.js';
 import { parseAggregates } from '../utils/aggregates.js';
@@ -39,6 +40,19 @@ import {
 } from './tabular-parquet.js';
 import type { ParquetExport } from './tabular-parquet.js';
 import { httpError, releaseBody } from '../utils/http-error.js';
+
+/** Jokers de `ilike` : `%` (toute suite) et `_` (un caractère). */
+const LIKE_WILDCARDS = /[%_]/;
+
+/**
+ * `champ__contains` est un `ilike '%valeur%'` : `%` et `_` de la valeur y sont
+ * des jokers (`Saint_` trouve « Saint-Amadou », `%` rend tout le jeu). Précédés
+ * d'un antislash ils redeviennent littéraux — mesuré le 2026-10-13, #1285 — et
+ * `contains` reste la recherche de sous-chaîne que fait le client.
+ */
+function escapeLikeWildcards(value: string): string {
+  return value.replace(/[%_]/g, '\\$&');
+}
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -1815,7 +1829,9 @@ export class TabularAdapter implements ApiAdapter {
                 .map(unescapeColonValue)
                 .map((v) => (quoteIn ? quoteInValue(v) : v))
                 .join(',')
-            : unescapeColonValue(raw);
+            : op === 'contains'
+              ? escapeLikeWildcards(unescapeColonValue(raw))
+              : unescapeColonValue(raw);
         // Liste nue alors qu'une valeur devait etre citee (#1233) : l'API a
         // refuse les guillemets. `fetchAll` ne passe plus ici avec cette
         // clause (il la calcule) ; reste la pagination serveur, ou elle part
@@ -1858,6 +1874,9 @@ export class TabularAdapter implements ApiAdapter {
     if (!noValue && parts.length < 3) return null;
     const value = unescapeColonValue(parts.slice(2).join(':'));
     if (!noValue && TABULAR_OR_UNSAFE_VALUE.test(value)) return null;
+    // Jokers de `ilike` (#1285) : leur échappement n'a été mesuré que hors
+    // d'un groupe `or=(…)` — ici la clause reste au client.
+    if (op === 'contains' && LIKE_WILDCARDS.test(value)) return null;
     const members: string[] = [];
     for (const field of splitColonFields(fieldPart)) {
       if (field.includes('"') || !parenthesesBalanced(field)) return null;
@@ -1865,6 +1884,37 @@ export class TabularAdapter implements ApiAdapter {
       members.push(noValue ? `${column}__${native}` : `${column}__${native}.${value}`);
     }
     return `(${members.join(',')})`;
+  }
+
+  /**
+   * Ce que l'API calcule COMME le client (#1285, ADR-139), mesuré le
+   * 2026-10-13 sur le Code officiel géographique (ressource 91a95bee…, 325
+   * communes de l'Ariège) et le Répertoire national des élus (2876a346…) :
+   *
+   *   LIBELLE__contains=saint    -> 25   `ilike` : sous-chaîne, casse ignorée
+   *   LIBELLE__contains=MÉRENS   ->  1   …accents de casse compris (« Mérens-les-Vals »)
+   *   LIBELLE__contains=merens   ->  0   …mais sensible aux accents, comme le client
+   *   LIBELLE__contains=Saint-   -> 21
+   *   LIBELLE__contains=Saint_   -> 25   `_` est un JOKER (un caractère quelconque)
+   *   LIBELLE__contains=%        -> 325  `%` aussi (tout le jeu)
+   *   LIBELLE__contains=Saint\_  ->  0   l'antislash les rend littéraux
+   *   LIBELLE__contains=\%       ->  0
+   *   <colonne toute nulle>__notcontains=zz -> 0 sur 262 lignes : `notcontains`
+   *                                    ÉCARTE les valeurs absentes, le client les garde
+   *
+   * - `contains` est donc une vraie sous-chaîne dès que `%` et `_` partent
+   *   échappés (`escapeLikeWildcards`) : il reste délégué. Une valeur portant
+   *   un antislash, dont l'échappement n'a pas été mesuré, reste au client ;
+   * - `notcontains` n'est PAS délégué : il perdrait les lignes sans valeur ;
+   * - `wordstart` (« un mot commence par ») n'a pas d'équivalent : au client.
+   *
+   * `contains` sur une colonne numérique rend une erreur de l'API (HTTP 404,
+   * « No operator matches ») là où le client compare le texte du nombre :
+   * l'écart est une panne visible, pas un résultat différent.
+   */
+  supportsServerClause(clause: string): boolean {
+    // Table de vérité partagée avec les exports (`@dsfr-data/shared`).
+    return serverComputesClause(this.type, clause);
   }
 
   /**

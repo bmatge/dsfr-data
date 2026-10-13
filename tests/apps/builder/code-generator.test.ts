@@ -783,12 +783,19 @@ describe('filterToOdsql', () => {
     expect(filterToOdsql('pop:lte:500')).toBe('pop <= 500');
   });
 
-  it('should convert contains to LIKE', () => {
-    expect(filterToOdsql('name:contains:bret')).toBe('name like "%bret%"');
+  it('n’écrit plus de like "%…%" pour contains / notcontains (#1285)', () => {
+    // Le `like` d'un portail Opendatasoft compare des mots : `like "%bret%"`
+    // ne trouvait pas « Bretagne ». La sous-chaîne n'a pas d'équivalent ODSQL.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(filterToOdsql('name:contains:bret')).toBe('');
+    expect(filterToOdsql('name:notcontains:paris')).toBe('');
+    expect(filterToOdsql('region:eq:Bretagne, name:contains:bret')).toBe('region = "Bretagne"');
+    warn.mockRestore();
   });
 
-  it('should convert notcontains to NOT LIKE', () => {
-    expect(filterToOdsql('name:notcontains:paris')).toBe('NOT name like "%paris%"');
+  it('should convert wordstart to a word-prefix like (#1285)', () => {
+    expect(filterToOdsql('name:wordstart:bret')).toBe('name like "bret*"');
+    expect(filterToOdsql('name:wordstart:Lycée Prof')).toBe('name like "lycee* prof*"');
   });
 
   it('should convert in operator', () => {
@@ -2552,8 +2559,8 @@ describe('alignment: all filter operators in filterToOdsql', () => {
     'gte',
     'lt',
     'lte',
-    'contains',
-    'notcontains',
+    // `contains` / `notcontains` : sans traduction ODSQL depuis #1285.
+    'wordstart',
     'in',
     'notin',
     'isnull',

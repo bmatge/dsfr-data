@@ -365,6 +365,28 @@ export interface ApiAdapter {
   supportsServerAggregate?(fn: string): boolean;
 
   /**
+   * Indique si UNE clause de la grammaire colon (`champ:op[:valeur]`) est
+   * calculée par l'API EXACTEMENT comme par le client (#1285, ADR-139) —
+   * mêmes lignes retenues, casse, accents et valeurs absentes compris. Un
+   * refus (false) garde la clause côté client, sur les lignes chargées, au
+   * lieu de laisser un chiffre dépendre du chemin qu'a pris le filtre :
+   * Opendatasoft refuse `contains` / `notcontains` (son `like` compare des
+   * mots, pas une sous-chaîne), Tabular `notcontains` (l'API écarte les
+   * valeurs absentes), Grist les deux (`LIKE` de SQLite : casse ASCII seule,
+   * `%` et `_` en jokers), et tous sauf Opendatasoft refusent `wordstart`.
+   *
+   * Distincte de `supportsServerWhere`, qui juge le TRANSPORT (une valeur que
+   * l'API ne sait pas porter) dans le dialecte de l'adaptateur : celle-ci juge
+   * la SÉMANTIQUE, toujours sur une clause colon.
+   *
+   * Non implemente = les douze opérateurs historiques sont délégables,
+   * `wordstart` ne l'est pas (un adaptateur antérieur ne le connaît pas).
+   * Lu par `canDelegateClause` / `splitWhere` de `utils/where.ts` — jamais
+   * directement par un composant.
+   */
+  supportsServerClause?(clause: string): boolean;
+
+  /**
    * Indique si une clause `where` du dialecte de l'adapter (`whereFormat`)
    * est traduisible TELLE QUELLE dans la requete serveur (#1026).
    *

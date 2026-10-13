@@ -1,9 +1,16 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { escapeHtml, formatNumber, stripAccents } from '@dsfr-data/shared/lib';
+import {
+  escapeHtml,
+  formatNumber,
+  stripAccents,
+  WORD_START_OPERATOR,
+  wordTokens,
+  matchesWordStartTokens,
+} from '@dsfr-data/shared/lib';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { escapeColonValue, escapeSearchTerm } from '../utils/where.js';
+import { escapeColonValue, escapeSearchTerm, splitDialectWhere } from '../utils/where.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import { renderSourceIdle, IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
@@ -28,13 +35,21 @@ const DOWNSTREAM_LIVE_COUNT_TAGS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * La recherche vue par le contexte (#678, ADR-104) : UN filtre `contains`
- * sur le champ unique de `fields`. Le contexte diffuse a ses cibles (au
- * dialecte de chacune : `like "%q%"` en ODSQL), porte l'URL et le tag.
+ * La recherche vue par le contexte (#678, ADR-104) : UN filtre `wordstart`
+ * — « un mot commence par » (#1285) — sur le champ unique de `fields`. Le
+ * contexte diffuse a ses cibles, porte l'URL et le tag.
+ *
+ * `wordstart` et non plus `contains` : une recherche de sous-chaine n'a pas
+ * d'equivalent sur un portail Opendatasoft, dont le `like` compare des mots
+ * (`like "%aliment%"` rendait 0 ligne pour 14 366 « alimentation »). Le
+ * debut de mot, lui, se delegue (`like "aliment*"`) ET se calcule a
+ * l'identique dans le navigateur : la meme saisie retient les memes lignes
+ * sur toutes les cibles, deleguee ou non, et c'est deja ce que fait
+ * `server-search` par la recherche plein texte du portail.
  */
 class SearchContextFilter implements ContextFilterLike {
   readonly applyTo = '*';
-  readonly operator = 'contains';
+  readonly operator = WORD_START_OPERATOR;
 
   constructor(private readonly host: DsfrDataSearch) {}
 
@@ -49,7 +64,10 @@ class SearchContextFilter implements ContextFilterLike {
   buildColonWhere(): string {
     const term = this.host._effectiveTerm();
     if (!term || !this.field) return '';
-    return `${this.field}:contains:${escapeColonValue(term)}`;
+    // Une saisie sans aucun mot (« - », « ( ») n'est pas encore une recherche :
+    // pas de filtre, plutot que la liste videe par un signe de ponctuation.
+    if (wordTokens(term).length === 0) return '';
+    return `${this.field}:${WORD_START_OPERATOR}:${escapeColonValue(term)}`;
   }
 
   /** Tag « Recherche : terme » (#679) — le libellé par défaut du champ est un verbe */
@@ -96,9 +114,21 @@ class SearchContextFilter implements ContextFilterLike {
  * </dsfr-data-search>
  *
  * En mode `context="id"` (#678, ADR-104), la recherche devient un filtre
- * `contains` de <dsfr-data-context> sur le champ unique de `fields` : le
+ * `wordstart` de <dsfr-data-context> sur le champ unique de `fields` : le
  * contexte diffuse a toutes ses sources cibles, porte l'URL (paramètre nomme
  * d'après le champ) et le tag. Elle n'emet plus de commande directe.
+ *
+ * TROIS RECHERCHES, TROIS SEMANTIQUES — a choisir en connaissance de cause :
+ * - autonome, locale (defaut) : `operator` — `contains` cherche une
+ *   SOUS-CHAINE (« tation » trouve « alimentation »), accents ignores, dans
+ *   les lignes recues ;
+ * - `context="id"` (#1285) : UN MOT COMMENCE PAR chaque mot saisi
+ *   (`wordstart`) — « aliment » trouve « alimentation », « tation » ne trouve
+ *   rien ; « lycee prof » trouve « Lycée professionnel Jean Moulin » ; casse
+ *   et accents ignores. Identique que la cible delegue ou non ;
+ * - `server-search` : la recherche de l'API (Opendatasoft : plein texte, par
+ *   debut de mot, dans tous les champs ; Tabular : sous-chaine sensible aux
+ *   accents dans `fields`).
  *
  * @fires dsfr-data-search-change - `{ query, count }` sur l'élément — la saisie de recherche a change (pour synchroniser une UI de page).
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603).
@@ -136,7 +166,15 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   @property({ type: Boolean })
   highlight = false;
 
-  /** Mode de recherche : contains, starts, words */
+  /**
+   * Mode de la recherche LOCALE (sans `context` ni `server-search`), accents
+   * et casse ignorés : `contains` — le terme est une sous-chaîne d'un champ
+   * (« tation » trouve « alimentation ») ; `starts` — un mot du champ commence
+   * par le terme ; `words` — chaque mot saisi est une sous-chaîne d'un champ.
+   * Ignoré en mode `context`, où la recherche est un filtre `wordstart` (« un
+   * mot commence par », #1285), et en `server-search`, où c'est l'API qui
+   * cherche.
+   */
   @property({ type: String })
   operator: SearchOperator = 'contains';
 
@@ -209,10 +247,17 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
 
   /**
    * Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la
-   * recherche devient un filtre `contains` du contexte sur le champ UNIQUE
-   * de `fields` (un filtre de contexte porte un seul champ ; le OU entre
-   * champs, `a|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`
-   * et `url-search-param` sont ignorés — le paramètre est nommé d'après le
+   * recherche devient un filtre `wordstart` du contexte — « un mot commence
+   * par » (#1285) — sur le champ UNIQUE de `fields` (un filtre de contexte
+   * porte un seul champ ; le OU entre champs, `a|b:contains:q` #1026, reste
+   * propre à `server-search`). Chaque mot saisi doit être le DÉBUT d'un mot
+   * du champ, sans égard pour l'ordre, la casse ni les accents : « aliment »
+   * trouve « alimentation », « tation » ne trouve rien — ce n'est PAS la
+   * sous-chaîne de la recherche locale (`operator="contains"`). La clause est
+   * déléguée à un portail Opendatasoft (`like "aliment*"`) et calculée à
+   * l'identique dans le navigateur pour les autres cibles ; `operator` est
+   * ignoré. Le contexte diffuse à ses cibles et porte l'URL (`url-sync` et
+   * `url-search-param` sont ignorés — le paramètre est nommé d'après le
    * champ, ou via `url-param-map` du contexte). Le contexte peut être
    * déclaré après la recherche dans la page. Vide = comportement autonome.
    */
@@ -324,7 +369,7 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   protected validateContextBinding(): string | null {
     return this._contextField()
       ? null
-      : 'en mode context, "fields" doit nommer un seul champ (filtre contains du contexte)';
+      : 'en mode context, "fields" doit nommer un seul champ (filtre wordstart du contexte)';
   }
 
   /**
@@ -550,6 +595,17 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
 
     if (!term || term.length < this.minLength) {
       this._filteredData = [...this._allData];
+    } else if (this._contextMode) {
+      // Mode context (#1285) : la MEME semantique que le filtre diffuse aux
+      // cibles — un mot commence par. Filtrer ici en sous-chaine retirerait
+      // des lignes que le contexte vient de retenir (« lycee prof » ne se
+      // lit pas d'un trait dans « Lycée Jean Moulin professionnel »).
+      const field = this._contextField();
+      const words = wordTokens(term);
+      this._filteredData =
+        words.length === 0
+          ? [...this._allData]
+          : this._allData.filter((record) => matchesWordStartTokens(record[field], words));
     } else {
       const fields = this._getFields();
       const op = this.operator || 'contains';
@@ -604,6 +660,12 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
           refusal =
             `la clause "${where}" ne peut pas partir au serveur (${adapter.type}) — ` +
             `l'adaptateur ne sait pas transmettre ce terme ou ces champs tels quels`;
+        } else if (splitDialectWhere(adapter, where).client) {
+          // L'API ne calculerait pas la clause comme le navigateur (#1285) :
+          // `wordstart` sur Tabular, `contains` sur Grist…
+          refusal =
+            `la clause "${where}" ne peut pas partir au serveur (${adapter.type}) — ` +
+            `son API ne la calcule pas comme le navigateur`;
         }
       }
     }

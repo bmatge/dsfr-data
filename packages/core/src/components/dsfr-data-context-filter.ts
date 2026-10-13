@@ -167,9 +167,14 @@ const OPERATORS = [
   'lt',
   'gte',
   'between',
-  // Sous-chaine (#678) : deja traduit par filter-translator (like "%v%" en
-  // ODSQL, includes en local), il n'etait simplement pas expose ici
+  // Sous-chaine (#678). Jamais delegue a un portail Opendatasoft, dont le
+  // `like` compare des mots (#1285) : la source le calcule sur les lignes
+  // chargees — et le refuse en `server-side`, ou elle n'en a qu'une page.
   'contains',
+  // Un mot commence par (#1285) : delegue a Opendatasoft (`like "mot*"`),
+  // calcule a l'identique ailleurs. C'est l'operateur de dsfr-data-search
+  // en mode `context`.
+  'wordstart',
   // Operateurs de date (#230) — clauses en plages [debut, fin)
   'month-of',
   'year-of',
@@ -245,7 +250,8 @@ export class DsfrDataContextFilter extends LitElement {
   ui = '';
 
   /**
-   * Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et
+   * Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678),
+   * wordstart (un mot commence par, #1285) — et
    * dates (#230, clauses en plages [debut, fin)) : month-of, year-of,
    * lt-day-after, last-n-days, current-year, current-month (#682 — case à
    * cocher, mois en cours, borne dynamique).
@@ -256,6 +262,16 @@ export class DsfrDataContextFilter extends LitElement {
    * type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni
    * année) retire le filtre et le signale par un avertissement console,
    * émis une seule fois par filtre.
+   *
+   * `contains` et `wordstart` (#1285) ne cherchent pas la même chose.
+   * `contains` cherche une SOUS-CHAÎNE, casse ignorée, accents respectés
+   * (« tation » trouve « alimentation ») : un portail Opendatasoft ne sait pas
+   * le faire (son `like` compare des mots), la clause y est donc calculée par
+   * la source sur les lignes chargées — tout le jeu est lu, dans la limite de
+   * `max-records`, et une cible en `server-side` passe en erreur de
+   * configuration. `wordstart` cherche des DÉBUTS DE MOT, casse et accents
+   * ignorés (« aliment » trouve « alimentation », pas « tation ») : il est
+   * délégué à Opendatasoft et fonctionne en `server-side`.
    */
   @property({ type: String })
   operator: ContextOperator = 'eq';

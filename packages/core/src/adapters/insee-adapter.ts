@@ -18,6 +18,7 @@ import type {
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import {
   INSEE_CONFIG,
+  serverComputesClause,
   resolveTransportUrl,
   transportFetch,
   flattenInseeObservation,
@@ -224,6 +225,18 @@ export class InseeAdapter implements ApiAdapter {
    */
   supportsServerWhere(where: string): boolean {
     return !where.split(',').some((clause) => isMultiFieldClause(clause.trim()));
+  }
+
+  /**
+   * Melodi ne filtre qu'en égalité sur des dimensions : seuls `eq` et `in`
+   * sont traduits (`_applyDimensionFilters`). Toute autre clause — `contains`,
+   * `wordstart`, une comparaison — est calculée côté client (#1285), au lieu
+   * d'être écartée de la requête sans que rien ne la reprenne quand elle vient
+   * d'un filtre de contexte.
+   */
+  supportsServerClause(clause: string): boolean {
+    // Table de vérité partagée avec les exports (`@dsfr-data/shared`).
+    return serverComputesClause(this.type, clause);
   }
 
   getDefaultSearchTemplate(): null {

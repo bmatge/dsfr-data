@@ -113,8 +113,10 @@ describe('#1026 — filtre client (applyLocalFilter)', () => {
 
 describe('#1026 — Opendatasoft : ODSQL `(… OR …)`', () => {
   it('filterToOdsql parenthèse le OU', () => {
-    expect(filterToOdsql('nom|prenom:contains:martin')).toBe(
-      '(nom like "%martin%" OR prenom like "%martin%")'
+    // #1285 : `contains` n'a plus de traduction ODSQL (le `like` du portail
+    // compare des mots) — le OU entre champs se dit avec `wordstart`.
+    expect(filterToOdsql('nom|prenom:wordstart:martin')).toBe(
+      '(nom like "martin*" OR prenom like "martin*")'
     );
     expect(filterToOdsql('nom|prenom:eq:X, dept:eq:75')).toBe(
       '(nom = "X" OR prenom = "X") AND dept = "75"'
@@ -248,7 +250,7 @@ interface QueryInternals {
   _buildWhereDelegation(
     expr: string,
     adapter?: ApiAdapter
-  ): { ok: boolean; where: string; fields: string[] };
+  ): { ok: boolean; where: string; fields: string[]; client: string };
 }
 
 describe('#1026 — dsfr-data-query', () => {
@@ -266,17 +268,48 @@ describe('#1026 — dsfr-data-query', () => {
 
   it('délègue à Tabular avec les champs découpés', () => {
     const d = query._buildWhereDelegation('nom|prenom:contains:x', new TabularAdapter());
-    expect(d).toEqual({ ok: true, where: 'nom|prenom:contains:x', fields: ['nom', 'prenom'] });
+    expect(d).toEqual({
+      ok: true,
+      where: 'nom|prenom:contains:x',
+      fields: ['nom', 'prenom'],
+      client: '',
+    });
   });
 
   it('traduit en ODSQL pour Opendatasoft', () => {
-    const d = query._buildWhereDelegation('nom|prenom:contains:x', new OpenDataSoftAdapter());
-    expect(d.where).toBe('(nom like "%x%" OR prenom like "%x%")');
+    // #1285 : le OU entre champs part avec `wordstart`…
+    const d = query._buildWhereDelegation('nom|prenom:wordstart:x', new OpenDataSoftAdapter());
+    expect(d.where).toBe('(nom like "x*" OR prenom like "x*")');
+    expect(d.client).toBe('');
+    // …et reste au client avec `contains`, que le portail ne sait pas calculer.
+    const c = query._buildWhereDelegation('nom|prenom:contains:x', new OpenDataSoftAdapter());
+    expect(c).toEqual({ ok: true, where: '', fields: [], client: 'nom|prenom:contains:x' });
   });
 
-  it('ne délègue rien quand l’adaptateur refuse (INSEE, valeur intransmissible)', () => {
-    expect(query._buildWhereDelegation('a|b:eq:x', new InseeAdapter()).ok).toBe(false);
-    expect(query._buildWhereDelegation('a|b:contains:A%2CB', new TabularAdapter()).ok).toBe(false);
+  it('garde au client la clause que l’adaptateur refuse (INSEE, valeur intransmissible)', () => {
+    // Avant #1285 le refus valait pour TOUT le filtre (`ok: false`) ; il ne
+    // vaut plus que pour la clause refusée, rendue dans `client`.
+    expect(query._buildWhereDelegation('a|b:eq:x', new InseeAdapter())).toEqual({
+      ok: true,
+      where: '',
+      fields: [],
+      client: 'a|b:eq:x',
+    });
+    expect(query._buildWhereDelegation('a|b:contains:A%2CB', new TabularAdapter())).toEqual({
+      ok: true,
+      where: '',
+      fields: [],
+      client: 'a|b:contains:A%2CB',
+    });
+    // Les clauses délégables du même filtre partent toujours.
+    expect(
+      query._buildWhereDelegation('dept:eq:75, a|b:contains:A%2CB', new TabularAdapter())
+    ).toEqual({
+      ok: true,
+      where: 'dept:eq:75',
+      fields: ['dept'],
+      client: 'a|b:contains:A%2CB',
+    });
   });
 });
 

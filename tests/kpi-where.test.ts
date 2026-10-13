@@ -31,8 +31,10 @@ interface KpiInternals {
 const internals = (k: DsfrDataKpi) => k as unknown as KpiInternals;
 
 describe('#674 — validateColonFilter (moteur partagé)', () => {
-  it('accepte les 12 opérateurs et les clauses multiples', () => {
-    expect(COLON_FILTER_OPERATORS).toHaveLength(12);
+  it('accepte les 13 opérateurs et les clauses multiples', () => {
+    // 12 historiques + `wordstart` (« un mot commence par », #1285)
+    expect(COLON_FILTER_OPERATORS).toHaveLength(13);
+    expect(validateColonFilter('nom:wordstart:lycée prof')).toBeNull();
     expect(validateColonFilter('categorie:eq:Actif, montant:gte:1000, x:isnull')).toBeNull();
     expect(validateColonFilter('dept:in:75|13')).toBeNull();
   });

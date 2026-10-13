@@ -89,7 +89,8 @@ import {
 import type { DataIdleEvent } from '../utils/data-bridge.js';
 import { visibleConsumers } from '../utils/visible-consumers.js';
 import { safeSourcePage } from '../utils/source-errors.js';
-import { joinWhere } from '../utils/where.js';
+import { joinWhere, splitDialectWhere, describeClientWhere } from '../utils/where.js';
+import { fetchAllWithClientWhere, selectComputes } from '../utils/client-where.js';
 import { httpError } from '../utils/http-error.js';
 
 /**
@@ -714,6 +715,13 @@ export class DsfrDataSource extends LitElement {
 
   /** Dynamic WHERE overlays from dsfr-data-facets, dsfr-data-search, etc. */
   private _whereOverlays = new Map<string, string>();
+
+  /**
+   * Clauses calculées CÔTÉ CLIENT, par émetteur (#1285) — grammaire colon.
+   * Complément de `_whereOverlays` : ce qu'un filtre de contexte porte et que
+   * l'API ne sait pas calculer comme le navigateur (`splitWhere`).
+   */
+  private _clientWhereOverlays = new Map<string, string>();
   /** Dynamic orderBy overlay from dsfr-data-list sort */
   private _orderByOverlay = '';
   /** Dynamic groupBy overlay from dsfr-data-query délégation */
@@ -865,11 +873,32 @@ export class DsfrDataSource extends LitElement {
       Array.isArray(excludeKey) ? excludeKey : excludeKey !== undefined ? [excludeKey] : []
     );
     const parts: string[] = [];
-    if (this.where) parts.push(this.where);
+    // Le `where` de la source, moins ce que l'API ne sait pas calculer comme
+    // le navigateur (#1285) : cette part-là est rendue par `getClientWhere`.
+    const own = splitDialectWhere(this.getAdapter(), this.where).server;
+    if (own) parts.push(own);
     for (const [key, value] of this._whereOverlays) {
       if (!excluded.has(key) && value) parts.push(value);
     }
     return joinWhere(this.getAdapter(), parts);
+  }
+
+  /**
+   * Part du filtre calculée CÔTÉ CLIENT par la source (#1285, ADR-139), en
+   * grammaire colon : les clauses que l'API ne sait pas calculer comme le
+   * navigateur — `contains` sur un portail Opendatasoft, dont le `like`
+   * compare des mots ; `wordstart` ailleurs. Elles viennent du `where` de la
+   * source (adaptateurs à grammaire colon) et des filtres de contexte. Vide =
+   * tout le filtre est délégué. `getEffectiveWhere()` rend l'autre part.
+   */
+  public getClientWhere(): string {
+    const parts: string[] = [];
+    const own = splitDialectWhere(this.getAdapter(), this.where).client;
+    if (own) parts.push(own);
+    for (const value of this._clientWhereOverlays.values()) {
+      if (value) parts.push(value);
+    }
+    return parts.join(', ');
   }
 
   /**
@@ -1083,6 +1112,16 @@ export class DsfrDataSource extends LitElement {
           this._currentPage = 1;
           needsFetch = true;
         }
+        // Part cliente du même émetteur (#1285). Une commande `where` sans
+        // `clientWhere` la libère : les deux parts sont celles d'UN filtre.
+        const clientPrevious = this._clientWhereOverlays.get(key) ?? '';
+        const clientNext = cmd.clientWhere ?? '';
+        if (clientNext !== clientPrevious) {
+          if (clientNext) this._clientWhereOverlays.set(key, clientNext);
+          else this._clientWhereOverlays.delete(key);
+          this._currentPage = 1;
+          needsFetch = true;
+        }
       }
 
       if (cmd.orderBy !== undefined && cmd.orderBy !== this._orderByOverlay) {
@@ -1133,6 +1172,9 @@ export class DsfrDataSource extends LitElement {
    */
   private _hasReceivedWhere(): boolean {
     for (const value of this._whereOverlays.values()) {
+      if (value) return true;
+    }
+    for (const value of this._clientWhereOverlays.values()) {
       if (value) return true;
     }
     return false;
@@ -1471,7 +1513,18 @@ export class DsfrDataSource extends LitElement {
         result = await adapter.fetchPage(params, overlay, this._abortController.signal);
         this._publishPageMeta(result);
       } else {
-        result = await adapter.fetchAll(params, this._abortController.signal);
+        // Clauses que l'API ne sait pas calculer comme le navigateur (#1285) :
+        // la source les calcule, sur les lignes que le reste du filtre garde.
+        const clientWhere = this.getClientWhere();
+        result = clientWhere
+          ? await fetchAllWithClientWhere(
+              adapter,
+              params,
+              clientWhere,
+              this._abortController.signal,
+              `dsfr-data-source[${this.id}]`
+            )
+          : await adapter.fetchAll(params, this._abortController.signal);
         this._publishFetchAllMeta(result);
       }
 
@@ -1530,6 +1583,16 @@ export class DsfrDataSource extends LitElement {
 
     clearConfigError(this);
 
+    // Clause calculée côté client sur un montage qui ne lui livre pas le jeu
+    // (#1285) : erreur de configuration, aucun chiffre partiel.
+    const clientWhereError = this._clientWhereConfigError(adapter);
+    if (clientWhereError) {
+      reportConfigError(this, `dsfr-data-source[${this.id}]`, clientWhereError);
+      this._error = new Error(clientWhereError);
+      dispatchDataError(this.id, this._error);
+      return null;
+    }
+
     // Configuration contradictoire, non bloquante (#689) : l'endpoint
     // d'export rend le jeu entier, la pagination serveur demande une page.
     // Le chargement continue sur le chemin pagine (getAdapterParams neutralise
@@ -1556,6 +1619,52 @@ export class DsfrDataSource extends LitElement {
     this._warnRelayDropsHeaders(relayed);
 
     return { adapter, params };
+  }
+
+  /**
+   * Une clause calculée côté client (#1285) ne se calcule que sur le jeu
+   * CHARGÉ, ligne à ligne. Deux montages ne le lui livrent pas — même règle
+   * que le regroupement gardé côté client (#1242) : erreur de configuration
+   * qui nomme les attributs et la correction, jamais un résultat partiel.
+   *
+   * - `server-side` : la source ne reçoit qu'une page, la clause n'en
+   *   filtrerait que les lignes ;
+   * - `group-by`, `aggregate` ou un `select` qui calcule, POSÉS SUR LA SOURCE :
+   *   le serveur agrégerait des lignes que la clause n'a pas filtrées, et
+   *   rien en aval ne recalcule l'agrégat d'une source. (Un regroupement
+   *   DÉLÉGUÉ par une `dsfr-data-query` n'est pas concerné : la requête le
+   *   reprend côté client, sur les lignes filtrées.)
+   */
+  private _clientWhereConfigError(adapter: ApiAdapter): string | null {
+    const clientWhere = this.getClientWhere();
+    if (!clientWhere) return null;
+    // Pourquoi, et ce que l'API sait faire à la place : dit par l'adaptateur.
+    const { cause, alternatives } = describeClientWhere(adapter, clientWhere);
+    const quoi = `la clause "${clientWhere}" est calculée côté client, sur les lignes chargées — ${cause}`;
+
+    if (this.serverSide) {
+      return (
+        `${quoi} — or la source est en pagination serveur (server-side) et ne livre qu'une ` +
+        `page : le résultat serait partiel. Retirez server-side de dsfr-data-source ` +
+        `"${this.id}" (le jeu est alors chargé en entier, dans la limite de max-records)` +
+        `${alternatives}.`
+      );
+    }
+    const computed = [
+      this.groupBy ? `group-by="${this.groupBy}"` : '',
+      this.aggregate ? `aggregate="${this.aggregate}"` : '',
+      selectComputes(this.select) ? `select="${this.select}"` : '',
+    ].filter(Boolean);
+    if (computed.length > 0) {
+      return (
+        `${quoi} — or ${computed.join(' ')} ${computed.length > 1 ? 'sont calculés' : 'est calculé'} ` +
+        `par le serveur, sur des lignes que cette clause n'a pas filtrées : le résultat serait ` +
+        `faux. Retirez ${computed.length > 1 ? 'ces attributs' : 'cet attribut'} de ` +
+        `dsfr-data-source "${this.id}" et portez le calcul par une dsfr-data-query en aval ` +
+        `(group-by, aggregate), qui regroupe les lignes filtrées${alternatives}.`
+      );
+    }
+    return null;
   }
 
   /** URL que l'adaptateur appellerait, AVANT tout proxy ; `''` s'il ne sait pas la construire. */
@@ -1946,6 +2055,7 @@ export class DsfrDataSource extends LitElement {
       datasetId: this.datasetId,
       resource: this.resource,
       where: this.getEffectiveWhere(),
+      clientWhere: this.getClientWhere(),
       select: this.select,
       groupBy: this.groupBy,
       aggregate: this.aggregate,

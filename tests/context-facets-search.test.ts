@@ -38,6 +38,7 @@ type Row = Record<string, string>;
 
 interface Captured {
   where?: string;
+  clientWhere?: string;
   whereKey?: string;
   origin?: string;
 }
@@ -388,8 +389,8 @@ describe('#678 — forme ADR-104 §7 : une facette multi-champs sur une source d
   });
 });
 
-describe('#678 — dsfr-data-search context="ctx" : un filtre contains', () => {
-  it('la frappe devient une clause contains diffusée par le contexte, sans commande directe', async () => {
+describe('#678, #1285 — dsfr-data-search context="ctx" : un filtre wordstart', () => {
+  it('la frappe devient une clause wordstart diffusée par le contexte, sans commande directe', async () => {
     const charges = fakeOdsSource('cg-charges');
     const produits = fakeOdsSource('cg-produits');
     unsubs.push(charges.unsub, produits.unsub);
@@ -408,8 +409,10 @@ describe('#678 — dsfr-data-search context="ctx" : un filtre contains', () => {
     await settle();
     await tags.updateComplete;
 
-    expect(charges.effectiveWhere()).toBe('postes like "%dette%"');
-    expect(produits.effectiveWhere()).toBe('postes like "%dette%"');
+    // #1285 : « un mot commence par », que le portail sait calculer —
+    // `like "%dette%"` y comparait des mots entiers.
+    expect(charges.effectiveWhere()).toBe('postes like "dette*"');
+    expect(produits.effectiveWhere()).toBe('postes like "dette*"');
     expect(charges.commands.some((c) => c.whereKey === 's-postes')).toBe(false);
     expect(new URLSearchParams(window.location.search).get('postes')).toBe('dette');
     expect(tags.querySelector('.fr-tag')?.textContent).toContain('dette');
@@ -433,7 +436,7 @@ describe('#678 — dsfr-data-search context="ctx" : un filtre contains', () => {
     await search.updateComplete;
 
     expect((search.querySelector('input') as HTMLInputElement).value).toBe('immo');
-    expect(charges.effectiveWhere()).toBe('postes like "%immo%"');
+    expect(charges.effectiveWhere()).toBe('postes like "immo*"');
   });
 
   it('plusieurs champs en mode context → erreur de config (la clause colon ne sait pas dire « ou »)', async () => {
@@ -473,7 +476,13 @@ describe('#678 — dsfr-data-context-filter context="ctx" et opérateur contains
 
     input.value = 'Dette';
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(charges.effectiveWhere()).toBe('postes like "%Dette%"');
+    // #1285 : `contains` (sous-chaîne) n'a pas d'équivalent ODSQL — rien ne
+    // part au portail, la clause est confiée à la source, qui la calcule.
+    expect(charges.effectiveWhere()).toBe('');
+    expect(charges.commands.at(-1)).toMatchObject({
+      where: '',
+      clientWhere: 'postes:contains:Dette',
+    });
   });
 
   it('sans context, le repli closest() est inchangé', async () => {

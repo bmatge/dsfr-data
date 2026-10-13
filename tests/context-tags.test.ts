@@ -150,6 +150,8 @@ describe('#232 — config', () => {
 
 interface Captured {
   where?: string;
+  /** Part du filtre que la cible calcule elle-même (#1285). */
+  clientWhere?: string;
   whereKey?: string;
 }
 
@@ -281,7 +283,9 @@ describe('#679 — recherche : tag « Recherche : terme »', () => {
     await tags.updateComplete;
 
     expect(tagTexts(tags)).toEqual(['Recherche : dette']);
-    expect(commands.at(-1)?.where).toBe('postes:contains:dette');
+    // #1285 : la recherche est un `wordstart`, que seule l'API Opendatasoft
+    // calcule — la cible factice (dialecte colon) le reçoit en part cliente.
+    expect(commands.at(-1)?.clientWhere).toBe('postes:wordstart:dette');
 
     (tags.querySelector('.fr-tag') as HTMLButtonElement).click();
     await search.updateComplete;
