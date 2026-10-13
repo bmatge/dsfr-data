@@ -41,17 +41,19 @@ import {
 import type { ParquetExport } from './tabular-parquet.js';
 import { httpError, releaseBody } from '../utils/http-error.js';
 
-/** Jokers de `ilike` : `%` (toute suite) et `_` (un caractère). */
-const LIKE_WILDCARDS = /[%_]/;
+/** Jokers de `ilike` : `%` (toute suite) et `_` (un caractère) — et l'antislash qui les échappe. */
+const LIKE_WILDCARDS = /[%_\\]/;
 
 /**
  * `champ__contains` est un `ilike '%valeur%'` : `%` et `_` de la valeur y sont
  * des jokers (`Saint_` trouve « Saint-Amadou », `%` rend tout le jeu). Précédés
  * d'un antislash ils redeviennent littéraux — mesuré le 2026-10-13, #1285 — et
- * `contains` reste la recherche de sous-chaîne que fait le client.
+ * `contains` reste la recherche de sous-chaîne que fait le client. L'antislash
+ * de la valeur est doublé de même (forme standard, non mesurée : une telle
+ * valeur n'est déléguée que par `server-search`, jamais par un filtre).
  */
 function escapeLikeWildcards(value: string): string {
-  return value.replace(/[%_]/g, '\\$&');
+  return value.replace(/[\\%_]/g, '\\$&');
 }
 
 /** Construit les options fetch avec headers optionnels */

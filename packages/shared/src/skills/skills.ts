@@ -386,12 +386,38 @@ Multiples filtres separes par virgule (logique ET) :
 | gte | Superieur ou egal | \`"population:gte:10000"\` |
 | lt | Strictement inferieur | \`"score:lt:50"\` |
 | lte | Inferieur ou egal | \`"age:lte:30"\` |
-| contains | Contient (insensible a la casse) | \`"nom:contains:paris"\` |
+| contains | Contient : SOUS-CHAINE, n'importe ou dans la valeur (casse ignoree, accents respectes) | \`"nom:contains:paris"\` |
 | notcontains | Ne contient pas | \`"email:notcontains:spam"\` |
+| wordstart | Un mot commence par : chaque mot saisi est le DEBUT d'un mot du champ (casse et accents ignores) | \`"nom:wordstart:lycee prof"\` |
 | in | Dans la liste (separateur \\|) | \`"region:in:IDF\\|OCC\\|BRE"\` |
 | notin | Pas dans la liste | \`"status:notin:archive\\|supprime"\` |
 | isnull | Est vide/null | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
+
+**Chercher du texte : \`contains\` ou \`wordstart\` (#1285)** — deux questions differentes, et le MEME
+resultat que la clause parte au serveur ou non :
+- \`nom:contains:tation\` cherche une SOUS-CHAINE : « tation » trouve « alimentation ». Casse ignoree,
+  accents respectes (« ecole » ne trouve pas « École »).
+- \`nom:wordstart:aliment\` cherche des DEBUTS DE MOT : « aliment » trouve « alimentation », « tation »
+  ne trouve rien ; \`nom:wordstart:prof lyc\` trouve « Lycée professionnel Jean Moulin » (chaque mot
+  saisi commence un mot du champ, sans ordre, casse et accents ignores). Un mot = lettres et
+  chiffres ; tiret, parenthese, \`&\`, \`/\` coupent ; l'article elide tombe (« d'aquaculture » se
+  cherche par « aqua »). Un champ non texte (nombre) n'a pas de mot.
+
+⚠️ **Sur une source Opendatasoft, preferer \`wordstart\`** des que la question est « retrouver un
+libelle par ses premiers caracteres » : c'est ce que le portail sait calculer (\`like "aliment*"\`).
+Il ne sait PAS chercher une sous-chaine (son \`like\` compare des mots : \`like "%aliment%"\` rend
+0 ligne pour 14 366 « alimentation »), donc \`contains\` / \`notcontains\` y sont calcules dans le
+navigateur : tout ce que le reste du filtre laisse passer est charge (dans la limite de
+\`max-records\` — poser \`fetch-mode="export"\` et relever \`max-records\` au-dela de 1 000 lignes),
+\`group-by\` n'est plus delegue, et derriere une source \`server-side\` la requete passe en erreur de
+configuration. Table de delegation :
+
+| | \`contains\` | \`notcontains\` | \`wordstart\` |
+|---|---|---|---|
+| Opendatasoft | navigateur | navigateur | serveur (\`like "mot*"\`) |
+| Tabular | serveur (\`ilike\`) | navigateur | navigateur |
+| Grist, INSEE, sans adaptateur | navigateur | navigateur | navigateur |
 
 **Champs multiples — un OU entre champs (#1026)** : \`"nom|commune:contains:martin"\` applique le
 MÊME opérateur et la MÊME valeur à plusieurs champs ; la ligne passe dès qu'UN champ satisfait la
@@ -400,7 +426,9 @@ clause. Les clauses entre elles restent en ET : \`where="nom|commune:contains:ma
 OU de la grammaire (pas de clause \`or(...)\` générale). Traduction serveur : Tabular
 \`or=(nom__contains.martin,commune__contains.martin)\` (une seule clause multi-champs par requête,
 valeur sans \`,\` \`.\` \`(\` \`)\` \`"\` \`&\`, pas de \`in\`/\`notin\`), Opendatasoft et Grist
-\`(… OR …)\` ; INSEE et les sources sans adaptateur filtrent dans le navigateur.
+\`(… OR …)\` pour les opérateurs qu'ils délèguent (\`nom|commune:wordstart:martin\` part à
+Opendatasoft, \`contains\` y reste au navigateur, #1285) ; INSEE et les sources sans adaptateur
+filtrent dans le navigateur.
 
 **Champs tableau (#953, ex-#842)** : \`eq\` / \`neq\` / \`in\` / \`notin\` regardent DANS le tableau.
 \`tags:eq:urgent\` retient une ligne dont \`tags\` vaut \`["urgent","social"]\`, exactement comme
@@ -1209,7 +1237,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | debounce | Number | 300 | non | Delai en ms avant filtrage |
 | min-length | Number | 0 | non | Nb minimum de caractères |
 | highlight | Boolean | false | non | Ajoute _highlight avec <mark> pour dsfr-data-display |
-| operator | String | "contains" | non | Mode : contains, starts, words |
+| operator | String | "contains" | non | Mode de la recherche LOCALE : contains, starts, words. Ignore avec \`context\` (filtre \`wordstart\`) et \`server-search\` |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
 | count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en \`server-search\`), avec séparateur de milliers français. Voir Accessibilité : il n'est une région live que sans afficheur aval. Tant que l'amont attend un filtre (\`require-where\`), le compteur cède la place au message d'attente |
 | count-label | String | \`""\` | non | Nom compté à la place de « résultat » : \`count-label="établissement"\` → « 12 345 établissements ». Pluriel irrégulier : les deux formes, \`count-label="cheval|chevaux"\` |
@@ -1218,7 +1246,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
 | search-template | String | \`'search("{q}")'\` | non | Template ODSQL pour la recherche serveur ({q} = terme) |
-| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre \`contains\` du contexte sur le champ UNIQUE de \`fields\` (obligatoire). Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
+| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre \`wordstart\` du contexte — « un mot commence par » (#1285) — sur le champ UNIQUE de \`fields\` (obligatoire). « aliment » trouve « alimentation », « tation » non : ce n'est PAS la sous-chaine du mode local. Delegue a Opendatasoft (\`like "aliment*"\`), calcule a l'identique dans le navigateur ailleurs. Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
 
 ### Recherche serveur
 Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie une commande
@@ -1249,9 +1277,22 @@ annonce lui-même son compte. Ne pas ajouter de région live supplémentaire dan
 contradictoires (#654).
 
 ### Modes de recherche
+Recherche LOCALE (ni \`context\` ni \`server-search\`), attribut \`operator\` :
 - **contains** (défaut) : sous-chaine insensible a la casse et aux accents
-- **starts** : chaque mot du champ doit commencer par le terme
+- **starts** : un mot du champ doit commencer par le terme
 - **words** : tous les mots saisis doivent etre presents (dans n'importe quel champ)
+
+⚠️ **Trois recherches, trois semantiques** (#1285) — les dire a l'usager quand on change de mode :
+
+| Mode | Ce qui est cherche | « aliment » trouve « alimentation » | « tation » trouve « alimentation » |
+|---|---|---|---|
+| local (\`operator="contains"\`, defaut) | une sous-chaine, accents ignores, dans les lignes recues | oui | oui |
+| \`context="ctx"\` | un mot COMMENCE PAR chaque mot saisi (\`wordstart\`), accents ignores — identique sur toutes les cibles du contexte | oui | **non** |
+| \`server-search\` | la recherche de l'API : plein texte par debut de mot sur Opendatasoft (tous les champs), sous-chaine sensible aux accents sur Tabular (\`fields\`) | oui | Opendatasoft : non |
+
+Une recherche passee de locale a \`context\` ne trouve donc plus un fragment pris au milieu d'un
+mot : c'est voulu, c'est ce que le portail sait faire, et c'est deja le comportement de
+\`server-search\` sur Opendatasoft.
 
 ### Exemples
 \`\`\`html
@@ -1421,8 +1462,8 @@ la fraction. Division par zéro ou côté non numérique : « — » (jamais Inf
 
 ### Filtrer sans query intermédiaire : \`where\`
 \`where="champ:op:valeur[, …]"\` filtre les lignes AVANT \`value\`, \`trend\` et \`lines\`, avec la
-grammaire colon de dsfr-data-query (eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin,
-isnull, isnotnull ; égalité lâche, \`in\` avec \`|\`). Une somme filtrée ne coûte plus une query :
+grammaire colon de dsfr-data-query (eq, neq, gt, gte, lt, lte, contains, notcontains, wordstart,
+in, notin, isnull, isnotnull ; égalité lâche, \`in\` avec \`|\`). Une somme filtrée ne coûte plus une query :
 \`\`\`html
 <dsfr-data-kpi source="budget" value="montant:sum" where="categorie:eq:Actif" label="Actif" format="euro"></dsfr-data-kpi>
 <dsfr-data-kpi source="budget" value="montant:sum" where="categorie:eq:Passif, exercice:gte:2024" label="Passif 2024+"></dsfr-data-kpi>
@@ -4089,13 +4130,13 @@ construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adap
 Tout composant qui filtre peut etre un filtre du contexte via \`context="id"\` :
 <dsfr-data-context-filter context="ctx"> (place n'importe ou, plus seulement enfant),
 <dsfr-data-facets context="ctx"> (un filtre par champ, select peuple + cascade sans option
-en dur), <dsfr-data-search context="ctx"> (filtre contains sur un champ) et
+en dur), <dsfr-data-search context="ctx"> (filtre wordstart sur un champ : un mot commence par, #1285) et
 <dsfr-data-map-layer refine-on-click="champ" context="ctx"> (filtre eq au clic sur la carte, #681). Le contexte
 diffuse, porte l'URL (un parametre par champ, url-sync unique) et alimente context-tags.
 Dans l'URL, les valeurs d'un filtre a plusieurs valeurs (\`in\`, facette) sont jointes par des
 virgules (?region=IDF,PACA) ; une virgule DANS une valeur s'ecrit %2C, un pourcent %25 (soit
 %252C et %2525 dans un lien ecrit a la main). url-sync ecrit cet echappement lui-meme, pour tous
-les filtres du contexte. Un filtre a valeur unique (eq, contains, recherche, clic) lit son
+les filtres du contexte. Un filtre a valeur unique (eq, contains, wordstart, recherche, clic) lit son
 parametre en entier.
 Le contexte peut etre declare APRES ces composants dans la page : ils s'enregistrent a sa
 connexion. whereKey stable indexe sur \`uid + champ\` (insertion tardive sans decalage).
@@ -4120,7 +4161,7 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 |----------|------|--------|--------|-------------|
 | field | String | \`""\` | oui | Colonne filtree |
 | ui | String | \`""\` | oui | Id de l'element d'UI ecoute — DEUX ids (min max) pour between |
-| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), contains (sous-chaine, #678), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year, current-month (bornes dynamiques recalculees a chaque diffusion) |
+| operator | String | \`"eq"\` | non | eq, in, lt, gte, between (between -> gte + lt), contains (sous-chaine, #678), wordstart (un mot commence par, #1285), et dates (#230) : month-of, year-of, lt-day-after, last-n-days, current-year, current-month (bornes dynamiques recalculees a chaque diffusion) |
 | apply-to | String | \`"*"\` | non | \`*\` = toutes les sources du contexte, ou liste d'ids cibles separes par des espaces |
 | label | String | \`""\` | non | Libelle naturel pour l'affichage (tags #232) — defaut : field |
 | default | String | \`""\` | non | Valeur initiale (#682), appliquee APRES l'URL (l'URL gagne) : \`today\`, \`first-of-month\`, \`first-of-year\` (resolus dans le fuseau local, adaptes au controle) ou un litteral ; pour between/in, valeurs separees par une virgule |
@@ -4130,7 +4171,12 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 ### Operateurs
 
 - \`eq\` : egalite — \`in\` : multi-valeurs (select multiple, valeurs jointes par | ou ,)
-- \`contains\` : sous-chaine (input texte ; \`like "%v%"\` en ODSQL) — #678
+- \`contains\` : sous-chaine (input texte) — #678. Jamais delegue a Opendatasoft, dont le \`like\`
+  compare des mots (#1285) : la source cible le calcule sur les lignes chargees (jeu entier, sous
+  \`max-records\`), et une cible \`server-side\` passe en erreur de configuration
+- \`wordstart\` : un mot commence par (input texte ; \`like "mot*"\` sur Opendatasoft, calcule a
+  l'identique ailleurs) — #1285. Casse et accents ignores ; fonctionne en \`server-side\`. C'est
+  l'operateur de \`dsfr-data-search context\`
 - \`lt\` / \`gte\` : comparaisons — \`between\` : deux UI (min puis max) -> gte + lt
 - Dates (#230) : \`month-of\` (input type=month -> plage du mois), \`year-of\` (plage annuelle),
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne

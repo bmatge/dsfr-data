@@ -259,7 +259,8 @@
                 <tr><td><code>neq</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>status:neq:archive</code></td></tr>
                 <tr><td><code>gt</code>, <code>gte</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>age:gt:18</code></td></tr>
                 <tr><td><code>lt</code>, <code>lte</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>prix:lt:50</code></td></tr>
-                <tr><td><code>contains</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>nom:contains:Paris</code></td></tr>
+                <tr><td><code>contains</code>, <code>notcontains</code></td><td class="capability-no">Non</td><td class="capability-no">Non (navigateur)</td><td><code>nom:contains:Paris</code> — calculé dans le navigateur : le <code>LIKE</code> de SQLite n'ignore la casse que pour l'ASCII et lit <code>%</code> et <code>_</code> comme des jokers. Seul le gabarit de <code>dsfr-data-search server-search</code> l'envoie encore à l'API</td></tr>
+                <tr><td><code>wordstart</code></td><td class="capability-no">Non</td><td class="capability-no">Non (navigateur)</td><td><code>nom:wordstart:par</code> — un mot commence par, calculé dans le navigateur</td></tr>
                 <tr><td><code>isnull</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>email:isnull:</code></td></tr>
               </tbody>
             </table>

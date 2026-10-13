@@ -206,3 +206,20 @@ export function describeClientWhere(
     : '';
   return { cause, alternatives: `${wordstart}${search}` };
 }
+
+/**
+ * Un filtre écrit dans le dialecte de l'adaptateur porte-t-il un opérateur que
+ * son API N'A PAS — `wordstart` ailleurs que sur un portail qui le traduit
+ * (#1285) ? Question plus étroite que `splitDialectWhere` : elle ne juge pas
+ * si l'API calcule la clause COMME le navigateur, seulement si elle saurait la
+ * lire. C'est celle que pose `dsfr-data-search server-search`, dont le gabarit
+ * demande expressément la recherche de l'API, avec sa casse et ses accents.
+ */
+export function serverLacksOperator(
+  adapter: WhereDialectCarrier | null | undefined,
+  where: string
+): boolean {
+  return splitDialectWhere(adapter, where)
+    .client.split(',')
+    .some((clause) => clause.trim().split(':')[1] === WORD_START_OPERATOR);
+}

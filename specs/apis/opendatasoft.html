@@ -138,6 +138,37 @@
 
           <h3 class="fr-mt-2w">Separateur WHERE</h3>
           <p>Les clauses WHERE multiples sont jointes par <code> AND </code>.</p>
+
+          <h3 id="like-des-mots" class="fr-mt-2w">Chercher du texte : <code>like</code> compare des mots</h3>
+          <p>
+            Le <code>like</code> d'ODSQL n'est <strong>pas</strong> une recherche de sous-chaîne, et le
+            <code>%</code> n'y est pas un joker : il compare des <strong>mots</strong>. Mesuré le 2026-10-12 sur
+            <code>rappelconso-v2-gtin-trie</code> (data.economie.gouv.fr, 18 559 lignes) et le 2026-10-13 sur
+            data.education.gouv.fr :
+          </p>
+          <div class="fr-table">
+            <table class="attr-table">
+              <thead><tr><th>Clause</th><th>Lignes</th><th>Lecture</th></tr></thead>
+              <tbody>
+                <tr><td><code>categorie_produit like "%aliment%"</code></td><td>0</td><td>mot entier « aliment » : aucun — 14 366 lignes valent pourtant « alimentation »</td></tr>
+                <tr><td><code>categorie_produit like "alimentation"</code></td><td>14 366</td><td>mot entier</td></tr>
+                <tr><td><code>categorie_produit like "alim*"</code></td><td>15 632</td><td><strong>début de mot</strong> (« alimentation », « hors alimentaire »)</td></tr>
+                <tr><td><code>categorie_produit like "*tation"</code></td><td>0</td><td>pas de recherche par fin ou milieu de mot</td></tr>
+                <tr><td><code>categorie_produit like "ali* hor*"</code></td><td>1 266</td><td>plusieurs termes : un ET, sans ordre ni adjacence</td></tr>
+                <tr><td><code>categorie_produit like "*ALIMENT*"</code>, <code>"bebes*"</code></td><td>15 632, 1 266</td><td>casse et accents ignorés</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            La bibliothèque en tire deux conséquences. L'opérateur <code>contains</code> (une sous-chaîne) n'a aucun
+            équivalent ODSQL : il n'est <strong>jamais délégué</strong> à un portail OpenDataSoft, il est calculé
+            dans le navigateur sur les lignes chargées. L'opérateur <code>wordstart</code> (un mot commence par) est,
+            lui, exactement ce que le portail sait faire : il part en <code>like "mot*"</code> — les mots de la
+            saisie, repliés, chacun suivi d'une étoile — et il est calculé à l'identique dans le navigateur quand il
+            n'est pas délégué. Un champ qui n'est pas du texte ne se cherche pas : <code>like</code> rend 0 ligne sur
+            un entier, et une erreur 400 sur une date. Voir
+            <a href="../components/dsfr-data-query.html#chercher-du-texte">dsfr-data-query, « Chercher du texte »</a>.
+          </p>
         </section>
 
         <!-- Facettes -->

@@ -10,7 +10,7 @@ import {
 } from '@dsfr-data/shared/lib';
 import type { ContextFilterLike } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { escapeColonValue, escapeSearchTerm, splitDialectWhere } from '../utils/where.js';
+import { escapeColonValue, escapeSearchTerm, serverLacksOperator } from '../utils/where.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import { renderSourceIdle, IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
@@ -660,12 +660,14 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
           refusal =
             `la clause "${where}" ne peut pas partir au serveur (${adapter.type}) — ` +
             `l'adaptateur ne sait pas transmettre ce terme ou ces champs tels quels`;
-        } else if (splitDialectWhere(adapter, where).client) {
-          // L'API ne calculerait pas la clause comme le navigateur (#1285) :
-          // `wordstart` sur Tabular, `contains` sur Grist…
+        } else if (serverLacksOperator(adapter, where)) {
+          // Un gabarit en `wordstart` vers une API qui n'a pas cet opérateur
+          // (#1285) : elle ne saurait pas lire la clause. (`contains`, lui,
+          // part : `server-search` demande la recherche DE L'API, avec sa
+          // casse et ses accents.)
           refusal =
             `la clause "${where}" ne peut pas partir au serveur (${adapter.type}) — ` +
-            `son API ne la calcule pas comme le navigateur`;
+            `son API n'a pas d'opérateur « un mot commence par » (wordstart)`;
         }
       }
     }

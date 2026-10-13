@@ -34,6 +34,7 @@ export type { WhereDialectCarrier, WhereSplit } from '../adapters/where-dialect.
 export {
   canDelegateClause,
   splitDialectWhere,
+  serverLacksOperator,
   describeClientWhere,
 } from '../adapters/where-dialect.js';
 

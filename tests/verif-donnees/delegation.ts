@@ -2751,7 +2751,7 @@ const CONTAINS_ET_DEBUT_DE_MOT: Check[] = [
     id: 'contains-ods-server-side-source-partagee',
     mode: 'deterministic',
     origin:
-      '#1285, règle de #1242 — le même montage quand une liste lit AUSSI la source : la requête ne lui délègue plus rien (#765) et filtrerait elle-même la page reçue. C’est elle qui passe en erreur de configuration ; la source garde sa pagination, la liste voisine affiche sa page.',
+      '#1285 — le même montage quand une liste lit AUSSI la source : la requête ne lui délègue rien (#765), ni ce `contains` ni un autre opérateur. STATU QUO, et c’est voulu : un filtre posé sur une chaîne partagée a toujours porté sur les lignes reçues — c’est ce que fait une page qui répartit ses lignes en deux blocs. Aucune erreur ; la source garde sa pagination, la requête filtre la page (les 40 premières lignes de l’ordre total). Ce contrôle garde la frontière : seule une clause qui AURAIT été déléguée devient une erreur.',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
     markup: `
   ${sourceOds('s-c-part', { serverSide: true })}
@@ -2765,11 +2765,17 @@ const CONTAINS_ET_DEBUT_DE_MOT: Check[] = [
         pipeline: [{ op: 'limit', n: TAILLE_PAGE }],
       },
       {
-        kind: 'diagnostic',
-        id: 'q-c-part',
-        expect: 'config-error',
-        contains: 'Retirez server-side de dsfr-data-source "s-c-part"',
+        kind: 'kpi',
+        id: 'k-c-part',
+        agg: 'count',
+        pipeline: [
+          { op: 'order-by', column: 'region', dir: 'asc' },
+          { op: 'limit', n: TAILLE_PAGE },
+          ...MILIEU_DE_MOT,
+        ],
       },
+      { kind: 'diagnostic', id: 'q-c-part', expect: 'silence', contains: 'server-side' },
+      { kind: 'diagnostic', id: 's-c-part', expect: 'silence', contains: 'server-side' },
       urlsDe('contains-partagee-sans-like', 'ods', 'like', 'none'),
     ],
   },
@@ -2778,13 +2784,13 @@ const CONTAINS_ET_DEBUT_DE_MOT: Check[] = [
     id: 'contains-tabular-jokers-echappes',
     mode: 'deterministic',
     origin:
-      '#1285 — Tabular garde `contains` délégué (`champ__contains`, un `ilike` : vraie sous-chaîne, casse ignorée, accents respectés, mesuré le 2026-10-13), à une condition : `%` et `_` y sont des JOKERS (`Saint_` rend les mêmes 25 lignes que `saint`). « d_O » ne figure dans aucune région ; sans échappement, le `_` trouvait « Val-d’Oise » et « Côte-d’Or ». La valeur part échappée (`d\\_O`) : zéro ligne, comme côté client. « d’o », lui, en trouve bien deux.',
+      '#1285 — Tabular garde `contains` délégué (`champ__contains`, un `ilike` : vraie sous-chaîne, casse ignorée, accents respectés, mesuré le 2026-10-13), à une condition : `%` et `_` y sont des JOKERS (`Saint_` rend les mêmes 25 lignes que `saint`). « d_O » ne figure dans aucune région ; sans échappement, le `_` trouvait « Val-d’Oise » et « Côte-d’Or ». La valeur part échappée (`d\\_O`) : zéro ligne, comme côté client. « d’o », lui, en trouve bien deux. La clause est posée sur la SOURCE : c’est le serveur seul qui filtre, personne ne refiltre derrière lui (une `dsfr-data-query` le ferait, et masquerait le défaut).',
     feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
     markup: `
-  ${sourceTabular('s-tab-joker')}
-  <dsfr-data-query id="q-tab-joker" source="s-tab-joker" where="region:contains:d_O"></dsfr-data-query>${kpiLignes('k-tab-joker', 'q-tab-joker')}
-  ${sourceTabular('s-tab-apos')}
-  <dsfr-data-query id="q-tab-apos" source="s-tab-apos" where="region:contains:d'o"></dsfr-data-query>${kpiLignes('k-tab-apos', 'q-tab-apos')}`,
+  <dsfr-data-source id="s-tab-joker" api-type="tabular" resource="${RESSOURCE_TABULAR}"
+    where="region:contains:d_O"></dsfr-data-source>${kpiLignes('k-tab-joker', 's-tab-joker')}
+  <dsfr-data-source id="s-tab-apos" api-type="tabular" resource="${RESSOURCE_TABULAR}"
+    where="region:contains:d'o"></dsfr-data-source>${kpiLignes('k-tab-apos', 's-tab-apos')}`,
     expects: [
       {
         kind: 'kpi',

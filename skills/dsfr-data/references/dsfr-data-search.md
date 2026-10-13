@@ -28,7 +28,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | debounce | Number | 300 | non | Delai en ms avant filtrage |
 | min-length | Number | 0 | non | Nb minimum de caractères |
 | highlight | Boolean | false | non | Ajoute _highlight avec <mark> pour dsfr-data-display |
-| operator | String | "contains" | non | Mode : contains, starts, words |
+| operator | String | "contains" | non | Mode de la recherche LOCALE : contains, starts, words. Ignore avec `context` (filtre `wordstart`) et `server-search` |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
 | count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en `server-search`), avec séparateur de milliers français. Voir Accessibilité : il n'est une région live que sans afficheur aval. Tant que l'amont attend un filtre (`require-where`), le compteur cède la place au message d'attente |
 | count-label | String | `""` | non | Nom compté à la place de « résultat » : `count-label="établissement"` → « 12 345 établissements ». Pluriel irrégulier : les deux formes, `count-label="cheval|chevaux"` |
@@ -37,7 +37,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
 | search-template | String | `'search("{q}")'` | non | Template ODSQL pour la recherche serveur ({q} = terme) |
-| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (obligatoire). Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
+| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre `wordstart` du contexte — « un mot commence par » (#1285) — sur le champ UNIQUE de `fields` (obligatoire). « aliment » trouve « alimentation », « tation » non : ce n'est PAS la sous-chaine du mode local. Delegue a Opendatasoft (`like "aliment*"`), calcule a l'identique dans le navigateur ailleurs. Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
 
 ### Recherche serveur
 Avec `server-search`, au lieu de filtrer localement, dsfr-data-search envoie une commande
@@ -68,9 +68,22 @@ annonce lui-même son compte. Ne pas ajouter de région live supplémentaire dan
 contradictoires (#654).
 
 ### Modes de recherche
+Recherche LOCALE (ni `context` ni `server-search`), attribut `operator` :
 - **contains** (défaut) : sous-chaine insensible a la casse et aux accents
-- **starts** : chaque mot du champ doit commencer par le terme
+- **starts** : un mot du champ doit commencer par le terme
 - **words** : tous les mots saisis doivent etre presents (dans n'importe quel champ)
+
+⚠️ **Trois recherches, trois semantiques** (#1285) — les dire a l'usager quand on change de mode :
+
+| Mode | Ce qui est cherche | « aliment » trouve « alimentation » | « tation » trouve « alimentation » |
+|---|---|---|---|
+| local (`operator="contains"`, defaut) | une sous-chaine, accents ignores, dans les lignes recues | oui | oui |
+| `context="ctx"` | un mot COMMENCE PAR chaque mot saisi (`wordstart`), accents ignores — identique sur toutes les cibles du contexte | oui | **non** |
+| `server-search` | la recherche de l'API : plein texte par debut de mot sur Opendatasoft (tous les champs), sous-chaine sensible aux accents sur Tabular (`fields`) | oui | Opendatasoft : non |
+
+Une recherche passee de locale a `context` ne trouve donc plus un fragment pris au milieu d'un
+mot : c'est voulu, c'est ce que le portail sait faire, et c'est deja le comportement de
+`server-search` sur Opendatasoft.
 
 ### Exemples
 ```html
@@ -126,7 +139,7 @@ contradictoires (#654).
 
 | Attribut | Type | Défaut | Description |
 |---|---|---|---|
-| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `contains` du contexte sur le champ UNIQUE de `fields` (un filtre de contexte porte un seul champ ; le OU entre champs, `a\|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est nommé d'après le champ, ou via `url-param-map` du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome. |
+| `context` | `string` | `""` (vide) | Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre `wordstart` du contexte — « un mot commence par » (#1285) — sur le champ UNIQUE de `fields` (un filtre de contexte porte un seul champ ; le OU entre champs, `a\|b:contains:q` #1026, reste propre à `server-search`). Chaque mot saisi doit être le DÉBUT d'un mot du champ, sans égard pour l'ordre, la casse ni les accents : « aliment » trouve « alimentation », « tation » ne trouve rien — ce n'est PAS la sous-chaîne de la recherche locale (`operator="contains"`). La clause est déléguée à un portail Opendatasoft (`like "aliment*"`) et calculée à l'identique dans le navigateur pour les autres cibles ; `operator` est ignoré. Le contexte diffuse à ses cibles et porte l'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est nommé d'après le champ, ou via `url-param-map` du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome. |
 | `count` | `boolean` | `false` | Affiche un compteur de résultats sous le champ (compte serveur `meta.total` en `server-search`), séparateur de milliers français (#728). Ce compteur reste visible dès qu'une donnée a circulé ; seule sa nature de région live dépend de la chaîne aval (#654). Tant que l'amont attend un filtre (`require-where`), il cède la place au message d'attente : annoncer « 0 résultats » avant toute requête laisserait croire à une page vide. |
 | `count-label` | `string` | `""` (vide) | Nom compté par le compteur de `count`, à la place de « résultat » : `count-label="établissement"` affiche « 12 345 établissements ». Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier, donner les deux formes séparées par une barre verticale : `count-label="cheval\|chevaux"`, `count-label="prix\|prix"`. |
 | `debounce` | `number` | `300` | Délai en ms avant déclenchement du filtre après la dernière frappe |
@@ -135,7 +148,7 @@ contradictoires (#654).
 | `idle-message` | `string` | `IDLE_MESSAGE_DEFAULT` | Message rendu quand l'amont attend un filtre (`require-where`, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé. |
 | `label` | `string` | `'Rechercher'` | Label du champ (accessible) |
 | `min-length` | `number` | `0` | Nombre minimum de caractères avant déclenchement |
-| `operator` | `SearchOperator` | `'contains'` | Mode de recherche : contains, starts, words |
+| `operator` | `SearchOperator` | `'contains'` | Mode de la recherche LOCALE (sans `context` ni `server-search`), accents et casse ignorés : `contains` — le terme est une sous-chaîne d'un champ (« tation » trouve « alimentation ») ; `starts` — un mot du champ commence par le terme ; `words` — chaque mot saisi est une sous-chaîne d'un champ. Ignoré en mode `context`, où la recherche est un filtre `wordstart` (« un mot commence par », #1285), et en `server-search`, où c'est l'API qui cherche. |
 | `placeholder` | `string` | `'Rechercher…'` | Placeholder du champ de saisie |
 | `search-template` | `string` | `""` (vide) | Template pour la recherche serveur. {q} est remplacé par le terme de recherche, {fields} par les champs de `fields` séparés par `\|` (#1026) — la grammaire colon des champs multiples, un OU entre eux. Si vide et server-search activé, lu depuis l'adaptateur de la source amont (gabarit par défaut de chaque adaptateur déclarant `serverSearch` : recherche plein texte native, ou `{fields}:contains:{q}` traduit en OU entre colonnes — la casse et les accents suivent l'API ; table des capacités d'ARCHITECTURE). Ex. personnalisés : '{q} IN nom', 'nom\|commune:contains:{q}'. Une clause que l'adaptateur ne sait pas transmettre (caractère que son API ne sait pas porter), ou une source sans adaptateur, retombe sur une recherche locale, signalée en console. |
 | `server-search` | `boolean` | `false` | Active le mode recherche serveur. Au lieu de filtrer localement, envoie une commande { where } au source upstream (dsfr-data-query server-side) qui re-fetche les données avec le filtre search. |

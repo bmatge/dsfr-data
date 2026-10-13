@@ -278,6 +278,8 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
   fixtures-adaptateurs.ts      les faux serveurs du domaine `adaptateurs` (Melodi, Grist, JSON)
   fixtures-transformations.ts  les jeux servis en `data` inline (aucun faux serveur)
   fixtures-contexte.ts         le faux serveur ODS du domaine `contexte`
+                               (son `like` est celui du VRAI portail, #1285 : des mots, pas une
+                               sous-chaîne — `tests/builder-e2e/ods-like.ts`, mesuré)
   fixtures-delegation.ts       les balisages du lot délégation (paires avec / sans server-side)
   fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
   fixtures-affichages.ts       le faux serveur du domaine `affichages`
@@ -612,7 +614,7 @@ multivalué, un jeu de 1 001 lignes derrière un plafond de 1 000. Le canari
 (#882) est **un jeu de quarante lignes écrites à la main** — `jeux/canari.json`,
 chaque ligne décrite dans `jeux/README.md` —, une table de droite à doublon,
 un jeu de volume engendré à graine, un jeu de dix lignes pour les pièges de
-facette (`jeux/canari-facettes.json`), et **vingt et un contrôles** dans
+facette (`jeux/canari-facettes.json`), et **trente et un contrôles** dans
 `tests/verif-donnees/canari.ts`, un par piège, chacun citant le registre
 (`constats`) et nommant le contrôle existant qui couvrait déjà le cas plutôt
 que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
@@ -635,6 +637,8 @@ que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
 | volume au-delà du plafond d'arguments | `canari-volume-min-max` | `min` et `max` sur 150 150 valeurs — le jeu de volume empilé 150 fois, sans fichier de plus de 1 001 lignes — par le KPI et par l'agrégat global d'une query (BUG-038) |
 | entités d'avant le filtre gardées dans un encart de carte | `canari-encart-entites-remplacees` | on coche « Musée » : un lieu à La Réunion, un en Guadeloupe, quatre sur la carte principale — et non les anciens en plus (BUG-034 : un groupe Leaflet orphelin gardait les entités précédentes, six cercles pour deux lignes) |
 | `neq` et les nuls | `canari-neq-nuls-exclus`, `-delegue` | une valeur ABSENTE ne satisfait ni `eq` ni `neq` (#958) : `eq` 7 + `neq` 27 = 34 renseignées sur 40, `notin` 33 (il garde les nuls, comme le `NOT … in (…)` qu'il délègue), `isnull` 6 — et le même 27 que la clause parte au serveur ou non |
+| le `like` du portail compare des mots | `canari-contains-milieu-de-mot` | `contains:ancour`, une sous-chaîne au MILIEU d'un mot, retient ses trois lignes sur une source Opendatasoft comme sur un tableau nu — elle n'est plus traduite en `like "%ancour%"`, que le portail lit comme un mot entier et rend à ZÉRO (#1285 ; mesuré : `like "%aliment%"`, 0 pour 14 366). Ne mord que parce que le faux portail lit `like` comme le vrai |
+| ce qu'est un mot | `canari-wordstart-mots-du-portail` | `wordstart`, délégué en `like "mot*"` et calculé à l'identique : « elan » trouve Élancourt en NFC, en NFD et en minuscule (3), « hay » trouve « L'Haÿ-les-Roses » (l'article élidé tombe), « cot » trouve « Côte-d'Or » et « Côtes-d'Armor » (le tiret coupe), « ea » trouve seize lignes d'un champ multivalué — chaque chiffre deux fois, serveur et navigateur (#1285) |
 
 Ce que le canari a **appris en s'écrivant** — trois faux pas d'auteur, tous
 silencieux, tous sans erreur console : un KPI `champ:count` compte **tous** les
@@ -1076,6 +1080,16 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | recoupement | `x-ratelimit-remaining` simulé sous le seuil (`tests/oracle/crosscheck.test.ts`) | `fetchAggregate` | le portail est coupé pour le run (`QuotaError`, « recoupement arrêté pour ce portail »), un autre portail ne l'est pas ; le résumé compte « n sans réponse du serveur » |
 | nuit rouge | `meta:total` rend `items.length` (`core/utils/aggregations.ts`) sur le contrôle VIVANT `bofip-total-publie-par-la-source-serveur` | verdict **bibliothèque** | « Verdicts de la nuit — 1 × « bibliothèque » » ; « lib 10, oracle 9 148, serveur 9 148 » ; le gel `out/gel/bofip-total-publie-par-la-source-serveur-gel.json` est écrit — copié sous `tests/verif-donnees/gel/`, il est **rouge en `npm run verif` sans réseau** (« affiché 10, recalculé 9148 », aucune requête sortie du faux réseau) et **vert** une fois la mutation retirée |
 | nuit rouge | `VERIF_SIMULER_DONNEE=bofip-total-publie-par-la-source-serveur` (date de traitement différente à la relecture), même mutation | verdict **donnée, rejoué** | « Verdicts de la nuit — 1 × « donnée, rejoué » » : le contrôle a été rejoué sur un attendu recalculé, et seul le second passage est rendu |
+| delegation, contexte, canari, banc-adaptateurs | LE DÉFAUT D'ORIGINE de #1285 réinjecté : `contains` retraduit en `champ like "%x%"` et de nouveau jugé délégable (`odsqlClause` et `odsqlCanExpress`, `shared/query/filter-translator.ts`) | `contains-ods-comme-le-client`, `contains-ods-regroupement-reste-client`, `contains-ods-server-side-refuse`, `contains-ods-server-side-source-partagee`, `ctx-contains-ods-calcule-par-la-source`, `ctx-contains-ods-server-side-refuse`, `canari-contains-milieu-de-mot` — et, contre le VRAI portail, `ods-rappelconso-mots-vivant` | 0 ligne au lieu de 94, de 7, de 3 ; sur data.economie.gouv.fr, **0 au lieu de 344** « cosmétiques » pour `contains:smétiqu`. Les contrôles d'URL voient repartir un `like` |
+| delegation, query | `wordstart` côté client lu comme une sous-chaîne (`mot.includes(q)` au lieu de `startsWith`, `shared/query/word-start.ts`) | `wordstart-delegue-comme-le-client`, `wordstart-contexte-deux-fournisseurs`, `where-wordstart-client` | « al » : 2 au lieu de 1 derrière Tabular et sans adaptateur (Val-d'Oise CONTIENT « al »), quand le portail en rend 1 — exactement la divergence qu'ADR-139 interdit |
+| delegation, contexte, canari | `wordstart` émis à l'ancienne, `like "%mot%"` (`wordStartLikePattern`, `word-start.ts`) | `wordstart-delegue-comme-le-client`, `wordstart-ods-server-side`, `wordstart-contexte-deux-fournisseurs`, `recherche-contexte-debut-de-mot`, `recherche-contexte-mots-sans-ordre`, `canari-wordstart-mots-du-portail`, `canari-recherche-virgule-aller-retour` | 0 au lieu de 1 côté portail ; quatre contrôles d'URL (`like "al*"` attendu, `%` interdit) |
+| delegation, query, canari | l'article élidé n'est plus retiré (`sansArticle` rend le mot tel quel, `word-start.ts`) | `wordstart-delegue-comme-le-client`, `where-wordstart-client`, `canari-wordstart-mots-du-portail` | « oise » et « hay » : 0 au lieu de 1 côté client (« d'oise » d'un bloc) ; « d » : 4 au lieu de 1 |
+| contexte, delegation, canari | `SearchContextFilter` émet de nouveau `contains` (`dsfr-data-search.ts`) | `recherche-contexte-debut-de-mot`, `recherche-contexte-mots-sans-ordre`, `wordstart-contexte-deux-fournisseurs`, `canari-recherche-virgule-aller-retour` | « ecol » : 0 au lieu de 10 (la sous-chaîne respecte les accents) ; « mer lyc » : 0 au lieu de 1 ; « al » : 2 au lieu de 1 |
+| contexte | le refiltrage aval d'une recherche en mode `context` reste une sous-chaîne (`_filterLocally`, branche `_contextMode` neutralisée, `dsfr-data-search.ts`) | `recherche-contexte-mots-sans-ordre` | sortie de la recherche à 0 alors que sa source en a retenu 1 : « mer lyc » ne se lit pas d'un trait |
+| delegation, contexte | la source ne refuse plus une clause cliente en pagination serveur (`_clientWhereConfigError` rend `null`, `dsfr-data-source.ts`) | `contains-ods-server-side-refuse`, `ctx-contains-ods-server-side-refuse` | aucun marqueur : la page de 40 lignes est filtrée sous un total qui l'ignore |
+| delegation, contexte | la source charge sans appliquer sa part cliente (`clientWhere` vidé dans `_fetchViaAdapter`, `dsfr-data-source.ts`) | `contains-ods-comme-le-client`, `wordstart-contexte-deux-fournisseurs`, `ctx-contains-ods-calcule-par-la-source` | 137 lignes au lieu de 94 et de 5 ; 137 au lieu de 1 derrière Tabular ; 25 au lieu de 7 |
+| delegation | les jokers d'un `contains` ne sont plus échappés pour Tabular (`escapeLikeWildcards` rend la valeur, `tabular-adapter.ts`) | `contains-tabular-jokers-echappes` | 2 lignes au lieu de 0 : le `_` de « d_O » trouve « Val-d'Oise » et « Côte-d'Or » |
+| canari | le défaut de #1243 réinjecté : terme d'URL découpé sur les virgules, nettoyé, recollé (`onContextBound`, `dsfr-data-search.ts`) | `canari-recherche-virgule-aller-retour` (réécrit avec #1285) | 0 au lieu de 3 : « 2, 3 » revient « 2,3 », un seul mot que rien ne commence |
 
 ## Un contrôle que la bibliothèque ne passe pas
 

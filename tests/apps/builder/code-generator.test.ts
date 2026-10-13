@@ -1335,6 +1335,42 @@ describe('generateOdsQueryCode', () => {
     expect(result.queryElement).not.toContain('order-by=');
   });
 
+  it('#1285 — un filtre « contient » : plus de like "%…%", plus d’agrégation serveur', () => {
+    // Le `like` d'un portail Opendatasoft compare des mots : `like "%bret%"`
+    // ne trouvait pas « Bretagne ». La source charge le jeu, la query filtre
+    // et regroupe ; elle délègue d'elle-même les clauses que le portail sait.
+    state.advancedMode = true;
+    state.queryFilter = 'annee:eq:2024, region:contains:bret';
+    state.aggregation = 'sum';
+    const result = generateOdsQueryCode(
+      { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
+      'region',
+      'population'
+    );
+    expect(result.queryElement).not.toContain('like');
+    expect(result.queryElement).not.toContain('select=');
+    expect(result.queryElement).toContain('api-type="opendatasoft"');
+    expect(result.queryElement).toContain('fetch-mode="export"');
+    expect(result.queryElement).toContain('max-records="50000"');
+    expect(result.queryElement).toContain('filter="annee:eq:2024, region:contains:bret"');
+    expect(result.queryElement).toContain('group-by="region"');
+    expect(result.queryElement).toContain('aggregate="population:sum"');
+    expect(result.valueField).toBe('population__sum');
+  });
+
+  it('#1285 — un filtre « un mot commence par » reste sur la source, en like "mot*"', () => {
+    state.advancedMode = true;
+    state.queryFilter = 'region:wordstart:bret';
+    state.aggregation = 'sum';
+    const result = generateOdsQueryCode(
+      { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
+      'region',
+      'population'
+    );
+    expect(result.queryElement).toContain('where="region like &quot;bret*&quot;"');
+    expect(result.queryElement).toContain('select="region, sum(population) as population__sum"');
+  });
+
   it('should convert filter to ODSQL where clause in advanced mode', () => {
     state.advancedMode = true;
     state.queryFilter = 'region:eq:Bretagne';

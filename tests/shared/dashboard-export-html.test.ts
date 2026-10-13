@@ -768,6 +768,27 @@ describe('export-html — KPI calculé par le serveur (#810)', () => {
     }
   });
 
+  it('#1285 — un filtre contains interdit l’agrégat serveur : KPI derrière une query, sans like', () => {
+    // `like "%x%"` compare des mots sur un portail Opendatasoft : la clause
+    // n'a pas de traduction ODSQL, le serveur agrégerait des lignes non filtrées.
+    const html = generateDashboardHTML(
+      dashboardWith([kpiOn('ods', { aggregation: 'sum', where: 'libelle:contains:ouv' })], [ODS])
+    );
+    expect(html).not.toContain('like');
+    expect(html).not.toContain('select="sum(montant)');
+    expect(sourcesOf(html)).toEqual(['ods']);
+    expect(html).toContain('<dsfr-data-query id="q-k" source="ods" where="libelle:contains:ouv">');
+    expect(html).toContain('<dsfr-data-kpi source="q-k" value="montant:sum"');
+  });
+
+  it('#1285 — un filtre wordstart garde l’agrégat serveur, en like "mot*"', () => {
+    const html = generateDashboardHTML(
+      dashboardWith([kpiOn('ods', { aggregation: 'sum', where: 'libelle:wordstart:ouv' })], [ODS])
+    );
+    expect(html).toContain('where="libelle like &quot;ouv*&quot;"');
+    expect(html).toContain('select="sum(montant) as montant__sum"');
+  });
+
   it('le filtre propre du KPI passe sur sa source, traduit en ODSQL, sans query', () => {
     const html = generateDashboardHTML(
       dashboardWith([kpiOn('ods', { aggregation: 'sum', where: 'statut:eq:ouvert' })], [ODS])

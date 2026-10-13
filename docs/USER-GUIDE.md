@@ -976,9 +976,46 @@ mais le total des lignes RENSEIGNEES. Un avertissement de transition nomme en co
 **compte** les lignes qui cessent d'etre retenues (un message par champ, jamais par ligne).
 
 **`notin` et `notcontains` ne changent pas**, et c'est volontaire : ODSQL n'a pas d'infixe
-`not in` / `not like`, ces deux-la se deleguent en `NOT champ in (…)` / `NOT champ like "%…%"`,
-une negation booleenne qui GARDE les nulles (mesure : 52). Le client les gardait deja ; les aligner
-« par symetrie » aurait rouvert la divergence qu'on vient de fermer. Seul `!=` est a trois valeurs.
+`not in`, `notin` se delegue en `NOT champ in (…)`, une negation booleenne qui GARDE les nulles
+(mesure : 52). Le client les gardait deja ; les aligner « par symetrie » aurait rouvert la
+divergence qu'on vient de fermer. Seul `!=` est a trois valeurs. (`notcontains`, lui, n'est plus
+delegue a Opendatasoft depuis la 0.50 — voir ci-dessous — et garde les nulles partout.)
+
+#### Chercher du texte : `contains` ou `wordstart` (0.50, #1285)
+
+Deux operateurs, deux questions :
+
+- `champ:contains:tation` cherche une **sous-chaine**, n'importe ou dans la valeur — « tation »
+  trouve « alimentation ». Casse ignoree, accents respectes.
+- `champ:wordstart:aliment` cherche des **debuts de mot** — « aliment » trouve « alimentation »,
+  « tation » ne trouve rien ; `nom:wordstart:prof lyc` trouve « Lycée professionnel Jean Moulin »
+  (chaque mot saisi commence un mot du champ, sans ordre, casse et accents ignores).
+
+**Pourquoi deux.** Le `like` d'un portail Opendatasoft compare des MOTS, pas une sous-chaine : la
+bibliotheque traduisait `contains` en `champ like "%aliment%"`, que le portail lit comme le mot
+entier « aliment » — **0 ligne la ou 14 366 valent « alimentation »**, HTTP 200, sans un message
+(mesure le 2026-10-12 sur `rappelconso-v2-gtin-trie`). Le meme `where` trouvait donc ses lignes
+sur un fichier CSV et zero sur un portail.
+
+**Ce que ca change pour une page existante** :
+
+- un `contains` / `notcontains` vers une source Opendatasoft **retient desormais plus de lignes** :
+  toutes celles qui contiennent la sous-chaine, et plus seulement celles ou elle est un mot entier.
+  C'etait faux avant. Le prix : la clause est calculee dans le navigateur, donc tout ce que le reste
+  du filtre laisse passer est charge, dans la limite de `max-records` (1 000 par defaut — poser
+  `fetch-mode="export"` et relever `max-records` pour un jeu plus long), et un `group-by` pose a
+  cote n'est plus delegue ;
+- derriere une source en `server-side`, ce `contains` devient une **erreur de configuration** : la
+  source n'y recoit qu'une page, la clause n'en filtrerait que les lignes. Le message nomme la
+  clause et les corrections : retirer `server-side`, ou passer a `wordstart`, ou
+  `dsfr-data-search server-search` ;
+- `dsfr-data-search` en mode `context` ne cherche plus une sous-chaine mais des **debuts de mot** :
+  « aliment » trouve enfin « alimentation » sur un portail, et « tation » ne trouve plus rien, sur
+  aucune cible. La recherche locale (sans `context`) reste une sous-chaine.
+
+`wordstart` est ce qu'il faut ecrire des que la question est « retrouver un libelle par ses
+premiers caracteres » : sur Opendatasoft il est delegue (`like "aliment*"`), ne charge que les
+lignes retenues, et fonctionne en pagination serveur.
 
 #### `contains` reste un piege, et `explode` n'est pas un filtre
 

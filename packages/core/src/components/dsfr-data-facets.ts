@@ -1236,8 +1236,8 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   /**
    * `server-facets` et clause calculée côté client (#1285). Les compteurs
    * viennent de l'API, qui ne reçoit que la part du filtre qu'elle sait
-   * calculer : une clause gardée par la source (`contains` sur un portail
-   * Opendatasoft, `wordstart` ailleurs) leur échappe, et ils comptent alors
+   * calculer : une clause gardée par la source (une sous-chaîne `contains`
+   * là où l'API compare des mots, `wordstart` ailleurs) leur échappe, et ils comptent alors
    * plus de lignes que la page n'en montre. On remonte la chaîne jusqu'à la
    * source qui charge, et on le dit — une fois par clause.
    */

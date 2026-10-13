@@ -28,7 +28,6 @@ import {
   unescapeColonValue,
   translateWhere,
   splitWhere,
-  describeClientWhere,
   parseOrderBy,
   splitColonFields,
 } from '../utils/where.js';
@@ -287,8 +286,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   /**
    * Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :
    * "champ:opérateur:valeur, champ2:opérateur:valeur2"
-   * (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,
-   * notin, isnull, isnotnull — multi-valeurs séparées par |).
+   * (opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains,
+   * wordstart, in, notin, isnull, isnotnull — multi-valeurs séparées par |).
    *
    * La syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de
    * dsfr-data-source) : une clause non parsable est signalee via
@@ -305,6 +304,52 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * amont renomme des colonnes (#394), quand une clause est intraduisible,
    * ou avec `explode` (#736).
    *
+   * CHERCHER DU TEXTE : `contains` ET `wordstart` (#1285). Deux opérateurs,
+   * deux questions, et le MÊME résultat que la clause parte au serveur ou non.
+   * - `champ:contains:tation` — une SOUS-CHAÎNE, n'importe où dans la valeur,
+   *   casse ignorée, accents respectés : « tation » trouve « alimentation »,
+   *   « ecole » ne trouve pas « École ». `notcontains` en est la négation.
+   * - `champ:wordstart:lycée prof` — UN MOT COMMENCE PAR : chaque mot saisi
+   *   est le début d'un mot de la valeur, sans ordre ni adjacence, casse et
+   *   accents ignorés. « aliment » trouve « alimentation », « tation » non ;
+   *   « prof lyc » trouve « Lycée professionnel Jean Moulin ». Un mot est une
+   *   suite de lettres et de chiffres : tiret, parenthèse, `&`, `/` et blancs
+   *   coupent ; l'article élidé tombe (« d'aquaculture » se cherche par
+   *   « aqua ») ; « kellogg's » et « marseille.fr » restent d'un seul tenant.
+   *   Un champ multivalué met en commun les mots de ses éléments ; un champ
+   *   qui n'est pas du texte (nombre, booléen) n'en a pas ; une saisie sans
+   *   aucun mot ne retient rien.
+   *
+   * Ce que chaque API en fait — la clause n'est déléguée que si elle y
+   * retient EXACTEMENT les mêmes lignes, sinon elle est calculée sur les
+   * lignes chargées :
+   *
+   * | | `contains` | `notcontains` | `wordstart` |
+   * |---|---|---|---|
+   * | Opendatasoft | navigateur | navigateur | délégué (`like "mot*"`) |
+   * | Tabular | délégué (`ilike`) | navigateur | navigateur |
+   * | Grist, INSEE, sans adaptateur | navigateur | navigateur | navigateur |
+   *
+   * Un portail Opendatasoft ne sait pas chercher une sous-chaîne : son `like`
+   * compare des MOTS (`like "%aliment%"` rend 0 ligne pour 14 366
+   * « alimentation », mesuré le 2026-10-12). `contains` y charge donc tout ce
+   * que le reste du filtre laisse passer, dans la limite de `max-records` —
+   * `fetch-mode="export"` et un `max-records` relevé pour un jeu de plus de
+   * 1 000 lignes — là où `wordstart` ne charge que les lignes retenues. Un
+   * `wordstart` dont un mot saisi porte un signe (« kellogg's ») reste lui
+   * aussi au navigateur.
+   *
+   * Calculée dans le navigateur, une telle clause garde le regroupement avec
+   * elle (`group-by` n'est plus délégué : le serveur regrouperait des lignes
+   * non filtrées). Quand cette requête est seule lectrice de sa chaîne, elle
+   * confie la clause à la source, qui la calcule sur le jeu chargé — et la
+   * REFUSE si elle est en `server-side`, où elle ne reçoit qu'une page :
+   * erreur de configuration, posée sur la source, qui nomme la clause et les
+   * corrections (retirer `server-side`, passer à `wordstart` quand l'API le
+   * délègue, ou `dsfr-data-search server-search`). Sur une chaîne partagée
+   * rien n'est délégué, ni cette clause ni les autres : le filtre porte sur
+   * les lignes reçues, comme pour tout opérateur (#765).
+   *
    * LISTE À PARENTHÈSE OU À VIRGULE (#1233) : `champ:in:a|b (c)` part au
    * serveur comme toute liste — l'adaptateur Tabular écrit entre guillemets
    * la valeur que l'API écarterait nue, et calcule la clause lui-même si
@@ -315,7 +360,9 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * ligne passe dès qu'un des champs satisfait la clause ; les clauses entre
    * elles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause
    * multi-champs par requête, valeur sans `,` `.` `(` `)` `"` `&`, ni
-   * `in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) ; INSEE
+   * `in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) — pour
+   * les opérateurs que l'API délègue : `nom|commune:wordstart:martin` part à
+   * Opendatasoft, `nom|commune:contains:martin` y reste au navigateur ; INSEE
    * et les sources sans adaptateur le calculent dans le navigateur.
    *
    * CHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent
@@ -348,10 +395,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * retrouver les lignes absentes, les nommer : `champ:isnull`.
    *
    * ⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est
-   * aligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se
-   * délèguent en `NOT champ in (…)` / `NOT champ like "%…%"`, une négation
-   * booléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois
-   * valeurs.
+   * aligné aussi : ODSQL n'a pas d'infixe `not in`, donc `notin` se délègue
+   * en `NOT champ in (…)`, une négation booléenne qui garde les nulles
+   * (mesuré : 52). Seul `!=` est à trois valeurs. `notcontains` n'est plus
+   * délégué à Opendatasoft (#1285) ; calculé dans le navigateur, il garde
+   * les valeurs absentes partout.
    *
    * ⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il
    * cherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y
@@ -685,12 +733,6 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _pagedAggregateError: string | null = null;
 
-  /**
-   * Erreur de configuration « filtre calculé sur une page » (#1285), posée au
-   * TRAITEMENT comme `_pagedAggregateError` ; null quand le montage est sain.
-   */
-  private _pagedWhereError: string | null = null;
-
   /** Avertissement #1242 déjà émis (le message, pour ne le dire qu'une fois). */
   private _pagedAggregateWarned: string | null = null;
 
@@ -881,7 +923,6 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // retire avec les autres, il sera repose si le montage est encore fautif.
     this._pagedAggregateError = null;
     this._pagedAggregateCaveat = false;
-    this._pagedWhereError = null;
 
     // Negotiate server-side delegation BEFORE subscribing to data.
     // This sends commands to dsfr-data-source so it re-fetches with the right params.
@@ -1656,8 +1697,6 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     }
     // Regroupement gardé côté client sur UNE page de la source (#1242).
     if (this._refusePagedAggregate()) return;
-    // Clause de filtre gardée côté client sur UNE page de la source (#1285).
-    if (this._refusePagedClientWhere()) return;
     try {
       this.emitTransformerLoading();
       this._processClientSide();
@@ -1785,66 +1824,6 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     }
     this._pagedAggregateCaveat = true;
     return false;
-  }
-
-  // --- Filtre sur une page (#1285) ---
-
-  /**
-   * Une clause de filtre que l'API ne sait pas calculer comme le navigateur
-   * — `contains` sur un portail Opendatasoft, dont le `like` compare des
-   * mots ; `wordstart` ailleurs — reste côté client, sur les lignes REÇUES ;
-   * or une source en pagination serveur n'en livre qu'UNE page. La liste
-   * afficherait les lignes de la page qui passent la clause, sous un total
-   * qui les ignore : même défaut que le regroupement de #1242, même règle.
-   *
-   * La requête passe en ERREUR DE CONFIGURATION (marqueur
-   * `data-dsfr-config-error`, état d'erreur en aval), qui nomme la clause, la
-   * source et les corrections : retirer `server-side`, ou remplacer `contains`
-   * par `wordstart` quand l'API le délègue, ou passer par `dsfr-data-search
-   * server-search` quand elle a une recherche. Retourne `true`.
-   *
-   * Seule la clause que l'ADAPTATEUR refuse est visée : jugée sur le montage,
-   * pas sur l'état de la délégation.
-   */
-  private _refusePagedClientWhere(): boolean {
-    const filterExpr = this.filter || this.where;
-    const meta = getDataMeta(this.source);
-    const fetching = fetchingSourceOf(this.source) as
-      (Element & { serverSide?: boolean; getAdapter?: () => ApiAdapter | null }) | null;
-    const adapter = fetching?.getAdapter?.() ?? null;
-    const refused =
-      filterExpr &&
-      meta?.serverSide &&
-      fetching?.serverSide === true &&
-      adapter &&
-      this._validateFilterExpr(filterExpr) === null
-        ? splitWhere(adapter, filterExpr).client
-        : '';
-
-    if (!refused || !adapter) {
-      if (this._pagedWhereError !== null) {
-        if (this.getAttribute('data-dsfr-config-error') === this._pagedWhereError) {
-          clearConfigError(this);
-        }
-        this._pagedWhereError = null;
-      }
-      return false;
-    }
-
-    const sourceId = fetching?.id || this.source;
-    const { cause, alternatives } = describeClientWhere(adapter, refused);
-    const message =
-      `la clause "${refused}" est calculée côté client, sur les seules lignes reçues — ${cause}` +
-      ` — or dsfr-data-source "${sourceId}" est en pagination serveur (server-side) et ne livre ` +
-      `qu'une page : le résultat serait partiel. Retirez server-side de dsfr-data-source ` +
-      `"${sourceId}" (le jeu est alors chargé en entier, dans la limite de max-records)` +
-      `${alternatives}.`;
-    if (this._pagedWhereError !== message) {
-      this._pagedWhereError = message;
-      reportConfigError(this, `dsfr-data-query[${this.id}]`, message);
-    }
-    this.emitTransformerError(new Error(message));
-    return true;
   }
 
   // --- Client-side processing ---

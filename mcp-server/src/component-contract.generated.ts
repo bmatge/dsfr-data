@@ -147,6 +147,7 @@ export const COMPONENT_CONTRACT = {
         "gte",
         "between",
         "contains",
+        "wordstart",
         "month-of",
         "year-of",
         "lt-day-after",

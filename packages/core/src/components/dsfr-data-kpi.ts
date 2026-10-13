@@ -225,9 +225,11 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
   /**
    * Filtre des lignes AVANT le calcul (#674), dialecte colon de
    * dsfr-data-query : `where="categorie:eq:Actif, montant:gte:1000"` —
-   * mêmes 12 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains,
-   * in, notin, isnull, isnotnull), même égalité lâche, chemins imbriqués
-   * acceptés. Appliqué à `value`, `trend` et `lines`.
+   * mêmes 13 opérateurs (eq, neq, gt, gte, lt, lte, contains, notcontains,
+   * wordstart, in, notin, isnull, isnotnull), même égalité lâche, chemins
+   * imbriqués acceptés. `contains` cherche une sous-chaîne, `wordstart` des
+   * débuts de mot, casse et accents ignorés (#1285 — voir `where` de
+   * dsfr-data-query). Appliqué à `value`, `trend` et `lines`.
    * CÔTÉ CLIENT SEULEMENT : le KPI ne délègue rien au serveur, le filtre
    * porte sur les lignes reçues (derrière un `limit` ou une page, poser le
    * `where` sur la source ou une query amont). `meta:total` n'en tient pas

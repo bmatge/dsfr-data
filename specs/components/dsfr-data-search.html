@@ -104,7 +104,7 @@
                 <tr><td><code>debounce</code></td><td>Number</td><td><code>300</code></td><td>Délai en ms avant déclenchement du filtre après la dernière frappe</td></tr>
                 <tr><td><code>min-length</code></td><td>Number</td><td><code>0</code></td><td>Nombre minimum de caractères avant déclenchement</td></tr>
                 <tr><td><code>highlight</code></td><td>Boolean</td><td><code>false</code></td><td>Ajoute un champ _highlight à chaque record avec les termes trouvés marqués en &lt;mark&gt;</td></tr>
-                <tr><td><code>operator</code></td><td>SearchOperator</td><td><code>contains</code></td><td>Mode de recherche : contains, starts, words</td></tr>
+                <tr><td><code>operator</code></td><td>SearchOperator</td><td><code>contains</code></td><td>Mode de la recherche LOCALE (sans <code>context</code> ni <code>server-search</code>), accents et casse ignorés : <code>contains</code> — le terme est une sous-chaîne d'un champ (« tation » trouve « alimentation ») ; <code>starts</code> — un mot du champ commence par le terme ; <code>words</code> — chaque mot saisi est une sous-chaîne d'un champ. Ignoré en mode <code>context</code>, où la recherche est un filtre <code>wordstart</code> (« un mot commence par », #1285), et en <code>server-search</code>, où c'est l'API qui cherche.</td></tr>
                 <tr><td><code>sr-label</code></td><td>Boolean</td><td><code>false</code></td><td>Si true, le label est en sr-only (visuellement masque, accessible)</td></tr>
                 <tr><td><code>count</code></td><td>Boolean</td><td><code>false</code></td><td>Affiche un compteur de résultats sous le champ (compte serveur <code>meta.total</code> en <code>server-search</code>), séparateur de milliers français (#728). Ce compteur reste visible dès qu'une donnée a circulé ; seule sa nature de région live dépend de la chaîne aval (#654). Tant que l'amont attend un filtre (<code>require-where</code>), il cède la place au message d'attente : annoncer « 0 résultats » avant toute requête laisserait croire à une page vide.</td></tr>
                 <tr><td><code>count-label</code></td><td>String</td><td><code>""</code></td><td>Nom compté par le compteur de <code>count</code>, à la place de « résultat » : <code>count-label="établissement"</code> affiche « 12 345 établissements ». Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier, donner les deux formes séparées par une barre verticale : <code>count-label="cheval|chevaux"</code>, <code>count-label="prix|prix"</code>.</td></tr>
@@ -112,7 +112,7 @@
                 <tr><td><code>url-sync</code></td><td>Boolean</td><td><code>false</code></td><td>Synchronise l'URL quand l'utilisateur tape (replaceState)</td></tr>
                 <tr><td><code>server-search</code></td><td>Boolean</td><td><code>false</code></td><td>Active le mode recherche serveur. Au lieu de filtrer localement, envoie une commande { where } au source upstream (dsfr-data-query server-side) qui re-fetche les données avec le filtre search.</td></tr>
                 <tr><td><code>search-template</code></td><td>String</td><td><code>""</code></td><td>Template pour la recherche serveur. {q} est remplacé par le terme de recherche, {fields} par les champs de <code>fields</code> séparés par <code>|</code> (#1026) — la grammaire colon des champs multiples, un OU entre eux. Si vide et server-search activé, lu depuis l'adaptateur de la source amont (gabarit par défaut de chaque adaptateur déclarant <code>serverSearch</code> : recherche plein texte native, ou <code>{fields}:contains:{q}</code> traduit en OU entre colonnes — la casse et les accents suivent l'API ; table des capacités d'ARCHITECTURE). Ex. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'. Une clause que l'adaptateur ne sait pas transmettre (caractère que son API ne sait pas porter), ou une source sans adaptateur, retombe sur une recherche locale, signalée en console.</td></tr>
-                <tr><td><code>context</code></td><td>String</td><td><code>""</code></td><td>Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre <code>contains</code> du contexte sur le champ UNIQUE de <code>fields</code> (un filtre de contexte porte un seul champ ; le OU entre champs, <code>a|b:contains:q</code> #1026, reste propre à <code>server-search</code>). Le contexte diffuse à ses cibles et porte l'URL (<code>url-sync</code> et <code>url-search-param</code> sont ignorés — le paramètre est nommé d'après le champ, ou via <code>url-param-map</code> du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome.</td></tr>
+                <tr><td><code>context</code></td><td>String</td><td><code>""</code></td><td>Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre <code>wordstart</code> du contexte — « un mot commence par » (#1285) — sur le champ UNIQUE de <code>fields</code> (un filtre de contexte porte un seul champ ; le OU entre champs, <code>a|b:contains:q</code> #1026, reste propre à <code>server-search</code>). Chaque mot saisi doit être le DÉBUT d'un mot du champ, sans égard pour l'ordre, la casse ni les accents : « aliment » trouve « alimentation », « tation » ne trouve rien — ce n'est PAS la sous-chaîne de la recherche locale (<code>operator="contains"</code>). La clause est déléguée à un portail Opendatasoft (<code>like "aliment*"</code>) et calculée à l'identique dans le navigateur pour les autres cibles ; <code>operator</code> est ignoré. Le contexte diffuse à ses cibles et porte l'URL (<code>url-sync</code> et <code>url-search-param</code> sont ignorés — le paramètre est nommé d'après le champ, ou via <code>url-param-map</code> du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome.</td></tr>
                 <tr><td><code>idle-message</code></td><td>String</td><td><code>IDLE_MESSAGE_DEFAULT</code></td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
               <!-- /ATTRS -->
             </tbody>
@@ -146,12 +146,34 @@
 
         <div class="fr-callout fr-mt-3w">
           <p class="fr-callout__text">
-            <strong>Modes de recherche :</strong><br>
+            <strong>Modes de la recherche locale</strong> (attribut <code>operator</code>) :<br>
             <code>contains</code> (défaut) : sous-chaine insensible a la casse et aux accents.<br>
-            <code>starts</code> : chaque mot du champ doit commencer par le terme.<br>
+            <code>starts</code> : un mot du champ doit commencer par le terme.<br>
             <code>words</code> : tous les mots saisis doivent être présents (dans n'importe quel champ, n'importe quel ordre). Le plus utile pour la recherche multi-criteres.
           </p>
         </div>
+
+        <h3 id="trois-recherches" class="fr-mt-3w">Trois recherches, trois sémantiques</h3>
+        <p>
+          Selon son mode, la même saisie ne cherche pas la même chose — à dire à l'usager quand on en change.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Mode</th><th>Ce qui est cherché</th><th>« aliment » trouve « alimentation »</th><th>« tation » trouve « alimentation »</th></tr></thead>
+            <tbody>
+              <tr><td>Locale (défaut, <code>operator="contains"</code>)</td><td>Une sous-chaîne, accents ignorés, dans les lignes reçues</td><td>oui</td><td>oui</td></tr>
+              <tr><td><code>context="…"</code></td><td><strong>Un mot commence par</strong> chaque mot saisi (filtre <code>wordstart</code>), casse et accents ignorés, sans ordre ni adjacence — identique sur toutes les cibles du contexte</td><td>oui</td><td><strong>non</strong></td></tr>
+              <tr><td><code>server-search</code></td><td>La recherche de l'API : plein texte par début de mot dans tous les champs sur OpenDataSoft, sous-chaîne sensible aux accents dans <code>fields</code> sur Tabular</td><td>oui</td><td>OpenDataSoft : non</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          En mode <code>context</code>, la recherche n'est plus une sous-chaîne depuis la 0.50 : un portail
+          OpenDataSoft ne sait pas en chercher une (son <code>like</code> compare des mots), et la saisie partielle
+          « aliment » n'y trouvait rien. Le début de mot, lui, se délègue (<code>like "aliment*"</code>) et se calcule
+          à l'identique dans le navigateur pour les autres cibles : la même saisie retient les mêmes lignes partout.
+          Une saisie prise au milieu d'un mot ne trouve donc plus rien dans ce mode ; <code>operator</code> y est ignoré.
+        </p>
 
         <!-- ========================================================
              Exemple 1 : Recherche seule + Datalist

@@ -180,8 +180,9 @@
                 <tr><td><code>gte</code></td><td><code>greater</code></td><td>Superieur ou egal</td></tr>
                 <tr><td><code>lt</code></td><td><code>strictly_less</code></td><td>Strictement inférieur</td></tr>
                 <tr><td><code>lte</code></td><td><code>less</code></td><td>Inférieur ou egal</td></tr>
-                <tr><td><code>contains</code></td><td><code>contains</code></td><td>Contient la valeur</td></tr>
-                <tr><td><code>notcontains</code></td><td><code>notcontains</code></td><td>Ne contient pas</td></tr>
+                <tr><td><code>contains</code></td><td><code>contains</code></td><td>Contient la valeur — un <code>ilike</code> : sous-chaîne, casse ignorée, accents respectés. <code>%</code> et <code>_</code> y sont des jokers : l'adaptateur les échappe (<code>\%</code>, <code>\_</code>), pour que la clause reste la sous-chaîne que calcule le navigateur</td></tr>
+                <tr><td><code>notcontains</code></td><td>—</td><td>Ne contient pas — <strong>calculé dans le navigateur</strong> : <code>champ__notcontains</code> écarte les lignes sans valeur, que l'opérateur garde (mesuré le 2026-10-13)</td></tr>
+                <tr><td><code>wordstart</code></td><td>—</td><td>Un mot commence par — <strong>calculé dans le navigateur</strong> : l'API n'a pas d'équivalent</td></tr>
                 <tr><td><code>in</code></td><td><code>in</code></td><td>Dans la liste</td></tr>
                 <tr><td><code>notin</code></td><td><code>notin</code></td><td>Pas dans la liste</td></tr>
                 <tr><td><code>isnull</code></td><td><code>isnull</code></td><td>Est null</td></tr>

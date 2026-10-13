@@ -16,6 +16,7 @@
 import { toNumber, looksLikeNumber } from '../utils/number-parser.js';
 import { maxOf, minOf } from '../utils/extremum.js';
 import { isIsoDateString } from '../utils/iso-date.js';
+import { WORD_START_OPERATOR, matchesWordStart } from '../query/word-start.js';
 import type { ChartConfig, AggregatedResult } from '../dashboard/chart-config.js';
 
 export type Row = Record<string, unknown>;
@@ -170,8 +171,11 @@ export function buildMultiSeries(
 /**
  * Filtre des données avec la syntaxe dsfr-data-query "champ:op:valeur".
  * Plusieurs filtres separes par virgule (logique AND).
- * Operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin,
- * isnull, isnotnull. (`in`/`notin` : valeurs separees par `|`.)
+ * Operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, wordstart,
+ * in, notin, isnull, isnotnull. (`in`/`notin` : valeurs separees par `|`.)
+ * `contains` cherche une sous-chaine ; `wordstart` (#1285) des DEBUTS DE MOT,
+ * casse et accents ignores — « aliment » trouve « alimentation », pas
+ * « tation » : c'est ce qu'un portail Opendatasoft sait chercher lui-meme.
  */
 export function applyWhereFilter(data: Row[], where: string): Row[] {
   const parts = where
@@ -205,6 +209,8 @@ export function applyWhereFilter(data: Row[], where: string): Row[] {
           return String(itemValue).toLowerCase().includes(rawValue.toLowerCase());
         case 'notcontains':
           return !String(itemValue).toLowerCase().includes(rawValue.toLowerCase());
+        case WORD_START_OPERATOR:
+          return matchesWordStart(itemValue, rawValue);
         case 'in':
           return rawValue
             .split('|')

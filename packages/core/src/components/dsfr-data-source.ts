@@ -350,6 +350,25 @@ export class DsfrDataSource extends LitElement {
    * - en pagination serveur (`server-side`), où ce calcul n'est pas
    *   possible, la liste repart sans guillemets : la valeur est écartée par
    *   l'API et le résultat est incomplet.
+   *
+   * CLAUSE CALCULÉE PAR LA SOURCE (#1285). Une clause que l'API ne sait pas
+   * calculer comme le navigateur n'est jamais déléguée : c'est la source qui
+   * la calcule, sur les lignes que le reste du filtre a laissées passer —
+   * `contains` / `notcontains` sur un portail Opendatasoft (son `like`
+   * compare des mots, pas une sous-chaîne), `notcontains` sur Tabular (l'API
+   * écarte les valeurs absentes), `contains` sur Grist, `wordstart` partout
+   * sauf sur Opendatasoft. Une telle clause vient de cet attribut — quand sa
+   * grammaire est `champ:op:valeur` ; une clause ODSQL part telle quelle —,
+   * d'un filtre de `dsfr-data-context`, ou du `where` d'une
+   * `dsfr-data-query` seule lectrice de la source. Le résultat est juste, au
+   * prix d'un chargement plus large : toutes les lignes des autres clauses,
+   * sous `max-records` (au-delà, le filtre ne porte que sur les lignes lues,
+   * et la source le signale comme une troncature). Deux montages ne lui
+   * livrent pas le jeu et passent en ERREUR DE CONFIGURATION, qui nomme la
+   * clause et la correction : `server-side` (une page), et `group-by`,
+   * `aggregate` ou un `select` qui calcule posés sur la source (le serveur
+   * agrégerait des lignes non filtrées — porter le calcul par une
+   * `dsfr-data-query` en aval).
    */
   @property({ type: String })
   where = '';

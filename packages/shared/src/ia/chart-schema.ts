@@ -51,7 +51,7 @@ export const CHART_CONFIG_SCHEMA = {
     where: {
       type: 'string',
       description:
-        'Filtre, syntaxe "champ:operateur:valeur" (eq, neq, gt, gte, lt, lte, contains, in)',
+        'Filtre, syntaxe "champ:operateur:valeur" (eq, neq, gt, gte, lt, lte, contains, wordstart, in). Pour chercher du texte sur une source OpenDataSoft, preferer wordstart (un mot commence par, casse et accents ignores) : contains y charge tout le jeu dans le navigateur.',
     },
     limit: { type: 'integer', description: 'Nombre max de resultats' },
     sortOrder: { type: 'string', enum: [...SORT_ORDERS] },
