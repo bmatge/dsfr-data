@@ -48,7 +48,8 @@ export function suivreChemin(valeur: unknown, chemin: string): unknown {
 /**
  * Lignes brutes d'une URL quelconque, page après page. `rowsPath` nomme le
  * tableau dans l'enveloppe, `nextPath` l'URL de la page suivante (résolue
- * contre la page courante si elle est relative).
+ * contre la page courante si elle est relative), `rowPath` l'objet qui porte
+ * les colonnes dans chaque élément (`fields` d'un enregistrement Grist).
  */
 export async function fetchUrlRows(source: RawUrlSource): Promise<Row[]> {
   const plafond = source.maxPages ?? 50;
@@ -64,7 +65,19 @@ export async function fetchUrlRows(source: RawUrlSource): Promise<Row[]> {
         `source brute : pas de tableau en « ${source.rowsPath ?? '(racine)'} » sur ${url}`
       );
     }
-    lignes.push(...(brut as Row[]));
+    if (source.rowPath === undefined) {
+      lignes.push(...(brut as Row[]));
+    } else {
+      for (const element of brut) {
+        const ligne = suivreChemin(element, source.rowPath);
+        if (ligne === null || typeof ligne !== 'object' || Array.isArray(ligne)) {
+          throw new Error(
+            `source brute : pas d'objet en « ${source.rowPath} » dans une ligne de ${url}`
+          );
+        }
+        lignes.push(ligne as Row);
+      }
+    }
     const suivant = source.nextPath === undefined ? null : suivreChemin(body, source.nextPath);
     url = typeof suivant === 'string' && suivant !== '' ? new URL(suivant, url).toString() : null;
   }

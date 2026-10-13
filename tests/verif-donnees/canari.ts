@@ -44,7 +44,14 @@ import {
   MARKUP_ENCARTS,
   urlAffichage,
 } from './fixtures-affichages.js';
-import { DATASET_EX_AEQUO, EX_AEQUO, HOTE_ODS, RESSOURCE_TABULAR_EX_AEQUO } from './fixtures.js';
+import {
+  DATASET_EX_AEQUO,
+  EX_AEQUO,
+  GRIST_EX_AEQUO,
+  HOTE_ODS,
+  RESSOURCE_TABULAR_EX_AEQUO,
+  URL_GRIST_EX_AEQUO,
+} from './fixtures.js';
 
 /** DSFR Chart depuis node_modules : la vraie bibliothèque, jamais le CDN. */
 const TETE_CHART = `
@@ -1172,6 +1179,42 @@ ${sourceOds('s-cible', DATASET_FACETTES)}
         ],
       },
       { kind: 'kpi', id: 'k-canari-ods-tout', agg: 'sum', field: 'id' },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // La page deux qui montre la page un : Grist ne connaît pas `offset`
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-grist-page-deux-egale-page-un',
+    mode: 'deterministic',
+    origin:
+      "Canari — #1279 : piège trouvé en MESURANT, avant qu'une reproduction ne le paie. L'endpoint `/records` de Grist ignore `offset` sans erreur (mesuré le 2026-10-13 sur grist.numerique.gouv.fr : `limit=5&offset=5` rend les lignes 1 à 5). Un tableau `server-side` branché sur Grist affichait donc les quarante premières lignes à CHAQUE page — le numéro de page change, le tableau non, et rien ne le dit : ni erreur, ni page vide, ni compteur faux. Le chiffre qui le voit est celui de la page courante : la somme des rangs de la page deux vaut 2 420 (lignes 41 à 80), et 820 si la page deux est la page un. `delegation/grist-pagination-*` tiennent les lignes une à une, mode SQL compris.",
+    feed: { kind: 'fixture', datasets: { main: GRIST_EX_AEQUO } },
+    markup: `
+  <dsfr-data-source id="s-canari-grist" api-type="grist" base-url="${URL_GRIST_EX_AEQUO}"
+    server-side page-size="40"></dsfr-data-source>
+  <dsfr-data-list id="l-canari-grist" source="s-canari-grist" columns="rang:Rang, nombre:Nombre"
+    server-sort></dsfr-data-list>
+  ${kpi('k-canari-grist-page', 's-canari-grist', 'rang:sum')}`,
+    actions: [{ kind: 'click', selector: '#l-canari-grist .fr-pagination__link--next' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-canari-grist-page',
+        agg: 'sum',
+        field: 'rang',
+        pipeline: [{ op: 'page', size: 40, number: 2 }],
+      },
+      {
+        kind: 'list',
+        id: 'l-canari-grist',
+        columns: [
+          { column: 'rang', numeric: true },
+          { column: 'nombre', numeric: true },
+        ],
+        pipeline: [{ op: 'page', size: 40, number: 2 }],
+      },
     ],
   },
 ];

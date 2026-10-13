@@ -34,8 +34,10 @@ import { repondreGel } from '../../tools/oracle/gel.js';
 import { GELS } from './gel.js';
 import type { Row } from '../../tools/oracle/manifest.js';
 import { repondreAffichages, repondreAffichagesTabular } from './fixtures-affichages.js';
+import { repondreGristDocument, tableGrist } from './fixtures-grist.js';
 import territoires from './jeux/territoires.json' with { type: 'json' };
 import exAequo from './jeux/delegation-tabular-ex-aequo.json' with { type: 'json' };
+import gristExAequo from './jeux/delegation-grist-ex-aequo.json' with { type: 'json' };
 import mesures from './jeux/mesures.json' with { type: 'json' };
 import regions from './jeux/regions.json' with { type: 'json' };
 
@@ -79,6 +81,20 @@ export const EX_AEQUO: Row[] = exAequo;
  * les ex-aequo changent d'ordre d'une page à l'autre.
  */
 export const DATASET_EX_AEQUO = 'jeu-ex-aequo';
+
+/**
+ * Le document Grist du jeu `delegation-grist-ex-aequo` (#1279) : 450 lignes,
+ * les mêmes ex-æquo que le jeu Tabular, mais la colonne unique s'appelle `rang`
+ * — `id` est réservé par Grist à l'identifiant de ligne, qui vaut ici le rang.
+ * Le faux serveur (`fixtures-grist.ts`) ignore `offset` sur `/records` et sert
+ * `/sql` dans la forme du vrai : ce document a un endpoint SQL, celui du lot
+ * `adaptateurs` (`docDeVerif`) n'en a pas.
+ */
+export const GRIST_DOC_EX_AEQUO = 'https://grist.verif.invalid/api/docs/docExAequo';
+export const GRIST_TABLE_EX_AEQUO = 'ExAequo';
+export const URL_GRIST_EX_AEQUO = `${GRIST_DOC_EX_AEQUO}/tables/${GRIST_TABLE_EX_AEQUO}/records`;
+export const GRIST_EX_AEQUO: Row[] = gristExAequo;
+const TABLES_GRIST = { [GRIST_TABLE_EX_AEQUO]: tableGrist(GRIST_EX_AEQUO) };
 
 /**
  * Préfixe du relais cachable du site hôte (ADR-155, #1232), tel qu'une page le
@@ -239,11 +255,15 @@ export function repondreOdsSelectAgrege(
  * Le faux serveur : une URL, une réponse — ou `null` si l'URL n'est pas
  * prévue, auquel cas l'appelant la REFUSE plutôt que de la laisser sortir.
  */
-export function repondre(url: URL): unknown | null {
+export function repondre(url: URL, corps?: string | null): unknown | null {
   // Les jeux d'un lot vivent dans SON fichier de fixtures : ce point de
   // branchement évite que chaque domaine vienne éditer celui des autres.
   const desAdaptateurs = repondreAdaptateurs(url);
   if (desAdaptateurs !== null) return desAdaptateurs;
+  // Le faux Grist (#1279) : le seul à lire un CORPS — l'endpoint SQL se
+  // demande en POST, la requête est dans le corps.
+  const duGrist = repondreGristDocument(url, corps, GRIST_DOC_EX_AEQUO, TABLES_GRIST);
+  if (duGrist !== null) return duGrist;
   const duContexte = repondreContexte(url);
   if (duContexte !== null) return duContexte;
   const duCanari = repondreCanari(url);
