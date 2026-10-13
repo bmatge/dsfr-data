@@ -24,8 +24,10 @@ import {
   SOURCE_PAGE_LABEL,
   describeSourceCause,
   describeSourceError,
+  filtersDisabledBy,
   formatErrorTime,
   sourcePageFor,
+  unavailablePhrase,
   type SourceErrorDescription,
 } from './source-errors.js';
 
@@ -144,6 +146,152 @@ export function resolveSourceError(error: Error | null, sourceId?: string): Sour
   };
 }
 
+/** Dernière lecture du registre, par erreur puis par étape lue (#1288). */
+const keptViews = new WeakMap<Error, Map<string, SourceErrorView>>();
+
+/**
+ * `resolveSourceError`, tenu PENDANT UN NOUVEL ESSAI (#1288).
+ *
+ * `dsfr-data-loading` efface l'erreur du registre : un bloc qui garde son
+ * rendu de panne pendant l'essai (tableau équivalent, filtres, carte — ils
+ * n'ont pas de sablier) relirait une erreur sans registre, donc sans la
+ * phrase de l'intégrateur (`error-message`), sans l'origine, et classée de
+ * nouveau avec le réseau du moment : une panne « hors connexion » devenait
+ * « momentanément indisponible » le temps de l'essai, et le texte clignotait.
+ * Tant que le registre ne dit rien de neuf pour CETTE erreur, la dernière
+ * lecture fait foi ; seule la couverture par un bandeau est relue.
+ */
+export function resolveSourceErrorKept(error: Error, sourceId?: string): SourceErrorView {
+  const key = sourceId ?? '';
+  const kept = keptViews.get(error)?.get(key);
+  if (kept && !(sourceId && getDataErrorState(sourceId))) {
+    const covered = kept.originId ? isSourceCoveredByBanner(kept.originId) : false;
+    return {
+      ...kept,
+      covered,
+      showRetry: Boolean(sourceId) && kept.desc.retry && !covered,
+      sourcePage: covered ? undefined : sourcePageFor(kept.desc.cause, kept.state?.sourcePage),
+    };
+  }
+  const view = resolveSourceError(error, sourceId);
+  let byStep = keptViews.get(error);
+  if (!byStep) {
+    byStep = new Map();
+    keptViews.set(error, byStep);
+  }
+  byStep.set(key, view);
+  return view;
+}
+
+/** Bouton « Réessayer » d'un bloc (#1203) — relance la source d'origine. */
+export function renderRetryButton(sourceId: string, small = false): TemplateResult {
+  return html`<button
+    type="button"
+    class=${
+      small
+        ? 'fr-btn fr-btn--secondary fr-btn--sm dsfr-data-status__retry'
+        : 'fr-btn fr-btn--secondary dsfr-data-status__retry'
+    }
+    style=${RETRY_BUTTON_STYLE}
+    @click=${() => requestSourceRetry(sourceId)}
+  >
+    ${RETRY_LABEL}
+  </button>`;
+}
+
+/**
+ * Phrase d'un changement de page refusé en pagination serveur (#1288) : la
+ * page demandée n'est pas arrivée, la page affichée est toujours la précédente.
+ * Les deux numéros sont ceux de la liste, pas une formule.
+ */
+export function pageLoadErrorText(failedPage: number, currentPage: number): string {
+  return `La page ${failedPage} n’a pas pu être chargée. Vous consultez toujours la page ${currentPage}.`;
+}
+
+const PAGE_ERROR_STYLE =
+  'color: var(--text-default-grey, #3a3a3a);' +
+  'background: var(--background-alt-grey, #f6f6f6);' +
+  'border-radius: 0.25rem; padding: 0.5rem 1rem; margin: 0 0 1rem;' +
+  'display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem;' +
+  'font-size: 0.875rem;';
+
+/**
+ * Encart « la page N n'a pas pu être chargée » (#1288), posé au-dessus d'une
+ * liste ou de fiches en pagination serveur qui gardent la page précédente.
+ *
+ * Ce n'est pas l'encart de panne : les lignes à l'écran sont bien celles de
+ * la page affichée, c'est le GESTE qui a échoué. Pas de région live ici — la
+ * liste l'annonce par sa propre région, celle qui venait de dire « Page 4 »,
+ * avec ou sans bandeau. « Réessayer » suit la règle commune (aucun bandeau
+ * pour cette source, et une cause où réessayer a un sens) ; `error-message`
+ * s'ajoute à la phrase, il ne la remplace pas.
+ */
+export function renderPageLoadError(
+  componentClass: string,
+  pages: { failed: number; current: number },
+  error: Error,
+  sourceId?: string
+): TemplateResult {
+  const view = resolveSourceErrorKept(error, sourceId);
+  return html`
+    <div
+      class="${componentClass}__page-error dsfr-data-status--page-error"
+      data-cause=${view.desc.cause}
+      style=${PAGE_ERROR_STYLE}
+    >
+      <span class="fr-icon-information-line fr-icon--sm" aria-hidden="true"></span>
+      <p class="dsfr-data-status__title" style="margin: 0; flex: 1 1 16rem; font-size: inherit;">
+        ${pageLoadErrorText(pages.failed, pages.current)}
+        ${view.userMessage ? html` ${view.userMessage}` : nothing}
+      </p>
+      ${view.showRetry ? renderRetryButton(sourceId as string, true) : nothing}
+    </div>
+  `;
+}
+
+/** Ce qu'un filtre (facettes, recherche) dit quand sa source est en panne (#1288). */
+export interface FiltersUnavailableView {
+  view: SourceErrorView;
+  /** « Filtres momentanément indisponibles. », ou la phrase de la cause. */
+  text: string;
+}
+
+/**
+ * Les filtres de cette source sont-ils désactivés, et que disent-ils (#1288) ?
+ * `null` : pas de panne, ou une panne qui ne les désactive pas
+ * (`filtersDisabledBy`). `error-message` de la source suit la phrase.
+ */
+export function resolveFiltersUnavailable(
+  error: Error | null,
+  sourceId?: string
+): FiltersUnavailableView | null {
+  if (!error) return null;
+  const view = resolveSourceErrorKept(error, sourceId);
+  if (!filtersDisabledBy(view.desc.cause)) return null;
+  const phrase = unavailablePhrase('Filtres', view.desc);
+  return { view, text: view.userMessage ? `${phrase} ${view.userMessage}` : phrase };
+}
+
+/**
+ * Phrase posée à côté de filtres désactivés (#1288). Pas de région live : la
+ * panne est annoncée par le bandeau ou par les blocs que ces filtres
+ * alimentent ; la phrase est la RAISON des contrôles désactivés, qui la
+ * désignent par `aria-describedby`.
+ */
+export function renderFiltersUnavailable(id: string, unavailable: FiltersUnavailableView) {
+  return html`
+    <p
+      class="fr-text--sm dsfr-data-filters-unavailable"
+      id=${id}
+      data-cause=${unavailable.view.desc.cause}
+      style="margin: 0.25rem 0 0.5rem; color: var(--text-default-grey, #3a3a3a);"
+    >
+      <span class="fr-icon-information-line fr-icon--sm" aria-hidden="true"></span>
+      ${unavailable.text}
+    </p>
+  `;
+}
+
 /**
  * Lien vers la page publique des données (#1222). `rel="noopener"` : la page
  * ouverte n'a aucune prise sur celle-ci. Pas de `target` : l'usager choisit
@@ -224,18 +372,7 @@ export function renderSourceError(
                   : nothing
               }`
       }
-      ${
-        showRetry
-          ? html`<button
-              type="button"
-              class="fr-btn fr-btn--secondary dsfr-data-status__retry"
-              style=${RETRY_BUTTON_STYLE}
-              @click=${() => requestSourceRetry(sourceId as string)}
-            >
-              ${RETRY_LABEL}
-            </button>`
-          : nothing
-      }
+      ${showRetry ? renderRetryButton(sourceId as string) : nothing}
       ${
         sourcePage
           ? html`<p class="dsfr-data-status__link" style=${SOURCE_ERROR_TEXT_STYLE}>
