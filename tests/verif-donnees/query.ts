@@ -58,6 +58,70 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'where-wordstart-client',
+    mode: 'deterministic',
+    origin:
+      '#1285 — `wordstart`, « un mot commence par », calculé dans le navigateur sur une source sans adaptateur : c’est la voie que suit toute source qui n’est pas un portail Opendatasoft. « cot » : deux régions ont un mot qui commence ainsi, accent replié (Côte-d’Or, Provence-Alpes-Côte d’Azur). « dev rech » : deux mots dans le désordre, séparés par une esperluette dans la donnée. « 00 » : les chiffres font des mots — quatre « Territoire 00x ». « d » : UNE région a un mot qui commence par « d » (Développement) ; l’article élidé de « Côte-d’Or », « Val-d’Oise » et « Côte d’Azur » n’est pas un mot, sans quoi il y en aurait quatre. Sur deux champs, un OU (#1026).',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  <dsfr-data-source id="s-mots" url="${urlJeu('territoires')}"></dsfr-data-source>
+  ${(
+    [
+      ['cot', 'region:wordstart:cot'],
+      ['desordre', 'region:wordstart:dev rech'],
+      ['chiffres', 'region:wordstart:00'],
+      ['article', 'region:wordstart:d'],
+      ['ou', 'region|academie:wordstart:lil'],
+    ] as const
+  )
+    .map(
+      ([nom, where]) => `
+  <dsfr-data-query id="q-mots-${nom}" source="s-mots" where="${where}"></dsfr-data-query>
+  <dsfr-data-kpi id="k-mots-${nom}" source="q-mots-${nom}" value="count" format="nombre" label="${nom}"></dsfr-data-kpi>`
+    )
+    .join('')}`,
+    expects: [
+      ...(
+        [
+          ['cot', 'cot'],
+          ['desordre', 'dev rech'],
+          ['chiffres', '00'],
+          ['article', 'd'],
+        ] as const
+      ).map(([nom, value]) => ({
+        kind: 'kpi' as const,
+        id: `k-mots-${nom}`,
+        agg: 'count' as const,
+        pipeline: [
+          {
+            op: 'filter' as const,
+            filters: [{ field: 'region', op: 'wordstart' as const, value }],
+          },
+        ],
+      })),
+      {
+        kind: 'kpi',
+        id: 'k-mots-ou',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                op: 'or',
+                any: [
+                  { field: 'region', op: 'wordstart', value: 'lil' },
+                  { field: 'academie', op: 'wordstart', value: 'lil' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
     id: 'kpi-where-et-agregats',
     mode: 'deterministic',
     origin:

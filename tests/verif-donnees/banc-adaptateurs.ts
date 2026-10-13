@@ -125,7 +125,95 @@ const CHANGE_PORTAIL = 'https://data.economie.gouv.fr';
 const CHANGE_JEU = 'dgfip-taux-de-change';
 const CHANGE_WHERE = 'monnaievigueur = 1 AND code_pays = "HT"';
 
+/**
+ * Opendatasoft — RappelConso (DGCCRF), le jeu sur lequel #1285 a été trouvé et
+ * mesuré : `categorie_produit like "%aliment%"` y rend 0 ligne pour 14 366
+ * « alimentation ». Quatre catégories, 836 lignes au 2026-10-13 — assez pour
+ * que `sous_categorie_produit` porte ce qui fait un mot : une apostrophe
+ * typographique (« produits d’hygiène (cotons, intime, papiers) »), des
+ * accents (« vélos, bicyclettes, vélos à assistance électrique »), des
+ * virgules, une parenthèse. La clause de l'oracle est écrite à la main, sans
+ * `like`.
+ */
+const RAPPEL_PORTAIL = 'https://data.economie.gouv.fr';
+const RAPPEL_JEU = 'rappelconso-v2-gtin-trie';
+const RAPPEL_WHERE =
+  'categorie_produit in ("hygiène-beauté", "sports-loisirs", ' +
+  '"automobiles et moyens de déplacement", "equipements de communication")';
+const RAPPEL_SOURCE = (id: string): string => `
+  <dsfr-data-source id="${id}" api-type="opendatasoft"
+    base-url="${RAPPEL_PORTAIL}" dataset-id="${RAPPEL_JEU}" max-records="2000"
+    where="${RAPPEL_WHERE.replace(/"/g, '&quot;')}"></dsfr-data-source>`;
+const rappelKpi = (id: string, source: string): string => `
+  <dsfr-data-kpi id="${id}" source="${source}" value="count" format="nombre" label="${id}"></dsfr-data-kpi>`;
+const sousCategorie = (op: 'wordstart' | 'contains', value: string) => [
+  { op: 'filter' as const, filters: [{ field: 'sous_categorie_produit', op, value }] },
+];
+
 const CHECKS: Check[] = [
+  {
+    id: 'ods-rappelconso-mots-vivant',
+    mode: 'live',
+    origin:
+      "data.economie.gouv.fr / RappelConso — #1285, contre le vrai portail. Le `like` d'Opendatasoft compare des MOTS, pas une sous-chaîne : la bibliothèque ne lui délègue donc plus `contains`, et lui délègue `wordstart` (« un mot commence par ») en `like \"mot*\"`, qu'elle calcule à l'identique dans le navigateur. CE CONTRÔLE GARDE L'ÉGALITÉ ENTRE LES DEUX : chaque saisie est jouée déléguée (une requête seule sur sa source : c'est le PORTAIL qui répond) et non déléguée (deux requêtes sur la même source : c'est le NAVIGATEUR), et recalculée par l'oracle depuis l'export. « hyg » : l'article de « produits d’hygiène » est élidé, apostrophe typographique comprise. « velo assist » : deux mots, accents repliés, sans adjacence. « cosm » : un début de mot simple. Si le portail changeait d'analyseur — racinisation, mots vides, autre découpage —, le chiffre délégué quitterait les deux autres. `contains:smétiqu`, pris au milieu d'un mot, ne trouve rien par `like` ; calculé côté client, il retient les « cosmétiques », et aucun `like` à pourcent ne part.",
+    feed: {
+      kind: 'raw',
+      source: { baseUrl: RAPPEL_PORTAIL, dataset: RAPPEL_JEU, where: RAPPEL_WHERE },
+    },
+    markup: `${RAPPEL_SOURCE('s-rc-hyg')}
+  <dsfr-data-query id="q-rc-hyg" source="s-rc-hyg" where="sous_categorie_produit:wordstart:hyg"></dsfr-data-query>${rappelKpi('k-rc-hyg', 'q-rc-hyg')}${RAPPEL_SOURCE('s-rc-velo')}
+  <dsfr-data-query id="q-rc-velo" source="s-rc-velo" where="sous_categorie_produit:wordstart:velo assist"></dsfr-data-query>${rappelKpi('k-rc-velo', 'q-rc-velo')}${RAPPEL_SOURCE('s-rc-cosm')}
+  <dsfr-data-query id="q-rc-cosm" source="s-rc-cosm" where="sous_categorie_produit:wordstart:cosm"></dsfr-data-query>${rappelKpi('k-rc-cosm', 'q-rc-cosm')}${RAPPEL_SOURCE('s-rc-milieu')}
+  <dsfr-data-query id="q-rc-milieu" source="s-rc-milieu" where="sous_categorie_produit:contains:smétiqu"></dsfr-data-query>${rappelKpi('k-rc-milieu', 'q-rc-milieu')}${RAPPEL_SOURCE('s-rc-client')}
+  <dsfr-data-query id="q-rc-hyg-c" source="s-rc-client" where="sous_categorie_produit:wordstart:hyg"></dsfr-data-query>${rappelKpi('k-rc-hyg-c', 'q-rc-hyg-c')}
+  <dsfr-data-query id="q-rc-velo-c" source="s-rc-client" where="sous_categorie_produit:wordstart:velo assist"></dsfr-data-query>${rappelKpi('k-rc-velo-c', 'q-rc-velo-c')}
+  <dsfr-data-query id="q-rc-cosm-c" source="s-rc-client" where="sous_categorie_produit:wordstart:cosm"></dsfr-data-query>${rappelKpi('k-rc-cosm-c', 'q-rc-cosm-c')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-rc-hyg', agg: 'count', pipeline: sousCategorie('wordstart', 'hyg') },
+      { kind: 'kpi', id: 'k-rc-hyg-c', agg: 'count', pipeline: sousCategorie('wordstart', 'hyg') },
+      {
+        kind: 'kpi',
+        id: 'k-rc-velo',
+        agg: 'count',
+        pipeline: sousCategorie('wordstart', 'velo assist'),
+      },
+      {
+        kind: 'kpi',
+        id: 'k-rc-velo-c',
+        agg: 'count',
+        pipeline: sousCategorie('wordstart', 'velo assist'),
+      },
+      { kind: 'kpi', id: 'k-rc-cosm', agg: 'count', pipeline: sousCategorie('wordstart', 'cosm') },
+      {
+        kind: 'kpi',
+        id: 'k-rc-cosm-c',
+        agg: 'count',
+        pipeline: sousCategorie('wordstart', 'cosm'),
+      },
+      {
+        kind: 'kpi',
+        id: 'k-rc-milieu',
+        agg: 'count',
+        pipeline: sousCategorie('contains', 'smétiqu'),
+      },
+      {
+        kind: 'urls',
+        id: 'rappel-wordstart-delegue',
+        among: `/datasets/${RAPPEL_JEU}/records`,
+        // Le journal de la page consigne les URL DÉCODÉES
+        contains: 'sous_categorie_produit like "velo* assist*"',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'rappel-contains-jamais-en-like',
+        among: `/datasets/${RAPPEL_JEU}/records`,
+        contains: 'like "%',
+        verdict: 'none',
+      },
+    ],
+  },
+
   {
     id: 'ods-taux-de-change-pagination-vivant',
     mode: 'live',

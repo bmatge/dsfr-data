@@ -291,6 +291,103 @@ def texte_cellule(n: Fraction | None) -> str:
 # ---------------------------------------------------------------------------
 
 
+# « Un mot commence par » (#1285) — ce que rend un portail Opendatasoft pour
+# ``champ like "mot*"``, mesuré le 2026-10-13 par 59 requêtes en lecture seule.
+# Un mot : des lettres, des chiffres, le souligné. Tiret, parenthèse, ``&``,
+# ``/`` et blancs coupent ; UN signe ne coupe pas quand il est entre deux
+# lettres (apostrophe, point, point médian) ou entre deux chiffres (apostrophe,
+# point, virgule, point-virgule). L'article élidé tombe (« d'aquaculture » →
+# « aquaculture ») ; casse, accents et ligatures sont repliés. Un champ qui
+# n'est pas du texte n'a pas de mot ; une saisie sans mot ne retient rien.
+
+ARTICLES_ELIDES = frozenset(
+    ["l", "m", "t", "qu", "n", "s", "j", "d", "c", "jusqu", "quoiqu", "lorsqu", "puisqu"]
+)
+ENTRE_LETTRES = frozenset("'\u2018\u2019.\u00b7")
+ENTRE_CHIFFRES = frozenset("'\u2018\u2019.,;")
+LIGATURES = {
+    "\u0153": "oe",
+    "\u00e6": "ae",
+    "\u00df": "ss",
+    "\u00f8": "o",
+    "\u0111": "d",
+    "\u00f0": "d",
+    "\u00fe": "th",
+    "\u0142": "l",
+    "\u0131": "i",
+    "\u2018": "'",
+    "\u2019": "'",
+}
+
+
+def classe_car(c: str) -> str:
+    """``L`` lettre (ou marque), ``N`` chiffre décimal, ``_`` souligné, ``-`` le reste."""
+    if c == "_":
+        return "_"
+    categorie = unicodedata.category(c)
+    if categorie == "Nd":
+        return "N"
+    if categorie[0] in ("L", "M"):
+        return "L"
+    return "-"
+
+
+def replier_mot(mot: str) -> str:
+    """Casse, accents et ligatures repliés. ``lower`` et non ``casefold`` : c'est
+    la minuscule de JavaScript que les deux autres voix emploient."""
+    decompose = unicodedata.normalize("NFD", mot.lower())
+    sans_marque = "".join(c for c in decompose if unicodedata.category(c) != "Mn")
+    return "".join(LIGATURES.get(c, c) for c in sans_marque)
+
+
+def mots_de(texte: str) -> list[str]:
+    classes = [classe_car(c) for c in texte]
+    bruts: list[str] = []
+    courant: list[str] = []
+    precedente = "-"
+    for i, c in enumerate(texte):
+        k = classes[i]
+        if k != "-":
+            courant.append(c)
+            precedente = k
+            continue
+        suivante = classes[i + 1] if i + 1 < len(texte) else "-"
+        tient = (precedente == "L" and suivante == "L" and c in ENTRE_LETTRES) or (
+            precedente == "N" and suivante == "N" and c in ENTRE_CHIFFRES
+        )
+        if tient:
+            courant.append(c)
+            precedente = "-"
+        else:
+            if courant:
+                bruts.append("".join(courant))
+            courant = []
+            precedente = "-"
+    if courant:
+        bruts.append("".join(courant))
+
+    mots: list[str] = []
+    for brut in bruts:
+        if not any(classe_car(c) in ("L", "N") and unicodedata.category(c)[0] != "M" for c in brut):
+            continue
+        mot = replier_mot(brut)
+        tete, apostrophe, reste = mot.partition("'")
+        if apostrophe and tete in ARTICLES_ELIDES:
+            mot = reste
+        if mot:
+            mots.append(mot)
+    return mots
+
+
+def un_mot_commence_par(valeur: Any, saisie: str) -> bool:
+    cherches = mots_de(saisie)
+    if not cherches:
+        return False
+    textes = valeur if isinstance(valeur, list) else [valeur]
+    mots = [m for t in textes if isinstance(t, str) for m in mots_de(t)]
+    return all(any(m.startswith(c) for m in mots) for c in cherches)
+
+
 def passe_filtre(row: Row, f: dict[str, Any]) -> bool:
     op = f["op"]
     if op == "or":
@@ -298,6 +395,8 @@ def passe_filtre(row: Row, f: dict[str, Any]) -> bool:
         # miroir de la clause multi-champs `a|b:op:valeur` de la bibliothèque.
         return any(passe_filtre(row, g) for g in f["any"])
     v = row.get(f["field"])
+    if op == "wordstart":
+        return un_mot_commence_par(v, str(f["value"]))
     if op == "isnotnull":
         return not absent(v)
     if op == "isnull":

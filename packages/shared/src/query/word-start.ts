@@ -96,20 +96,20 @@ const ARTICLES_ELIDES: ReadonlySet<string> = new Set([
   'puisqu',
 ]);
 
-/** Apostrophes : droite, typographiques, modificative. */
-const APOSTROPHES = "'‘’ʼ＇";
+/** Apostrophes : droite et typographiques. */
+const APOSTROPHES = "'‘’";
 
 /**
  * Signes qui ne coupent PAS entre deux LETTRES (UAX #29, MidLetter et
  * MidNumLet) : apostrophes, point, point médian.
  */
-const ENTRE_LETTRES = APOSTROPHES + '.·‧․﹒．';
+const ENTRE_LETTRES = APOSTROPHES + '.·';
 
 /**
  * Signes qui ne coupent PAS entre deux CHIFFRES (UAX #29, MidNum et
  * MidNumLet) : virgule, point-virgule, point, apostrophes.
  */
-const ENTRE_CHIFFRES = APOSTROPHES + '.,;․﹒．，；';
+const ENTRE_CHIFFRES = APOSTROPHES + '.,;';
 
 const LETTRE = /[\p{L}\p{M}]/u;
 const CHIFFRE = /\p{Nd}/u;
@@ -141,9 +141,9 @@ export function foldWord(text: string): string {
   return text
     .toLowerCase()
     .normalize('NFD')
-    .replace(/\p{M}/gu, '')
+    .replace(/\p{Mn}/gu, '')
     .replace(/[œæßøđðþłı]/g, (c) => REPLIS[c] ?? c)
-    .replace(/[‘’ʼ＇]/g, "'");
+    .replace(/[‘’]/g, "'");
 }
 
 /** Retire l'article élidé de tête : « d'aquaculture » -> « aquaculture », « kellogg's » intact. */

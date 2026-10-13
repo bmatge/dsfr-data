@@ -193,7 +193,34 @@ describe('OpenDataSoft — /records', () => {
     // Une fixture qui ignorerait une clause inconnue rendrait le jeu ENTIER :
     // le composant afficherait « trop » de lignes et le test accuserait le
     // pipeline. Mieux vaut echouer bruyamment ici.
-    expect(() => filtrerOdsql(JEU, 'region LIKE "Val%"')).toThrow(/non geree/);
+    expect(() => filtrerOdsql(JEU, "date > date'2024-01-01'")).toThrow(/non geree/);
+  });
+
+  it('lit `like` comme le vrai portail : des MOTS, pas une sous-chaine (#1285)', () => {
+    const regions = (where: string) => filtrerOdsql(JEU, where).map((l) => l.region);
+    // `%` n'est pas un joker : `like "%Val%"` cherche le mot entier « val »,
+    // et `like "Val%"` ne trouve pas « Val-d'Oise » par son debut — c'est le
+    // mot « val » qui le trouve. Lu comme une sous-chaine, le faux portail
+    // faisait passer pour juste un `contains` delegue en `like "%x%"`.
+    expect(regions('region LIKE "%Val%"')).toEqual(["Val-d'Oise"]);
+    expect(regions('region like "%erritoir%"')).toEqual([]);
+    expect(regions('region like "%al%"')).toEqual([]);
+    // Debut de mot : l'etoile, en fin de terme.
+    expect(regions('region like "al*"')).toEqual(["Provence-Alpes-Côte d'Azur"]);
+    expect(regions('region like "cot*"').sort()).toEqual(
+      ["Côte-d'Or", "Provence-Alpes-Côte d'Azur"].sort()
+    );
+    // Plusieurs termes : un ET, sans ordre ; l'article elide n'est pas un mot.
+    expect(regions('region like "azur* prov*"')).toEqual(["Provence-Alpes-Côte d'Azur"]);
+    expect(regions('region like "oise*"')).toEqual(["Val-d'Oise"]);
+    expect(regions('region like "d"')).toEqual([]);
+    expect(filtrerOdsql(JEU, 'region like "terr*"')).toHaveLength(132);
+    // Compose avec le reste de la grammaire.
+    expect(regions('(region like "cot*" OR region like "oise*") AND pays_iso2 = "FR"')).toEqual([
+      "Val-d'Oise",
+    ]);
+    // Un champ qui n'est pas du texte ne contient aucun mot (mesure : 0 ligne).
+    expect(filtrerOdsql(JEU, 'population like "99*"')).toEqual([]);
   });
 
   it('lit les PARENTHESES et les guillemets imbriques d’un where ODSQL (#767)', () => {

@@ -72,6 +72,16 @@ export type RowFilter =
        */
       fold?: boolean;
     }
+  /**
+   * « Un mot commence par » (#1285) : CHAQUE mot de `value` est le début d'un
+   * mot du champ, sans ordre ni adjacence, casse et accents repliés — ce que
+   * rend un portail Opendatasoft pour `champ like "mot*"`, mesuré le
+   * 2026-10-13 (un mot : lettres et chiffres ; tiret, parenthèse, `&`, `/`
+   * coupent ; l'article élidé tombe ; un champ non texte n'a pas de mot ; une
+   * saisie sans mot ne retient rien). Écrit dans `compute.ts`, sans rien
+   * emprunter à la bibliothèque.
+   */
+  | { field: string; op: 'wordstart'; value: string }
   /** Appartenance à un ensemble — le OU multi-valeurs d'un `in` ou d'une facette. */
   | { field: string; op: 'in' | 'notin'; values: Array<string | number> }
   | { field: string; op: 'isnotnull' | 'isnull' | 'isnull-strict' | 'isnotnull-strict' }

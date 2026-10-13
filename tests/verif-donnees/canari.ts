@@ -902,15 +902,15 @@ ${sourceOds('s-cible', DATASET_FACETTES)}
     mode: 'deterministic',
     constats: ['BUG-031'],
     origin:
-      'Canari — #1243, famille de BUG-031 : la RECHERCHE en mode `context`. Le terme part dans l’URL du contexte ; relu, il était découpé sur les virgules, chaque morceau nettoyé, puis recollé : « Paris, France » revenait en « Paris,France ». `lieu` porte les deux écritures — trois lignes avec le blanc, une sans — : le terme relu trouvait UNE ligne au lieu de trois, un chiffre faux et plausible. Deux navigations : on saisit, la synchro écrit, on recharge.',
+      'Canari — #1243, famille de BUG-031 : la RECHERCHE en mode `context`. Le terme part dans l’URL du contexte ; relu, il était découpé sur les virgules, chaque morceau nettoyé, puis recollé : « Paris, France » revenait en « Paris,France ». RÉÉCRIT avec #1285 : la recherche en contexte est devenue un `wordstart`, qui lit des MOTS — « Paris, France » et « Paris,France » y sont la même saisie, et le contrôle d’origine ne distinguait plus rien (il n’était d’ailleurs juste que par la lecture complaisante du faux portail : le vrai lit `like "%Paris, France%"` comme deux mots et rend les QUATRE lignes, pas trois). Le piège se rejoue là où il mord encore : une virgule entre deux CHIFFRES ne coupe pas un mot. « 2, 3 » cherche un mot qui commence par 2 et un par 3 — les trois « 2 à 3 parcours » ; recollé en « 2,3 », c’est UN mot que rien ne commence : zéro ligne, un chiffre faux et plausible. Deux navigations : on saisit, la synchro écrit, on recharge.',
     feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
     markup: `${sourceOds('s-lieu', DATASET_FACETTES, 'fetch-mode="export" max-records="100"')}
   <dsfr-data-context id="ctx" sources="s-lieu" url-sync></dsfr-data-context>
-  <dsfr-data-search id="r-lieu" source="s-lieu" context="ctx" fields="lieu" debounce="0"
-    min-length="0" label="Rechercher un lieu"></dsfr-data-search>
+  <dsfr-data-search id="r-lieu" source="s-lieu" context="ctx" fields="intensite" debounce="0"
+    min-length="0" label="Rechercher une intensité"></dsfr-data-search>
   ${kpi('k-lieu', 's-lieu', 'count')}`,
     actions: [
-      { kind: 'fill', selector: '#r-lieu input', value: 'Paris, France' },
+      { kind: 'fill', selector: '#r-lieu input', value: '2, 3' },
       // Le bouton applique le terme SANS attendre la temporisation de frappe :
       // l'URL est écrite quand le clic rend la main, avant le rechargement.
       { kind: 'click', selector: '#r-lieu button' },
@@ -922,8 +922,99 @@ ${sourceOds('s-cible', DATASET_FACETTES)}
         id: 'k-lieu',
         agg: 'count',
         pipeline: [
-          { op: 'filter', filters: [{ field: 'lieu', op: 'contains', value: 'Paris, France' }] },
+          { op: 'filter', filters: [{ field: 'intensite', op: 'wordstart', value: '2, 3' }] },
         ],
+      },
+    ],
+  },
+
+  // -------------------------------------------------------------------------
+  // contains et le `like` du portail : des mots, pas une sous-chaîne (#1285)
+  // -------------------------------------------------------------------------
+  {
+    id: 'canari-contains-milieu-de-mot',
+    mode: 'deterministic',
+    origin:
+      'Canari — #1285 (trouvé en reprenant les exemples du guide, pas par le banc : aucun identifiant de registre). `where="libelle:contains:ancour"` : une sous-chaîne au MILIEU d’un mot. Sur une source Opendatasoft la clause partait en `libelle like "%ancour%"`, et le `like` du portail compare des MOTS : zéro ligne là où trois « Élancourt » la contiennent, sans erreur. Mesuré sur data.economie.gouv.fr : `like "%aliment%"` rend 0 pour 14 366 « alimentation ». La clause ne part plus ; calculée sur les lignes chargées, elle retient les mêmes trois lignes que sur la source en tableau nu. Le faux portail lit `like` comme le vrai : c’est ce qui rend ce canari capable d’échouer.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${SRC}${sourceOds('s-ods-c', DATASET_CANARI, 'max-records="100"')}
+  <dsfr-data-query id="q-c-ods" source="s-ods-c" where="libelle:contains:ancour"></dsfr-data-query>
+  ${kpi('k-c-ods', 'q-c-ods', 'count')}
+  <dsfr-data-query id="q-c-cli" source="s-canari" where="libelle:contains:ancour"></dsfr-data-query>
+  ${kpi('k-c-cli', 'q-c-cli', 'count')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-c-ods',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'ancour' }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-c-cli',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'ancour' }] },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'contains-jamais-en-like',
+        among: `/datasets/${DATASET_CANARI}/`,
+        contains: 'like',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'canari-wordstart-mots-du-portail',
+    mode: 'deterministic',
+    origin:
+      'Canari — #1285, l’autre moitié : `wordstart`, « un mot commence par », délégué à Opendatasoft en `like "mot*"` et calculé à l’identique dans le navigateur. Quatre pièges du découpage en mots, chacun mesuré sur un portail le 2026-10-13, chacun tenu deux fois (source Opendatasoft, tableau nu). « elan » : accents repliés ET formes Unicode — « Élancourt » en NFC, en NFD, « élancourt » : trois. « hay » : l’article élidé de « L’Haÿ-les-Roses » tombe, le tréma aussi — une ligne, qu’un découpage gardant « l’haÿ » d’un bloc ne trouverait pas. « cot » : « Côte-d’Or » et « Côtes-d’Armor », le tiret coupe : deux. « ea » sur `tags`, champ multivalué : les mots de tous les éléments, seize lignes portent « eau ».',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${SRC}${sourceOds('s-w1', DATASET_CANARI, 'max-records="100"')}${sourceOds('s-w2', DATASET_CANARI, 'max-records="100"')}${sourceOds('s-w3', DATASET_CANARI, 'max-records="100"')}${sourceOds('s-w4', DATASET_CANARI, 'max-records="100"')}
+  <dsfr-data-query id="q-w-elan" source="s-w1" where="libelle:wordstart:elan"></dsfr-data-query>${kpi('k-w-elan', 'q-w-elan', 'count')}
+  <dsfr-data-query id="q-w-hay" source="s-w2" where="libelle:wordstart:hay"></dsfr-data-query>${kpi('k-w-hay', 'q-w-hay', 'count')}
+  <dsfr-data-query id="q-w-cot" source="s-w3" where="libelle:wordstart:cot"></dsfr-data-query>${kpi('k-w-cot', 'q-w-cot', 'count')}
+  <dsfr-data-query id="q-w-ea" source="s-w4" where="tags:wordstart:ea"></dsfr-data-query>${kpi('k-w-ea', 'q-w-ea', 'count')}
+  <dsfr-data-query id="q-c-elan" source="s-canari" where="libelle:wordstart:elan"></dsfr-data-query>${kpi('k-c-elan', 'q-c-elan', 'count')}
+  <dsfr-data-query id="q-c-hay" source="s-canari" where="libelle:wordstart:hay"></dsfr-data-query>${kpi('k-c-hay', 'q-c-hay', 'count')}
+  <dsfr-data-query id="q-c-cot" source="s-canari" where="libelle:wordstart:cot"></dsfr-data-query>${kpi('k-c-cot', 'q-c-cot', 'count')}
+  <dsfr-data-query id="q-c-ea" source="s-canari" where="tags:wordstart:ea"></dsfr-data-query>${kpi('k-c-ea', 'q-c-ea', 'count')}`,
+    expects: [
+      ...(
+        [
+          ['elan', 'libelle', 'elan'],
+          ['hay', 'libelle', 'hay'],
+          ['cot', 'libelle', 'cot'],
+          ['ea', 'tags', 'ea'],
+        ] as const
+      ).flatMap(([nom, field, value]) =>
+        (['w', 'c'] as const).map((chemin) => ({
+          kind: 'kpi' as const,
+          id: `k-${chemin}-${nom}`,
+          agg: 'count' as const,
+          pipeline: [
+            { op: 'filter' as const, filters: [{ field, op: 'wordstart' as const, value }] },
+          ],
+        }))
+      ),
+      {
+        kind: 'urls',
+        id: 'wordstart-delegue',
+        among: `/datasets/${DATASET_CANARI}/`,
+        contains: 'libelle like "elan*"',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'wordstart-multivalue-delegue',
+        among: `/datasets/${DATASET_CANARI}/`,
+        contains: 'tags like "ea*"',
+        verdict: 'some',
       },
     ],
   },

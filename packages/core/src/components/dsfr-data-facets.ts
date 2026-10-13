@@ -1189,6 +1189,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       ? [this.id, ...[...this._contextFilters.values()].map((c) => c.whereKey)]
       : this.id;
     const baseWhere = (sourceEl as unknown as SourceElement).getEffectiveWhere?.(ownKeys) || '';
+    this._warnClientWhereIgnored();
     const whereToFields = groupFieldsByWhere(fields, baseWhere, adapter, (field) =>
       this._buildFacetWhere(field)
     );
@@ -1229,6 +1230,40 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
   }
 
   /** Un jeu sans facette declaree : un avertissement, pas un par cycle (#680). */
+  /** Clauses clientes déjà signalées (un avertissement par clause). */
+  private _clientWhereWarned = new Set<string>();
+
+  /**
+   * `server-facets` et clause calculée côté client (#1285). Les compteurs
+   * viennent de l'API, qui ne reçoit que la part du filtre qu'elle sait
+   * calculer : une clause gardée par la source (`contains` sur un portail
+   * Opendatasoft, `wordstart` ailleurs) leur échappe, et ils comptent alors
+   * plus de lignes que la page n'en montre. On remonte la chaîne jusqu'à la
+   * source qui charge, et on le dit — une fois par clause.
+   */
+  private _warnClientWhereIgnored(): void {
+    let el: Element | null = this.source ? document.getElementById(this.source) : null;
+    for (let hop = 0; hop < 10 && el; hop++) {
+      const carrier = el as Element & { getClientWhere?: () => string };
+      if (typeof carrier.getClientWhere === 'function') {
+        const clientWhere = carrier.getClientWhere();
+        if (!clientWhere || this._clientWhereWarned.has(clientWhere)) return;
+        this._clientWhereWarned.add(clientWhere);
+        console.warn(
+          `dsfr-data-facets[${this.id}]: server-facets — la clause "${clientWhere}" est calculée ` +
+            `côté client par dsfr-data-source "${el.id}" (son API ne sait pas la calculer comme ` +
+            `le navigateur) : les compteurs des facettes, calculés par l'API, n'en tiennent pas ` +
+            `compte et peuvent dépasser le nombre de lignes affichées. Remplacez contains par ` +
+            `wordstart quand l'API le délègue, ou retirez server-facets pour compter sur les ` +
+            `lignes chargées.`
+        );
+        return;
+      }
+      const next = el.getAttribute('source') || el.getAttribute('left');
+      el = next ? document.getElementById(next) : null;
+    }
+  }
+
   private _warnNoDeclaredFacets(): void {
     if (this.fields || this._discovery.emptyWarned) return;
     this._discovery.emptyWarned = true;

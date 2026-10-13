@@ -83,12 +83,105 @@ export function replier(v: unknown): string {
     .trim();
 }
 
+// ---------------------------------------------------------------------------
+// « Un mot commence par » (#1285)
+// ---------------------------------------------------------------------------
+
+/** Articles élidés que le portail retire en tête de mot. */
+const ARTICLES_ELIDES = [
+  'l',
+  'm',
+  't',
+  'qu',
+  'n',
+  's',
+  'j',
+  'd',
+  'c',
+  'jusqu',
+  'quoiqu',
+  'lorsqu',
+  'puisqu',
+];
+
+const FIN_LETTRE = /[\p{L}\p{M}]$/u;
+const DEBUT_LETTRE = /^[\p{L}\p{M}]/u;
+const FIN_CHIFFRE = /\p{Nd}$/u;
+const DEBUT_CHIFFRE = /^\p{Nd}/u;
+
+/**
+ * Les MOTS d'un texte, tels qu'un portail Opendatasoft les indexe — mesuré,
+ * pas déduit (voir `RowFilter`, `wordstart`). Écrit par MORCEAUX, à l'inverse
+ * de la bibliothèque qui parcourt les caractères : le texte est coupé en
+ * suites de lettres, chiffres et soulignés ; deux suites voisines sont
+ * recollées quand UN signe les sépare et qu'il ne coupe pas — apostrophe,
+ * point ou point médian entre deux lettres, apostrophe, point, virgule ou
+ * point-virgule entre deux chiffres. Puis repliement (casse, accents,
+ * ligatures) et retrait de l'article élidé.
+ */
+export function motsDe(texte: string): string[] {
+  const morceaux = texte.split(/([\p{L}\p{M}\p{Nd}_]+)/u);
+  const bruts: string[] = [];
+  for (let i = 1; i < morceaux.length; i += 2) {
+    const suite = morceaux[i];
+    const separateur = morceaux[i - 1];
+    const precedent = bruts[bruts.length - 1];
+    const tient =
+      precedent !== undefined &&
+      [...separateur].length === 1 &&
+      ((FIN_LETTRE.test(precedent) && DEBUT_LETTRE.test(suite) && "'‘’.·".includes(separateur)) ||
+        (FIN_CHIFFRE.test(precedent) &&
+          DEBUT_CHIFFRE.test(suite) &&
+          "'‘’.,;".includes(separateur)));
+    if (tient) bruts[bruts.length - 1] = precedent + separateur + suite;
+    else bruts.push(suite);
+  }
+  const mots: string[] = [];
+  for (const brut of bruts) {
+    if (!/[\p{L}\p{Nd}]/u.test(brut)) continue;
+    let mot = brut
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{Mn}/gu, '')
+      .replace(/œ/g, 'oe')
+      .replace(/æ/g, 'ae')
+      .replace(/ß/g, 'ss')
+      .replace(/ø/g, 'o')
+      .replace(/[đð]/g, 'd')
+      .replace(/þ/g, 'th')
+      .replace(/ł/g, 'l')
+      .replace(/ı/g, 'i')
+      .replace(/[‘’]/g, "'");
+    const apostrophe = mot.indexOf("'");
+    if (apostrophe > 0 && ARTICLES_ELIDES.includes(mot.slice(0, apostrophe))) {
+      mot = mot.slice(apostrophe + 1);
+    }
+    if (mot) mots.push(mot);
+  }
+  return mots;
+}
+
+/**
+ * `wordstart` : chaque mot de la saisie est-il le DÉBUT d'un mot de la valeur ?
+ * Valeur texte, ou tableau de textes (leurs mots en commun) ; toute autre
+ * valeur — nombre, booléen, absente — n'a pas de mot. Saisie sans mot : rien.
+ */
+export function unMotCommencePar(valeur: unknown, saisie: string): boolean {
+  const cherches = motsDe(saisie);
+  if (cherches.length === 0) return false;
+  const textes = Array.isArray(valeur) ? valeur : [valeur];
+  const mots = textes.flatMap((t) => (typeof t === 'string' ? motsDe(t) : []));
+  return cherches.every((cherche) => mots.some((mot) => mot.startsWith(cherche)));
+}
+
 /** Un filtre ligne à ligne. */
 export function passeFiltre(row: Row, filter: RowFilter): boolean {
   // Le OU entre champs (#1026) : une disjonction, évaluée filtre par filtre.
   if (filter.op === 'or') return filter.any.some((f) => passeFiltre(row, f));
   const v = row[filter.field];
   switch (filter.op) {
+    case 'wordstart':
+      return unMotCommencePar(v, filter.value);
     case 'isnotnull':
       return !absent(v);
     case 'isnull':

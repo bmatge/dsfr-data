@@ -32,6 +32,8 @@
  *     agregateur, comme le vrai.
  */
 
+import { likePortail } from './ods-like.js';
+
 /**
  * Une ligne du jeu de recette.
  *
@@ -250,7 +252,12 @@ function refus(where: string, position: number, raison: string): Error {
  * que la bibliotheque l'a correctement transmis — et l'echec accuserait le
  * mauvais coupable.
  *
- * Toute autre forme (`LIKE`, `date'…'`, fonctions) est REFUSEE, jamais ignoree :
+ * `champ like "motif"` est lu COMME LE VRAI PORTAIL (#1285, `ods-like.ts`) :
+ * une comparaison de MOTS, ou `%` n'est pas un joker — `like "%aliment%"` ne
+ * trouve pas « alimentation », `like "aliment*"` si. Le lire comme une
+ * sous-chaine ferait passer pour juste un `contains` delegue qui ne l'est pas.
+ *
+ * Toute autre forme (`date'…'`, fonctions) est REFUSEE, jamais ignoree :
  * rendre le jeu complet en silence transformerait un filtre perdu en succes.
  */
 function analyserOdsql(where: string): PredicatOdsql {
@@ -310,6 +317,12 @@ function analyserOdsql(where: string): PredicatOdsql {
   const comparaison = (): PredicatOdsql => {
     const champ = identifiant();
     blancs();
+    if (motCle('like')) {
+      blancs();
+      if (where[i] !== '"' && where[i] !== "'") throw refus(where, i, 'motif de like attendu');
+      const motif = chaine();
+      return (ligne) => likePortail(ligne[champ], motif);
+    }
     const operateur = OPERATEURS.find((o) => where.startsWith(o, i));
     if (!operateur) throw refus(where, i, 'operateur de comparaison attendu');
     i += operateur.length;
@@ -958,6 +971,32 @@ function filtrerOuTabular(lignes: Ligne[], groupe: string): Ligne[] | string {
   return lignes.filter((ligne) => predicats.some((p) => p(ligne)));
 }
 
+/**
+ * `champ__contains=valeur` de l'API Tabular : un `ilike '%valeur%'` de
+ * PostgreSQL, lu COMME LE VRAI (#1285, mesures du 2026-10-13 sur le Code
+ * officiel geographique) — insensible a la casse, sensible aux accents ; `%`
+ * et `_` de la valeur sont des JOKERS (`Saint_` rend 25 lignes comme `saint`,
+ * `%` rend tout le jeu), que l'antislash rend litteraux (`Saint\_` et `\%`
+ * rendent 0). Une valeur absente ne contient rien. Le faux serveur cherchait
+ * une sous-chaine litterale : un `contains:100%` delegue sans echappement y
+ * passait pour juste.
+ */
+function ilikeContient(gauche: unknown, valeur: string): boolean {
+  if (gauche === null || gauche === undefined) return false;
+  let motif = '';
+  for (let i = 0; i < valeur.length; i++) {
+    const c = valeur[i];
+    if (c === '\\' && i + 1 < valeur.length) {
+      i++;
+      motif += valeur[i].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    } else if (c === '%') motif += '[\\s\\S]*';
+    else if (c === '_') motif += '[\\s\\S]';
+    else motif += c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  // eslint-disable-next-line security/detect-non-literal-regexp -- motif echappe ci-dessus
+  return new RegExp(motif, 'iu').test(String(gauche));
+}
+
 function filtrerTabular(
   lignes: Ligne[],
   champ: string,
@@ -972,7 +1011,7 @@ function filtrerTabular(
       case 'differs':
         return String(gauche) !== valeur;
       case 'contains':
-        return String(gauche).toLowerCase().includes(valeur.toLowerCase());
+        return ilikeContient(gauche, valeur);
       case 'strictly_less':
         return nombre(gauche) < Number(valeur);
       case 'less':

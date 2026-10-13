@@ -987,7 +987,7 @@ const CHECKS: Check[] = [
     id: 'recherche-contexte',
     mode: 'deterministic',
     origin:
-      '#678, ADR-104 — une recherche enregistrée auprès d’un contexte devient un filtre `contains` diffusé à toutes ses cibles, et son tag apparaît avec les autres.',
+      '#678, ADR-104, #1285 — une recherche enregistrée auprès d’un contexte devient un filtre `wordstart` (« un mot commence par ») diffusé à toutes ses cibles, et son tag apparaît avec les autres. Avant #1285 c’était un `contains`, délégué en `like "%blagnac%"` : juste ici par accident, « blagnac » étant un mot entier.',
     feed: { kind: 'fixture', datasets: JEUX },
     markup: `${sourceOds('s-rx')}
   <dsfr-data-context id="ctx" sources="s-rx"></dsfr-data-context>
@@ -996,8 +996,134 @@ const CHECKS: Check[] = [
   ${kpiCount('k-n', 's-rx')}${kpiSomme('k-pop', 's-rx')}`,
     actions: [{ kind: 'fill', selector: '#r-ctx input', value: 'blagnac' }],
     expects: attendCompteEtSomme([
-      { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'blagnac' }] },
+      { op: 'filter', filters: [{ field: 'libelle', op: 'wordstart', value: 'blagnac' }] },
     ]),
+  },
+
+  {
+    id: 'recherche-contexte-debut-de-mot',
+    mode: 'deterministic',
+    origin:
+      '#1285 — le cas que le défaut cassait : une saisie PARTIELLE. « ecol » doit trouver les dix « École … », accent et majuscule compris, « École d’Aubagne » avec. La recherche en mode `context` émettait `libelle like "%ecol%"`, que le portail lit comme le mot entier « ecol » : zéro ligne. Elle émet `libelle like "ecol*"`. Le troisième chiffre est celui de la sortie de la recherche elle-même, qui refiltre son aval avec la MÊME sémantique.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-rd')}
+  <dsfr-data-context id="ctx" sources="s-rd"></dsfr-data-context>
+  <dsfr-data-search id="r-deb" source="s-rd" context="ctx" fields="libelle" debounce="0"
+    min-length="0" label="Rechercher un établissement"></dsfr-data-search>
+  ${kpiCount('k-n', 's-rd')}${kpiSomme('k-pop', 's-rd')}${kpiCount('k-aval', 'r-deb')}`,
+    actions: [{ kind: 'fill', selector: '#r-deb input', value: 'ecol' }],
+    expects: [
+      ...attendCompteEtSomme([
+        { op: 'filter', filters: [{ field: 'libelle', op: 'wordstart', value: 'ecol' }] },
+      ]),
+      {
+        kind: 'kpi',
+        id: 'k-aval',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'libelle', op: 'wordstart', value: 'ecol' }] },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'recherche-contexte-en-like-etoile',
+        among: `/datasets/${DATASET_CONTEXTE}/`,
+        contains: 'libelle like "ecol*"',
+        verdict: 'last',
+      },
+    ],
+  },
+
+  {
+    id: 'recherche-contexte-mots-sans-ordre',
+    mode: 'deterministic',
+    origin:
+      '#1285 — plusieurs mots : chacun est le début d’un mot du champ, sans ordre ni adjacence. « mer lyc » trouve « Lycée de la Mer » — ce qu’une sous-chaîne ne trouve nulle part, ni dans la source ni dans la sortie de la recherche.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-rm')}
+  <dsfr-data-context id="ctx" sources="s-rm"></dsfr-data-context>
+  <dsfr-data-search id="r-mots" source="s-rm" context="ctx" fields="libelle" debounce="0"
+    min-length="0" label="Rechercher un établissement"></dsfr-data-search>
+  ${kpiCount('k-n', 's-rm')}${kpiCount('k-aval', 'r-mots')}`,
+    actions: [{ kind: 'fill', selector: '#r-mots input', value: 'mer lyc' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-n',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'libelle', op: 'wordstart', value: 'mer lyc' }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-aval',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'libelle', op: 'wordstart', value: 'mer lyc' }] },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'ctx-contains-ods-calcule-par-la-source',
+    mode: 'deterministic',
+    origin:
+      '#1285 — `dsfr-data-context-filter operator="contains"` vers une cible Opendatasoft. « ycée de » est une sous-chaîne à cheval sur deux mots, prise au milieu du premier : aucun `like` ne la trouve. La clause n’est plus traduite ; le contexte la confie à la source (`clientWhere`), qui la calcule sur les lignes chargées — sept « Lycée de … », pas « Lycée d’Antibes ». Aucun `like` ne part.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-cc')}
+  <label for="sel-cc">Libellé contient</label>
+  <select id="sel-cc"><option value="">Tous</option><option value="ycée de">ycée de</option></select>
+  <dsfr-data-context id="ctx" sources="s-cc">
+    <dsfr-data-context-filter field="libelle" operator="contains" ui="sel-cc"></dsfr-data-context-filter>
+  </dsfr-data-context>
+  ${kpiCount('k-n', 's-cc')}${kpiSomme('k-pop', 's-cc')}`,
+    actions: [{ kind: 'select', selector: '#sel-cc', value: 'ycée de' }],
+    expects: [
+      ...attendCompteEtSomme([
+        { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'ycée de' }] },
+      ]),
+      {
+        kind: 'urls',
+        id: 'contains-contexte-jamais-en-like',
+        among: `/datasets/${DATASET_CONTEXTE}/`,
+        contains: 'like',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'ctx-contains-ods-server-side-refuse',
+    mode: 'deterministic',
+    origin:
+      '#1285, règle de #1242 — le même filtre `contains` vers une cible Opendatasoft en `server-side`. La source ne reçoit qu’une page : la clause, calculée côté client, n’en filtrerait que les lignes. Elle passe en erreur de configuration, qui nomme `server-side` et les corrections, au lieu d’afficher une page partielle.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `
+  <dsfr-data-source id="s-cp" api-type="opendatasoft" base-url="${HOTE_ODS_CONTEXTE}"
+    dataset-id="${DATASET_CONTEXTE}" server-side page-size="10"></dsfr-data-source>
+  <label for="sel-cp">Libellé contient</label>
+  <select id="sel-cp"><option value="">Tous</option><option value="ycée de">ycée de</option></select>
+  <dsfr-data-context id="ctx" sources="s-cp">
+    <dsfr-data-context-filter field="libelle" operator="contains" ui="sel-cp"></dsfr-data-context-filter>
+  </dsfr-data-context>`,
+    actions: [{ kind: 'select', selector: '#sel-cp', value: 'ycée de' }],
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 's-cp',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-cp"',
+      },
+      {
+        kind: 'urls',
+        id: 'contains-contexte-page-jamais-en-like',
+        among: `/datasets/${DATASET_CONTEXTE}/`,
+        contains: 'like',
+        verdict: 'none',
+      },
+    ],
   },
 ];
 

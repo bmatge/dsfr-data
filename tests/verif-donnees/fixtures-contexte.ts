@@ -26,6 +26,7 @@
  * un HTTP 400 (#805).
  */
 import type { Row } from '../../tools/oracle/manifest.js';
+import { likePortail } from '../builder-e2e/ods-like.js';
 import etablissements from './jeux/contexte-etablissements.json' with { type: 'json' };
 import budgets from './jeux/contexte-budgets.json' with { type: 'json' };
 import heterogenes from './jeux/contexte-heterogenes.json' with { type: 'json' };
@@ -83,9 +84,15 @@ export function urlContexte(nom: keyof typeof JEUX_CONTEXTE): string {
  * Le faux serveur ODS du harnais de recette ne lit que les égalités et les
  * comparaisons (`tests/builder-e2e/api-fixtures.ts`). Ce lot a besoin des
  * trois autres formes que la lib émet DÈS QU'UN UTILISATEUR TOUCHE À QUELQUE
- * CHOSE : `in (…)` d'une sélection multiple, `like "%…%"` d'un `contains`, et
- * `search("…")` de la recherche serveur. Elles sont donc lues ici, dans le
+ * CHOSE : `in (…)` d'une sélection multiple, `like "mot*"` d'un `wordstart`,
+ * et `search("…")` de la recherche serveur. Elles sont donc lues ici, dans le
  * fichier du lot, plutôt qu'ajoutées au harnais d'un autre.
+ *
+ * `like` est lu COMME LE VRAI PORTAIL (#1285, `ods-like.ts`) : une comparaison
+ * de MOTS, où `%` n'est pas un joker. Ce faux serveur lisait `like "%x%"`
+ * comme une sous-chaîne, ce que le portail ne fait pas (`like "%aliment%"` y
+ * rend 0 ligne pour 14 366 « alimentation ») : tous les contrôles d'un
+ * `contains` délégué étaient verts sur un comportement qui n'existe pas.
  *
  * Comme lui, il REFUSE une clause qu'il n'a pas su lire : rendre le jeu
  * complet en silence transformerait un filtre perdu en contrôle vert.
@@ -149,7 +156,7 @@ function replier(v: unknown): string {
 
 const IDENT = '(`[^`]+`|[\\w.]+)';
 const SEARCH = /^search\(\s*"((?:[^"\\]|\\.)*)"\s*\)$/i;
-const LIKE = new RegExp(`^${IDENT}\\s+like\\s+"%((?:[^"\\\\]|\\\\.)*)%"$`, 'i');
+const LIKE = new RegExp(`^${IDENT}\\s+like\\s+"((?:[^"\\\\]|\\\\.)*)"$`, 'i');
 const DANS = new RegExp(`^${IDENT}\\s+in\\s*\\((.*)\\)$`, 'i');
 const COMPARAISON = new RegExp(
   `^${IDENT}\\s*(=|!=|>=|<=|>|<)\\s*(?:"((?:[^"\\\\]|\\\\.)*)"|([-\\d.]+))$`
@@ -222,11 +229,8 @@ export function filtrerOdsqlContexte(lignes: Row[], where: string): Row[] {
         const terme = replier(litteral(recherche[1]));
         return Object.values(ligne).some((v) => replier(v).includes(terme));
       }
-      const sousChaine = LIKE.exec(clause);
-      if (sousChaine) {
-        const valeur = String(ligne[denuder(sousChaine[1])] ?? '').toLowerCase();
-        return valeur.includes(litteral(sousChaine[2]).toLowerCase());
-      }
+      const mots = LIKE.exec(clause);
+      if (mots) return likePortail(ligne[denuder(mots[1])], litteral(mots[2]));
       const dans = DANS.exec(clause);
       if (dans) {
         const attendues = litterauxDeListe(dans[2]);

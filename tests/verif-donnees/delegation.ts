@@ -2569,6 +2569,262 @@ const TRI_SUR_COLONNE_CLIENT: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 18. `contains` n'est plus délégué à Opendatasoft, `wordstart` l'est (#1285)
+// ---------------------------------------------------------------------------
+
+/**
+ * Le `like` d'un portail Opendatasoft compare des MOTS : `like "%aliment%"`
+ * rend 0 ligne là où 14 366 valent « alimentation » (mesuré le 2026-10-12).
+ * La bibliothèque traduisait `contains` en `like "%x%"` ; le faux portail du
+ * dépôt lisait cette clause comme une sous-chaîne, et tous les contrôles
+ * étaient verts sur un comportement que le vrai portail n'a pas. Le faux
+ * portail lit désormais `like` comme le vrai (`tests/builder-e2e/ods-like.ts`).
+ *
+ * Ce lot tient les deux moitiés de l'arbitrage du 2026-10-13 :
+ *   - `contains` / `notcontains` restent une vraie sous-chaîne et ne partent
+ *     plus au portail — mêmes lignes qu'une source sans adaptateur, milieu de
+ *     mot compris ;
+ *   - `wordstart` (« un mot commence par ») part en `like "mot*"` et se
+ *     calcule à l'identique côté client — mêmes lignes déléguée, non déléguée
+ *     (Tabular) et sans adaptateur.
+ * Et la règle de #1242 pour ce qui reste côté client derrière `server-side`.
+ */
+const kpiLignes = (id: string, source: string): string => `
+  <dsfr-data-kpi id="${id}" source="${source}" value="count" format="nombre" label="${id}"></dsfr-data-kpi>`;
+
+const sourceClient = (id: string): string => `
+  <dsfr-data-source id="${id}" url="${urlJeu('territoires')}"></dsfr-data-source>`;
+
+/** « erritoire 0 » : au MILIEU d'un mot, et à cheval sur deux — rien qu'un mot entier ne trouve. */
+const MILIEU_DE_MOT: Step[] = [
+  { op: 'filter', filters: [{ field: 'region', op: 'contains', value: 'erritoire 0' }] },
+];
+const SANS_TERRITOIRE: Step[] = [
+  { op: 'filter', filters: [{ field: 'region', op: 'notcontains', value: 'erritoire' }] },
+];
+const debutDeMot = (saisie: string): Step[] => [
+  { op: 'filter', filters: [{ field: 'region', op: 'wordstart', value: saisie }] },
+];
+
+const CONTAINS_ET_DEBUT_DE_MOT: Check[] = [
+  {
+    id: 'contains-ods-comme-le-client',
+    mode: 'deterministic',
+    origin:
+      '#1285 — `where="region:contains:erritoire 0"` : une sous-chaîne prise au MILIEU d’un mot. Sur une source Opendatasoft, la clause partait en `region like "%erritoire 0%"`, que le portail lit comme les mots entiers « erritoire » et « 0 » : zéro ligne, HTTP 200, sans un message. Elle ne part plus : calculée sur les lignes chargées, elle retient les mêmes 94 lignes que sur une source sans adaptateur. `notcontains` de même (5 lignes), et sur Tabular, dont l’API écarte les valeurs absentes. Le contrôle d’URL vérifie qu’aucun `like` n’est parti — sans quoi il serait vert en mesurant un faux portail complaisant.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-ods-milieu')}
+  <dsfr-data-query id="q-ods-milieu" source="s-ods-milieu" where="region:contains:erritoire 0"></dsfr-data-query>${kpiLignes('k-ods-milieu', 'q-ods-milieu')}
+  ${sourceOds('s-ods-sans')}
+  <dsfr-data-query id="q-ods-sans" source="s-ods-sans" where="region:notcontains:erritoire"></dsfr-data-query>${kpiLignes('k-ods-sans', 'q-ods-sans')}
+  ${sourceTabular('s-tab-sans')}
+  <dsfr-data-query id="q-tab-sans" source="s-tab-sans" where="region:notcontains:erritoire"></dsfr-data-query>${kpiLignes('k-tab-sans', 'q-tab-sans')}
+  ${sourceClient('s-cli')}
+  <dsfr-data-query id="q-cli-milieu" source="s-cli" where="region:contains:erritoire 0"></dsfr-data-query>${kpiLignes('k-cli-milieu', 'q-cli-milieu')}
+  <dsfr-data-query id="q-cli-sans" source="s-cli" where="region:notcontains:erritoire"></dsfr-data-query>${kpiLignes('k-cli-sans', 'q-cli-sans')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-ods-milieu', agg: 'count', pipeline: MILIEU_DE_MOT },
+      { kind: 'kpi', id: 'k-cli-milieu', agg: 'count', pipeline: MILIEU_DE_MOT },
+      { kind: 'kpi', id: 'k-ods-sans', agg: 'count', pipeline: SANS_TERRITOIRE },
+      { kind: 'kpi', id: 'k-tab-sans', agg: 'count', pipeline: SANS_TERRITOIRE },
+      { kind: 'kpi', id: 'k-cli-sans', agg: 'count', pipeline: SANS_TERRITOIRE },
+      urlsDe('contains-jamais-en-like', 'ods', 'like', 'none'),
+      urlsDe('notcontains-pas-delegue-a-tabular', 'tabular', '__notcontains', 'none'),
+      { kind: 'diagnostic', id: 'q-ods-milieu', expect: 'silence', contains: 'contains' },
+    ],
+  },
+
+  {
+    id: 'contains-ods-regroupement-reste-client',
+    mode: 'deterministic',
+    origin:
+      '#1285 — le même `contains`, avec un regroupement. La clause restant côté client, sur les lignes BRUTES, le regroupement doit y rester aussi : délégué, le serveur regrouperait des lignes non filtrées (137 territoires au lieu de 94). Ni `like` ni `group_by` ne partent ; les sommes par académie sont celles des lignes filtrées.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-ods-groupe')}
+  <dsfr-data-query id="q-ods-groupe" source="s-ods-groupe" where="region:contains:erritoire 0"
+    group-by="academie" aggregate="population:sum:pop" order-by="academie:asc"></dsfr-data-query>`,
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-ods-groupe',
+        key: 'academie',
+        columns: ['pop'],
+        pipeline: [
+          ...MILIEU_DE_MOT,
+          { op: 'group-by', by: 'academie', columns: { pop: { agg: 'sum', field: 'population' } } },
+          { op: 'order-by', column: 'academie', dir: 'asc' },
+        ],
+      },
+      urlsDe('contains-groupe-sans-like', 'ods', 'like', 'none'),
+      urlsDe('contains-groupe-sans-group-by', 'ods', 'group_by=', 'none'),
+    ],
+  },
+
+  {
+    id: 'wordstart-delegue-comme-le-client',
+    mode: 'deterministic',
+    origin:
+      '#1285 — le nouvel opérateur `wordstart`, « un mot commence par ». Trois saisies, chacune sur trois chemins : déléguée à Opendatasoft (`like "mot*"`), gardée côté client derrière Tabular (son API n’a pas d’équivalent), et sur une source sans adaptateur. « al » : UN mot commence par « al » (Alpes) dans une région, alors que deux le CONTIENNENT (Val-d’Oise) — un client qui chercherait une sous-chaîne rendrait 2. « azur prov » : deux mots, sans ordre ni adjacence, accents repliés. « oise » : l’article élidé de « Val-d’Oise » ne fait pas un mot. Les contrôles d’URL vérifient que la clause est bien PARTIE au portail, et pas à Tabular.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-ods-al')}
+  <dsfr-data-query id="q-ods-al" source="s-ods-al" where="region:wordstart:al"></dsfr-data-query>${kpiLignes('k-ods-al', 'q-ods-al')}
+  ${sourceOds('s-ods-mots')}
+  <dsfr-data-query id="q-ods-mots" source="s-ods-mots" where="region:wordstart:azur prov"></dsfr-data-query>${kpiLignes('k-ods-mots', 'q-ods-mots')}
+  ${sourceOds('s-ods-oise')}
+  <dsfr-data-query id="q-ods-oise" source="s-ods-oise" where="region:wordstart:OISE"></dsfr-data-query>${kpiLignes('k-ods-oise', 'q-ods-oise')}
+  ${sourceTabular('s-tab-al')}
+  <dsfr-data-query id="q-tab-al" source="s-tab-al" where="region:wordstart:al"></dsfr-data-query>${kpiLignes('k-tab-al', 'q-tab-al')}
+  ${sourceClient('s-cli-w')}
+  <dsfr-data-query id="q-cli-al" source="s-cli-w" where="region:wordstart:al"></dsfr-data-query>${kpiLignes('k-cli-al', 'q-cli-al')}
+  <dsfr-data-query id="q-cli-mots" source="s-cli-w" where="region:wordstart:azur prov"></dsfr-data-query>${kpiLignes('k-cli-mots', 'q-cli-mots')}
+  <dsfr-data-query id="q-cli-oise" source="s-cli-w" where="region:wordstart:OISE"></dsfr-data-query>${kpiLignes('k-cli-oise', 'q-cli-oise')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-ods-al', agg: 'count', pipeline: debutDeMot('al') },
+      { kind: 'kpi', id: 'k-tab-al', agg: 'count', pipeline: debutDeMot('al') },
+      { kind: 'kpi', id: 'k-cli-al', agg: 'count', pipeline: debutDeMot('al') },
+      { kind: 'kpi', id: 'k-ods-mots', agg: 'count', pipeline: debutDeMot('azur prov') },
+      { kind: 'kpi', id: 'k-cli-mots', agg: 'count', pipeline: debutDeMot('azur prov') },
+      { kind: 'kpi', id: 'k-ods-oise', agg: 'count', pipeline: debutDeMot('OISE') },
+      { kind: 'kpi', id: 'k-cli-oise', agg: 'count', pipeline: debutDeMot('OISE') },
+      urlsDe('wordstart-delegue-en-like-etoile', 'ods', 'region like "al*"', 'some'),
+      urlsDe('wordstart-deux-mots-etoiles', 'ods', 'region like "azur* prov*"', 'some'),
+      urlsDe('wordstart-replie-la-casse', 'ods', 'region like "oise*"', 'some'),
+      urlsDe('wordstart-jamais-en-pourcent', 'ods', '%', 'none'),
+      urlsDe('wordstart-pas-delegue-a-tabular', 'tabular', 'wordstart', 'none'),
+    ],
+  },
+
+  {
+    id: 'wordstart-ods-server-side',
+    mode: 'deterministic',
+    origin:
+      '#1285 — `wordstart` est délégué : il fonctionne derrière une source en pagination serveur, là où `contains` est refusé. « terr » retient les 132 « Territoire … » : le total vient du serveur, la page en livre 40.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-w-page', { serverSide: true })}
+  <dsfr-data-query id="q-w-page" source="s-w-page" where="region:wordstart:terr"></dsfr-data-query>
+  <dsfr-data-kpi id="k-w-total" source="q-w-page" value="meta:total" format="nombre" label="Total"></dsfr-data-kpi>${kpiLignes('k-w-recues', 'q-w-page')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-w-total', agg: 'count', pipeline: debutDeMot('terr') },
+      {
+        kind: 'kpi',
+        id: 'k-w-recues',
+        agg: 'count',
+        pipeline: [...debutDeMot('terr'), { op: 'limit', n: TAILLE_PAGE }],
+      },
+      urlsDe('wordstart-page-delegue', 'ods', 'region like "terr*"', 'last'),
+      { kind: 'diagnostic', id: 'q-w-page', expect: 'silence', contains: 'server-side' },
+    ],
+  },
+
+  {
+    id: 'contains-ods-server-side-refuse',
+    mode: 'deterministic',
+    origin:
+      '#1285, règle de #1242 — un `contains` gardé côté client derrière une source Opendatasoft en `server-side` ne verrait qu’UNE page : 40 lignes filtrées sous un total qui les ignore. La requête confie sa clause à la source (seule lectrice), qui passe en ERREUR DE CONFIGURATION : elle nomme la clause, `server-side` et les trois corrections — retirer `server-side`, passer à `wordstart`, ou `dsfr-data-search server-search` — et ne charge rien.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-c-page', { serverSide: true })}
+  <dsfr-data-query id="q-c-page" source="s-c-page" where="region:contains:erritoire 0"></dsfr-data-query>
+  <dsfr-data-list id="l-c-page" source="q-c-page" columns="region:Région"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 's-c-page',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-c-page"',
+      },
+      {
+        kind: 'diagnostic',
+        id: 's-c-page',
+        expect: 'config-error',
+        contains: 'remplacez contains par wordstart',
+      },
+    ],
+  },
+
+  {
+    id: 'contains-ods-server-side-source-partagee',
+    mode: 'deterministic',
+    origin:
+      '#1285, règle de #1242 — le même montage quand une liste lit AUSSI la source : la requête ne lui délègue plus rien (#765) et filtrerait elle-même la page reçue. C’est elle qui passe en erreur de configuration ; la source garde sa pagination, la liste voisine affiche sa page.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-c-part', { serverSide: true })}
+  <dsfr-data-list id="l-c-part" source="s-c-part" columns="region:Région" server-sort></dsfr-data-list>
+  <dsfr-data-query id="q-c-part" source="s-c-part" where="region:contains:erritoire 0"></dsfr-data-query>${kpiLignes('k-c-part', 'q-c-part')}${kpiLignes('k-c-part-page', 's-c-part')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-c-part-page',
+        agg: 'count',
+        pipeline: [{ op: 'limit', n: TAILLE_PAGE }],
+      },
+      {
+        kind: 'diagnostic',
+        id: 'q-c-part',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-c-part"',
+      },
+      urlsDe('contains-partagee-sans-like', 'ods', 'like', 'none'),
+    ],
+  },
+
+  {
+    id: 'contains-tabular-jokers-echappes',
+    mode: 'deterministic',
+    origin:
+      '#1285 — Tabular garde `contains` délégué (`champ__contains`, un `ilike` : vraie sous-chaîne, casse ignorée, accents respectés, mesuré le 2026-10-13), à une condition : `%` et `_` y sont des JOKERS (`Saint_` rend les mêmes 25 lignes que `saint`). « d_O » ne figure dans aucune région ; sans échappement, le `_` trouvait « Val-d’Oise » et « Côte-d’Or ». La valeur part échappée (`d\\_O`) : zéro ligne, comme côté client. « d’o », lui, en trouve bien deux.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceTabular('s-tab-joker')}
+  <dsfr-data-query id="q-tab-joker" source="s-tab-joker" where="region:contains:d_O"></dsfr-data-query>${kpiLignes('k-tab-joker', 'q-tab-joker')}
+  ${sourceTabular('s-tab-apos')}
+  <dsfr-data-query id="q-tab-apos" source="s-tab-apos" where="region:contains:d'o"></dsfr-data-query>${kpiLignes('k-tab-apos', 'q-tab-apos')}`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-tab-joker',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'contains', value: 'd_O' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-tab-apos',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'region', op: 'contains', value: "d'o" }] }],
+      },
+      urlsDe('contains-tabular-joker-echappe', 'tabular', 'region__contains=d\\_O', 'some'),
+    ],
+  },
+
+  {
+    id: 'wordstart-contexte-deux-fournisseurs',
+    mode: 'deterministic',
+    origin:
+      '#1285 — une recherche en mode `context` diffuse UN filtre `wordstart` à deux cibles de fournisseurs différents. Opendatasoft le calcule (`like "al*"`), Tabular ne sait pas : sa source le calcule elle-même, sur les lignes chargées. La même saisie retient les mêmes lignes des deux côtés — c’est tout l’objet de l’arbitrage.',
+    feed: { kind: 'fixture', datasets: { main: TERRITOIRES } },
+    markup: `
+  ${sourceOds('s-ctx-ods')}
+  ${sourceTabular('s-ctx-tab')}
+  <dsfr-data-context id="ctx-w" sources="s-ctx-ods s-ctx-tab"></dsfr-data-context>
+  <dsfr-data-search id="r-ctx-w" source="s-ctx-ods" context="ctx-w" fields="region" debounce="0"
+    min-length="0" label="Rechercher une région"></dsfr-data-search>${kpiLignes('k-ctx-ods', 's-ctx-ods')}${kpiLignes('k-ctx-tab', 's-ctx-tab')}${kpiLignes('k-ctx-aval', 'r-ctx-w')}`,
+    actions: [{ kind: 'fill', selector: '#r-ctx-w input', value: 'al' }],
+    expects: [
+      { kind: 'kpi', id: 'k-ctx-ods', agg: 'count', pipeline: debutDeMot('al') },
+      { kind: 'kpi', id: 'k-ctx-tab', agg: 'count', pipeline: debutDeMot('al') },
+      { kind: 'kpi', id: 'k-ctx-aval', agg: 'count', pipeline: debutDeMot('al') },
+      urlsDe('contexte-wordstart-delegue', 'ods', 'region like "al*"', 'last'),
+      urlsDe('contexte-wordstart-pas-a-tabular', 'tabular', 'wordstart', 'none'),
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -2589,5 +2845,6 @@ export const DELEGATION: Manifest = {
     ...REGROUPEMENT_SUR_UNE_PAGE,
     ...RELAIS_CACHABLE,
     ...TRI_SUR_COLONNE_CLIENT,
+    ...CONTAINS_ET_DEBUT_DE_MOT,
   ],
 };
