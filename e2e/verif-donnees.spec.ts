@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { controlesDuMode } from '../tests/verif-donnees/index.js';
-import { cibleDuRelais, repondre } from '../tests/verif-donnees/fixtures.js';
+import { cibleDuRelais, panneProgrammee, repondre } from '../tests/verif-donnees/fixtures.js';
 import { estReponseBinaire, trancheDemandee } from '../tests/verif-donnees/fixtures-adaptateurs.js';
 import type { Action, Check, Expect } from '../tools/oracle/manifest.js';
 import { computeExpectedFor, cleAttendu, type ExpectedCheck } from '../tools/oracle/expected.js';
@@ -166,6 +166,9 @@ ${check.markup}
 
 /** Le faux réseau du mode déterministe : les fixtures, et rien d'autre. */
 async function installerReseau(page: Page, fuites: string[], app = false): Promise<void> {
+  // Appels déjà servis, par adresse cible : une panne programmée dans
+  // l'adresse (#1288, `avecPanne`) tombe après N réponses de CETTE adresse.
+  const servis = new Map<string, number>();
   await page.route('**/*', async (route: Route) => {
     const brut = route.request().url();
     let url: URL;
@@ -185,6 +188,21 @@ async function installerReseau(page: Page, fuites: string[], app = false): Promi
       const requete = route.request();
       const entetes = requete.headers();
       const simple = requete.method() === 'GET' && !entetes['authorization'] && !entetes['apikey'];
+      const panne = simple ? panneProgrammee(new URL(cible)) : null;
+      if (panne) {
+        const vus = servis.get(cible) ?? 0;
+        servis.set(cible, vus + 1);
+        if (vus >= panne.apres) {
+          // Sans `Retry-After` : la bibliothèque ne réessaie pas d'elle-même
+          await route.fulfill({
+            status: panne.status,
+            contentType: 'application/json',
+            headers: { 'access-control-allow-origin': '*', 'cache-control': 'no-store' },
+            body: JSON.stringify({ error: 'upstream-unavailable' }),
+          });
+          return;
+        }
+      }
       const charge = simple ? repondre(new URL(cible)) : null;
       await route.fulfill({
         status: !simple ? 400 : charge === null ? 404 : 200,
