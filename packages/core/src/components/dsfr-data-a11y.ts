@@ -6,7 +6,12 @@ import { formatTableCell } from '../utils/table-cell.js';
 import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
-import { IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
+import {
+  IDLE_MESSAGE_DEFAULT,
+  resolveSourceErrorKept,
+  type SourceErrorView,
+} from '../utils/status-templates.js';
+import { unavailablePhrase } from '../utils/source-errors.js';
 
 let autoIdCounter = 0;
 const MAX_TABLE_ROWS = 100;
@@ -30,6 +35,20 @@ const MAX_TABLE_ROWS = 100;
  * les chaînes (codes INSEE, SIREN…) restent intactes et le CSV téléchargé
  * reste brut : il porte la donnée (`0.00123`), pas l'arrondi d'affichage. Avant #666, le contournement était
  * `normalize round="champ:2"`, qui arrondit mais ne localise pas.
+ *
+ * Source en panne (#1288) : le tableau est retiré et le téléchargement
+ * désactivé — les lignes du dernier chargement ne sont ni montrées ni
+ * exportées, elles seraient prises pour les chiffres du jour. La section dit
+ * « Données momentanément indisponibles. Le tableau et le téléchargement
+ * reviendront avec les données. » (ou la phrase de la cause : hors connexion,
+ * données retirées… ; `error-message` de la source la remplace), le bouton
+ * reste atteignable au clavier, `aria-disabled`, et désigne cette phrase
+ * comme sa raison ; la description lue avec le graphique devient « Données du
+ * graphique momentanément indisponibles. ». Le rendu de panne tient pendant un
+ * nouvel essai et tout revient au chargement réussi. Aucune annonce de plus :
+ * la panne est dite par le bandeau `dsfr-data-source-status`, sinon par le
+ * graphique ou la carte visés — ce composant ne s'annonce lui-même que s'il
+ * n'accompagne rien (`for` absent).
  *
  * @example
  * <dsfr-data-chart id="mon-graph" source="data" type="bar"
@@ -431,8 +450,23 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   // CSV generation (ported from dsfr-data-raw-data)
   // ---------------------------------------------------------------------------
 
+  /**
+   * Ce que ce composant sait de la panne de sa source (#1288), ou `null`. Vrai
+   * de l'échec jusqu'au prochain chargement réussi, nouvel essai compris : le
+   * mixin ne vide pas `_sourceData` à l'erreur, et rien de ce qui suit ne doit
+   * lire ces lignes tant que la panne dure.
+   */
+  private _outage(): SourceErrorView | null {
+    return this._sourceError ? resolveSourceErrorKept(this._sourceError, this.source) : null;
+  }
+
+  /** Les lignes à rendre et à exporter : aucune pendant une panne (#1288). */
+  private _currentRows(): unknown {
+    return this._sourceError ? null : this._sourceData;
+  }
+
   private _handleDownload() {
-    const data = this._sourceData;
+    const data = this._currentRows();
     if (!data || !Array.isArray(data) || data.length === 0) return;
     const csv = this._buildCsv(data as Record<string, unknown>[]);
     this._triggerDownload(csv);
@@ -661,19 +695,22 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
   private _getAutoDescription(
     hasData: boolean,
     data: unknown,
-    model?: { rows: unknown[][]; seriesCount: number }
+    model?: { rows: unknown[][]; seriesCount: number },
+    outage: SourceErrorView | null = null
   ): string {
     // En attente d'un filtre (#690) : dire ce qui manque, pas « aucune donnée »
     if (this._sourceIdle) return `${this.idleMessage || IDLE_MESSAGE_DEFAULT}.`;
+    // Source en panne (#1288) : ni compte de lignes, ni « tableau disponible »
+    if (outage) {
+      const phrase = unavailablePhrase(this._dataLabel(), outage.desc);
+      return outage.userMessage ? `${phrase} ${outage.userMessage}` : phrase;
+    }
     if (!hasData) return 'Aucune donnee disponible.';
     // En mode série (#930) le tableau est pivoté : annoncer SES lignes, pas
     // celles du format long, qui en compte autant que de couples.
     const pivoted = model && model.seriesCount > 0;
     const count = pivoted ? model!.rows.length : (data as unknown[]).length;
-    // Detect if target is a map component
-    const target = this.for ? document.getElementById(this.for) : null;
-    const isMap = target?.tagName?.toLowerCase() === 'dsfr-data-map';
-    const label = isMap ? 'Données de la carte' : 'Données du graphique';
+    const label = this._dataLabel();
     const parts: string[] = [
       pivoted
         ? `${label} : ${count} lignes, ${model!.seriesCount} séries.`
@@ -685,12 +722,46 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
     return parts.join(' ');
   }
 
+  /** « Données de la carte » quand `for` vise une carte, sinon « Données du graphique ». */
+  private _dataLabel(): string {
+    const target = this.for ? document.getElementById(this.for) : null;
+    return target?.tagName?.toLowerCase() === 'dsfr-data-map'
+      ? 'Données de la carte'
+      : 'Données du graphique';
+  }
+
+  /**
+   * Phrase de la section pendant une panne (#1288) : la cause (ou
+   * `error-message`), puis ce qui manque — nommé d'après ce que la section
+   * montre d'ordinaire. « Reviendront avec les données » n'est promis que pour
+   * une cause passagère.
+   */
+  private _outageText(outage: SourceErrorView): string {
+    const head = outage.userMessage || `${outage.desc.title}.`;
+    const both = this._showTable && this._showDownload;
+    const what = both
+      ? 'Le tableau et le téléchargement'
+      : this._showTable
+        ? 'Le tableau'
+        : 'Le téléchargement';
+    const tail = outage.desc.retry
+      ? both
+        ? 'reviendront avec les données.'
+        : 'reviendra avec les données.'
+      : both
+        ? 'ne sont pas disponibles.'
+        : 'n’est pas disponible.';
+    return `${head} ${what} ${tail}`;
+  }
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
 
   render() {
-    const data = this._sourceData;
+    const outage = this._outage();
+    const data = this._currentRows();
+    const unavailableId = `${this.id}-unavailable`;
     const hasData = Array.isArray(data) && data.length > 0;
     const sectionLabel = this.label || 'Accessibilité : données et description';
     const descId = `${this.id}-desc`;
@@ -713,7 +784,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
       >
         <!-- Concise description for aria-describedby (sr-only) -->
         <p id="${descId}" class="dsfr-data-a11y__sr-only">
-          ${this._getAutoDescription(hasData, data, model)}
+          ${this._getAutoDescription(hasData, data, model, outage)}
         </p>
 
         <details class="fr-accordion">
@@ -729,17 +800,26 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                 : nothing
             }
             ${
+              outage && (this._showTable || this._showDownload)
+                ? html`
+                    <p
+                      class="fr-text--sm fr-mb-2w dsfr-data-a11y__unavailable"
+                      id="${unavailableId}"
+                      data-cause="${outage.desc.cause}"
+                      role="${this.for || outage.covered ? nothing : 'status'}"
+                    >
+                      ${this._outageText(outage)}
+                    </p>
+                  `
+                : nothing
+            }
+            ${
               this._showTable && hasData
                 ? html`
                     <div class="fr-table fr-mb-2w" id="${tableId}">
                       <table>
                         <caption class="dsfr-data-a11y__sr-only">
-                          ${(() => {
-                            const t = this.for ? document.getElementById(this.for) : null;
-                            return t?.tagName?.toLowerCase() === 'dsfr-data-map'
-                              ? 'Données de la carte'
-                              : 'Données du graphique';
-                          })()}
+                          ${this._dataLabel()}
                         </caption>
                         <thead>
                           <tr>
@@ -788,8 +868,11 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
                 ? html`
                     <button
                       class="fr-btn fr-btn--secondary fr-btn--sm fr-btn--icon-left fr-icon-download-line"
+                      type="button"
                       @click="${this._handleDownload}"
-                      ?disabled="${!hasData || this._sourceLoading}"
+                      ?disabled="${!outage && (!hasData || this._sourceLoading)}"
+                      aria-disabled="${outage ? 'true' : nothing}"
+                      aria-describedby="${outage ? unavailableId : nothing}"
                       title="Télécharger les données (CSV)"
                     >
                       Télécharger en CSV
@@ -816,6 +899,17 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
         */
         .dsfr-data-a11y summary.fr-accordion__btn {
           box-sizing: border-box;
+        }
+        /*
+          Source en panne (#1288) : le bouton reste dans l'ordre de tabulation
+          (aria-disabled, pas disabled — un bouton qui avait le focus ne le
+          perd pas), il prend l'aspect d'un bouton DSFR désactivé.
+        */
+        .dsfr-data-a11y .fr-btn[aria-disabled='true'] {
+          color: var(--text-disabled-grey, #929292);
+          background-color: transparent;
+          box-shadow: inset 0 0 0 1px var(--border-disabled-grey, #e5e5e5);
+          cursor: not-allowed;
         }
         .dsfr-data-a11y__sr-only {
           position: absolute;
