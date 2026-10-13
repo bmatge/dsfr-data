@@ -968,7 +968,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Unité à afficher dans les tooltips",
+              "description": "Unité à afficher dans les tooltips (`%`, `€`…). DSFR Chart l'insère comme du\nHTML : le HTML simple est gardé (`m<sup>2</sup>`), le contenu actif retiré\navant d'être relayé (#1289).",
               "attribute": "unit-tooltip"
             },
             {
@@ -978,7 +978,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Unité pour les barres (bar-line uniquement)",
+              "description": "Unité pour les barres (bar-line uniquement). Même nettoyage que `unit-tooltip`.",
               "attribute": "unit-tooltip-bar"
             },
             {
@@ -1128,7 +1128,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Envelopper le chart dans une DataBox DSFR native",
+              "description": "Envelopper le chart dans une DataBox DSFR native. Son menu « Plus d'actions »\n(CSV, capture, actions), son infobulle et sa fenêtre ne s'ouvrent que si la\npage charge le JavaScript du DSFR (`dsfr.module.min.js`) ; sinon un\navertissement console le dit (#1289).",
               "attribute": "databox"
             },
             {
@@ -1208,7 +1208,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il\nn'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale\n(`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179).",
+              "description": "Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il\nn'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale\n(`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179).\nPosé SEUL, il ne rend rien : un avertissement console le dit (#1289).",
               "attribute": "databox-fullscreen"
             },
             {
@@ -1228,7 +1228,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Titre du tooltip info DataBox",
+              "description": "Titre du tooltip info DataBox (rendu comme du texte)",
               "attribute": "databox-tooltip-title"
             },
             {
@@ -1238,7 +1238,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Contenu du tooltip info DataBox",
+              "description": "Contenu du tooltip info DataBox (rendu comme du texte, aucune balise)",
               "attribute": "databox-tooltip-content"
             },
             {
@@ -1248,7 +1248,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Titre de la modale DataBox",
+              "description": "Titre de la modale DataBox (texte). La fenêtre n'existe qu'avec ce titre ET\n`databox-fullscreen` : sans l'un des deux, rien n'est rendu et un\navertissement console le dit (#1289).",
               "attribute": "databox-modal-title"
             },
             {
@@ -1258,7 +1258,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Contenu de la modale DataBox",
+              "description": "Contenu de la modale DataBox, en HTML SIMPLE (paragraphes, gras, liens,\nlistes). DSFR Chart le pose tel quel dans la page : le composant le nettoie\navant de le relayer (#1289) — scripts, iframes, styles, attributs `on*`, URL\n`javascript:` et `data:` sont retirés, et le retrait signalé dans la console.\nUne valeur venue d'une donnée s'échappe avant d'y être écrite. Sans effet\nsans `databox-modal-title` et `databox-fullscreen`.",
               "attribute": "databox-modal-content"
             },
             {
@@ -1268,7 +1268,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Source par défaut dans le selecteur multi-source DataBox",
+              "description": "Source par défaut du sélecteur multi-source de la DataBox. SANS EFFET avec\n`dsfr-data-chart`, qui ne déclare au cadre qu'une source : aucun sélecteur\nn'est affiché, et un avertissement console le dit (#1289).",
               "attribute": "databox-default-source"
             },
             {
@@ -1278,7 +1278,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Actions personnalisees DataBox (JSON array, ex: '[\"Source officielle\",\"Pole emploi\"]')",
+              "description": "Entrées ajoutées au menu « Plus d'actions » du cadre : tableau JSON de\nlibellés, ex. `'[\"Source officielle\",\"Méthode\"]'`. Une entrée n'a AUCUN\ncomportement par elle-même : la page la branche en écoutant le clic du\nbouton, qui porte `data-action` (le libellé en minuscules, sans accents, tout\nautre caractère en tiret : `source-officielle`) et `data-id` (l'id du cadre).\nValeur mal formée : erreur de configuration (`data-dsfr-config-error`), les\nentrées fautives sont écartées et le cadre reste affiché (#1289).",
               "attribute": "databox-actions"
             },
             {
@@ -1684,6 +1684,63 @@
                 }
               ],
               "description": "Un avertissement par message et par jeu de donnees (updated() repasse)."
+            },
+            {
+              "kind": "field",
+              "name": "_databoxWarned",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Avertissements du cadre deja emis (cle : attribut, ou attribut + valeur)."
+            },
+            {
+              "kind": "method",
+              "name": "_warnDataboxOnce",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "cle",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "message",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Un avertissement par cle pour la vie du composant (render() repasse)."
+            },
+            {
+              "kind": "method",
+              "name": "_htmlRelaye",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "attr",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "valeur",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Valeur d'un attribut que DSFR Chart pose par `innerHTML` (contenu de la\nfenetre, unite des infobulles) : HTML simple garde, contenu actif retire.\nUn retrait est signale une fois par valeur — jamais en silence."
             },
             {
               "kind": "method",
@@ -2695,7 +2752,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Unité à afficher dans les tooltips",
+              "description": "Unité à afficher dans les tooltips (`%`, `€`…). DSFR Chart l'insère comme du\nHTML : le HTML simple est gardé (`m<sup>2</sup>`), le contenu actif retiré\navant d'être relayé (#1289).",
               "fieldName": "unitTooltip"
             },
             {
@@ -2704,7 +2761,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Unité pour les barres (bar-line uniquement)",
+              "description": "Unité pour les barres (bar-line uniquement). Même nettoyage que `unit-tooltip`.",
               "fieldName": "unitTooltipBar"
             },
             {
@@ -2840,7 +2897,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Envelopper le chart dans une DataBox DSFR native",
+              "description": "Envelopper le chart dans une DataBox DSFR native. Son menu « Plus d'actions »\n(CSV, capture, actions), son infobulle et sa fenêtre ne s'ouvrent que si la\npage charge le JavaScript du DSFR (`dsfr.module.min.js`) ; sinon un\navertissement console le dit (#1289).",
               "fieldName": "databox"
             },
             {
@@ -2913,7 +2970,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il\nn'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale\n(`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179).",
+              "description": "Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il\nn'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale\n(`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179).\nPosé SEUL, il ne rend rien : un avertissement console le dit (#1289).",
               "fieldName": "databoxFullscreen"
             },
             {
@@ -2931,7 +2988,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Titre du tooltip info DataBox",
+              "description": "Titre du tooltip info DataBox (rendu comme du texte)",
               "fieldName": "databoxTooltipTitle"
             },
             {
@@ -2940,7 +2997,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Contenu du tooltip info DataBox",
+              "description": "Contenu du tooltip info DataBox (rendu comme du texte, aucune balise)",
               "fieldName": "databoxTooltipContent"
             },
             {
@@ -2949,7 +3006,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Titre de la modale DataBox",
+              "description": "Titre de la modale DataBox (texte). La fenêtre n'existe qu'avec ce titre ET\n`databox-fullscreen` : sans l'un des deux, rien n'est rendu et un\navertissement console le dit (#1289).",
               "fieldName": "databoxModalTitle"
             },
             {
@@ -2958,7 +3015,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Contenu de la modale DataBox",
+              "description": "Contenu de la modale DataBox, en HTML SIMPLE (paragraphes, gras, liens,\nlistes). DSFR Chart le pose tel quel dans la page : le composant le nettoie\navant de le relayer (#1289) — scripts, iframes, styles, attributs `on*`, URL\n`javascript:` et `data:` sont retirés, et le retrait signalé dans la console.\nUne valeur venue d'une donnée s'échappe avant d'y être écrite. Sans effet\nsans `databox-modal-title` et `databox-fullscreen`.",
               "fieldName": "databoxModalContent"
             },
             {
@@ -2967,7 +3024,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Source par défaut dans le selecteur multi-source DataBox",
+              "description": "Source par défaut du sélecteur multi-source de la DataBox. SANS EFFET avec\n`dsfr-data-chart`, qui ne déclare au cadre qu'une source : aucun sélecteur\nn'est affiché, et un avertissement console le dit (#1289).",
               "fieldName": "databoxDefaultSource"
             },
             {
@@ -2976,7 +3033,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Actions personnalisees DataBox (JSON array, ex: '[\"Source officielle\",\"Pole emploi\"]')",
+              "description": "Entrées ajoutées au menu « Plus d'actions » du cadre : tableau JSON de\nlibellés, ex. `'[\"Source officielle\",\"Méthode\"]'`. Une entrée n'a AUCUN\ncomportement par elle-même : la page la branche en écoutant le clic du\nbouton, qui porte `data-action` (le libellé en minuscules, sans accents, tout\nautre caractère en tiret : `source-officielle`) et `data-id` (l'id du cadre).\nValeur mal formée : erreur de configuration (`data-dsfr-config-error`), les\nentrées fautives sont écartées et le cadre reste affiché (#1289).",
               "fieldName": "databoxActions"
             },
             {

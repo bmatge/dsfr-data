@@ -48,8 +48,8 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | empty-label | String | `"Non renseigné"` | non | Libellé d'une catégorie vide (`null`, `undefined` ou `""` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: `empty-label="Sans objet"` |
 | selected-palette | String | `"categorical"` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | color-map | String | `""` | non | Couleur fixee par modalite : paires `modalite:#couleur` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: `"Realise:#000091,Objectif:#E1000F"`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert, barre, ou point d'une courbe, d'un radar, d'un nuage : le trait garde la couleur de sa serie). Virgule ou deux-points dans une modalite : `%2C` / `%3A`. Sans effet sur les types map* |
-| unit-tooltip | String | `""` | non | Unite dans les info-bulles : %, EUR, etc. |
-| unit-tooltip-bar | String | `""` | non | Unite des barres dans un bar-line |
+| unit-tooltip | String | `""` | non | Unite dans les info-bulles : %, EUR, etc. Rendue comme du HTML simple (`m<sup>2</sup>`) ; script, attribut on*, URL javascript: retires. Jamais une valeur lue dans les donnees sans l'echapper |
+| unit-tooltip-bar | String | `""` | non | Unite des barres dans un bar-line (meme regle que unit-tooltip) |
 | horizontal | Boolean | `false` | non | Barres horizontales (type bar uniquement) |
 | stacked | Boolean | `false` | non | Barres empilees (type bar uniquement) |
 | fill | Boolean | `false` | non | Camembert plein au lieu d'anneau (type pie) |
@@ -203,14 +203,30 @@ ce que l'axe affiche (`empty-label` compris) et son en-tête l'alias de `label-f
 | databox-date-field | String | `""` | Colonne de dates ISO (AAAA-MM-JJ) : la plus récente est affichée comme date, formatée JJ/MM/AAAA (ex: `databox-date-field="gazole_maj"`) |
 | databox-download | Boolean | `false` | Bouton téléchargement CSV |
 | databox-screenshot | Boolean | `false` | Bouton screenshot PNG |
-| databox-fullscreen | Boolean | `false` | Bouton plein écran |
+| databox-fullscreen | Boolean | `false` | Bouton qui ouvre la fenêtre d'information. N'apparaît qu'AVEC databox-modal-title : seul, il ne rend rien (avertissement console). Le graphique n'est pas agrandi |
 | databox-trend | String | `""` | Tendance (ex: "+5.2" ou "-3.1") |
-| databox-tooltip-title | String | `""` | Titre du tooltip info |
-| databox-tooltip-content | String | `""` | Contenu du tooltip info |
-| databox-modal-title | String | `""` | Titre de la modale |
-| databox-modal-content | String | `""` | Contenu de la modale |
-| databox-default-source | String | `""` | Source par défaut (selecteur multi-source) |
-| databox-actions | String | `""` | Actions personnalisees (JSON array) |
+| databox-tooltip-title | String | `""` | Titre du tooltip info (texte) |
+| databox-tooltip-content | String | `""` | Contenu du tooltip info (texte, aucune balise) |
+| databox-modal-title | String | `""` | Titre de la fenêtre d'information (texte). Exige databox-fullscreen : sans lui, aucune fenêtre |
+| databox-modal-content | String | `""` | Contenu de la fenêtre, en HTML SIMPLE : p, strong, em, a, ul/li, table, img. Script, iframe, style, attribut on*, URL javascript: et data: sont retirés avant affichage |
+| databox-default-source | String | `""` | SANS EFFET avec dsfr-data-chart (une seule source, aucun sélecteur) : ne pas l'écrire |
+| databox-actions | String | `""` | Entrées ajoutées au menu « Plus d'actions » : tableau JSON de libellés, ex. `'["Source officielle","Méthode"]'`. Une entrée n'a AUCUN comportement : la page la branche par `data-action` |
+
+Trois règles du cadre (#1289) :
+
+- **Le menu « Plus d'actions », l'infobulle et la fenêtre ne s'ouvrent qu'avec le JavaScript du DSFR**
+  (`dsfr.module.min.js`, chargé par la page). Sans lui, le téléchargement CSV et la capture du cadre sont
+  hors d'atteinte ; le composant le dit dans la console. Le basculement graphique / tableau, lui, marche sans.
+- **Une action de `databox-actions` est un bouton sans comportement.** Il porte `data-action` (le libellé
+  en minuscules, sans accents, tout autre caractère en tiret : « Source officielle » → `source-officielle`)
+  et `data-id` (l'id du cadre). La page écoute le clic :
+  `document.addEventListener('click', (e) => { if (e.target.closest('[data-action="source-officielle"]')) … })`.
+  Une valeur mal formée (JSON invalide, pas un tableau, entrée qui n'est pas une chaîne) est une erreur de
+  configuration (`data-dsfr-config-error`) : les entrées fautives sont écartées, le cadre reste affiché.
+- **Deux attributs reçoivent du HTML**, `databox-modal-content` et `unit-tooltip` (`unit-tooltip-bar`) ;
+  tous les autres (titre, source, date, tendance, infobulle, noms de séries, libellés) sont rendus comme du
+  texte. Le HTML est nettoyé — le contenu actif est retiré — mais une valeur lue dans les DONNÉES s'échappe
+  quand même avant d'y être écrite.
 
 Quand `databox` est active, dsfr-data-a11y ne doit PAS inclure `table` ni `download`
 (DataBox les fournit déjà). Conserver uniquement `description` sur dsfr-data-a11y.
@@ -245,20 +261,20 @@ et l'annonce sous le tableau (« Affichage limité aux 100 premières lignes sur
 |---|---|---|---|
 | `code-field` | `string` | `""` (vide) | Chemin vers le champ code (prioritaire sur label-field) : département/région (map/map-reg), nom d'académie (map-aca), code pays ISO a2/a3/num (map-monde) |
 | `color-map` | `string` | `""` (vide) | Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées par des virgules, même grammaire que `dsfr-data-map-layer`. Ex : `"Réalisé:#000091,Objectif:#E1000F"`. La modalité est un nom de série (une couleur par courbe ou par barre) ou, à défaut, un libellé de l'axe (une couleur par part de camembert, par barre, ou par point d'une courbe, d'un radar ou d'un nuage — le trait garde la couleur de sa série, #1244). Les modalités non citées gardent la couleur de la palette. Une virgule ou un deux-points dans une modalité s'écrit `%2C` ou `%3A`. Sans effet sur les cartes (`map*`). |
-| `databox` | `boolean` | `false` | Envelopper le chart dans une DataBox DSFR native |
-| `databox-actions` | `string` | `""` (vide) | Actions personnalisees DataBox (JSON array, ex: '["Source officielle","Pole emploi"]') |
+| `databox` | `boolean` | `false` | Envelopper le chart dans une DataBox DSFR native. Son menu « Plus d'actions » (CSV, capture, actions), son infobulle et sa fenêtre ne s'ouvrent que si la page charge le JavaScript du DSFR (`dsfr.module.min.js`) ; sinon un avertissement console le dit (#1289). |
+| `databox-actions` | `string` | `""` (vide) | Entrées ajoutées au menu « Plus d'actions » du cadre : tableau JSON de libellés, ex. `'["Source officielle","Méthode"]'`. Une entrée n'a AUCUN comportement par elle-même : la page la branche en écoutant le clic du bouton, qui porte `data-action` (le libellé en minuscules, sans accents, tout autre caractère en tiret : `source-officielle`) et `data-id` (l'id du cadre). Valeur mal formée : erreur de configuration (`data-dsfr-config-error`), les entrées fautives sont écartées et le cadre reste affiché (#1289). |
 | `databox-date` | `string` | `""` (vide) | Date de la donnée (ex: "Mars 2024"), affichée dans le pied de la DataBox et sur les cartes. Aucune date n'est rendue si l'attribut est absent — plus de repli sur la date du jour, qui n'est pas celle des données (#650). Prime sur `databox-date-field` quand les deux sont posés. |
 | `databox-date-field` | `string` | `""` (vide) | Fraîcheur lue dans la donnée (#661) : chemin d'une colonne de dates ISO (`AAAA-MM-JJ`, heure facultative). La plus récente est affichée comme date de la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si `databox-date` est posé ; aucune date rendue si la colonne ne contient aucune date ISO valide. |
-| `databox-default-source` | `string` | `""` (vide) | Source par défaut dans le selecteur multi-source DataBox |
+| `databox-default-source` | `string` | `""` (vide) | Source par défaut du sélecteur multi-source de la DataBox. SANS EFFET avec `dsfr-data-chart`, qui ne déclare au cadre qu'une source : aucun sélecteur n'est affiché, et un avertissement console le dit (#1289). |
 | `databox-download` | `boolean` | `false` | Bouton téléchargement CSV dans DataBox |
-| `databox-fullscreen` | `boolean` | `false` | Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il n'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale (`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179). |
-| `databox-modal-content` | `string` | `""` (vide) | Contenu de la modale DataBox |
-| `databox-modal-title` | `string` | `""` (vide) | Titre de la modale DataBox |
+| `databox-fullscreen` | `boolean` | `false` | Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il n'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale (`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179). Posé SEUL, il ne rend rien : un avertissement console le dit (#1289). |
+| `databox-modal-content` | `string` | `""` (vide) | Contenu de la modale DataBox, en HTML SIMPLE (paragraphes, gras, liens, listes). DSFR Chart le pose tel quel dans la page : le composant le nettoie avant de le relayer (#1289) — scripts, iframes, styles, attributs `on*`, URL `javascript:` et `data:` sont retirés, et le retrait signalé dans la console. Une valeur venue d'une donnée s'échappe avant d'y être écrite. Sans effet sans `databox-modal-title` et `databox-fullscreen`. |
+| `databox-modal-title` | `string` | `""` (vide) | Titre de la modale DataBox (texte). La fenêtre n'existe qu'avec ce titre ET `databox-fullscreen` : sans l'un des deux, rien n'est rendu et un avertissement console le dit (#1289). |
 | `databox-screenshot` | `boolean` | `false` | Bouton screenshot PNG |
 | `databox-source` | `string` | `""` (vide) | Mention de la source (ex: "INSEE, 2024") |
 | `databox-title` | `string` | `""` (vide) | Titre affiché dans l'en-tête DataBox |
-| `databox-tooltip-content` | `string` | `""` (vide) | Contenu du tooltip info DataBox |
-| `databox-tooltip-title` | `string` | `""` (vide) | Titre du tooltip info DataBox |
+| `databox-tooltip-content` | `string` | `""` (vide) | Contenu du tooltip info DataBox (rendu comme du texte, aucune balise) |
+| `databox-tooltip-title` | `string` | `""` (vide) | Titre du tooltip info DataBox (rendu comme du texte) |
 | `databox-trend` | `string` | `""` (vide) | Badge tendance (ex: "+5.2", "-3.1") |
 | `empty-label` | `string` | `'Non renseigné'` | Libellé affiché pour une catégorie vide (`null`, `undefined` ou `""` dans `label-field`) : légende du pie, axe X des cartésiens (#647). Sans lui, DSFR Chart substituerait « Série N » à un nom vide. Pour EXCLURE ces lignes plutôt que les nommer, filtrer en amont : `where="champ:isnotnull"` (query) ou `where="champ is not null"` (source ODS). |
 | `fill` | `boolean` | `false` | Remplir le graphique (pie chart: true = plein, false = donut) |
@@ -283,8 +299,8 @@ et l'annonce sous le tableau (« Affichage limité aux 100 premières lignes sur
 | `targets-legend` | `string` | `""` (vide) | Légende réalisé/projeté sous le graphe : `""` = libellés par défaut (« Données historiques » / « Trajectoire, cible extrapolée »), `"off"` = masquée, `'["a","b"]'` = libellés personnalisés. |
 | `targets-zone` | `string` | `'on'` | Zone future grisée + frontière pointillée réalisé/projeté. `"off"` désactive. |
 | `type` | `DSFRChartType` | `'bar'` | Type de graphique DSFR |
-| `unit-tooltip` | `string` | `""` (vide) | Unité à afficher dans les tooltips |
-| `unit-tooltip-bar` | `string` | `""` (vide) | Unité pour les barres (bar-line uniquement) |
+| `unit-tooltip` | `string` | `""` (vide) | Unité à afficher dans les tooltips (`%`, `€`…). DSFR Chart l'insère comme du HTML : le HTML simple est gardé (`m<sup>2</sup>`), le contenu actif retiré avant d'être relayé (#1289). |
+| `unit-tooltip-bar` | `string` | `""` (vide) | Unité pour les barres (bar-line uniquement). Même nettoyage que `unit-tooltip`. |
 | `value-field` | `string` | `""` (vide) | Chemin vers le champ valeur. Alias inline `champ:Libellé` (#668) : `value-field="Panier_moyen:Panier moyen"` affiche « Panier moyen » dans la légende à la place du nom technique. Un `name` explicite prime sur l'alias. Un `:` littéral dans un chemin ou un libellé s'échappe en `%3A` (escapeColonValue). |
 | `value-field-2` | `string` | `""` (vide) | Chemin vers un second champ de valeur (pour bar-line: y-line). Alias inline `champ:Libellé` accepté (#668). |
 | `value-fields` | `string` | `""` (vide) | Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score'). Alias inline `champ:Libellé` par série (#668) : `value-fields="budget:Budget, score:Score"`. Un `name` explicite (tableau JSON) prime sur les alias. |

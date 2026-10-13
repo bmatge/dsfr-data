@@ -62,6 +62,12 @@ import {
   maxOf,
   minOf,
 } from '@dsfr-data/shared/lib';
+import {
+  nettoyerHtmlRelaye,
+  parseDataboxActions,
+  databoxInertAttributes,
+  surveillerJsDsfr,
+} from '../utils/chart-databox.js';
 import { resolveAliasedColumn } from '../utils/aliased-field.js';
 import { formatTableCell } from '../utils/table-cell.js';
 import { toIsoA2 } from '../data/continent-lookup.js';
@@ -270,11 +276,15 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'color-map' })
   colorMap = '';
 
-  /** Unité à afficher dans les tooltips */
+  /**
+   * Unité à afficher dans les tooltips (`%`, `€`…). DSFR Chart l'insère comme du
+   * HTML : le HTML simple est gardé (`m<sup>2</sup>`), le contenu actif retiré
+   * avant d'être relayé (#1289).
+   */
   @property({ type: String, attribute: 'unit-tooltip' })
   unitTooltip = '';
 
-  /** Unité pour les barres (bar-line uniquement) */
+  /** Unité pour les barres (bar-line uniquement). Même nettoyage que `unit-tooltip`. */
   @property({ type: String, attribute: 'unit-tooltip-bar' })
   unitTooltipBar = '';
 
@@ -439,7 +449,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'map-summary' })
   mapSummary = '';
 
-  /** Envelopper le chart dans une DataBox DSFR native */
+  /**
+   * Envelopper le chart dans une DataBox DSFR native. Son menu « Plus d'actions »
+   * (CSV, capture, actions), son infobulle et sa fenêtre ne s'ouvrent que si la
+   * page charge le JavaScript du DSFR (`dsfr.module.min.js`) ; sinon un
+   * avertissement console le dit (#1289).
+   */
   @property({ type: Boolean })
   databox = false;
 
@@ -489,6 +504,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il
    * n'apparaît qu'accompagné de `databox-modal-title`, et il ouvre cette modale
    * (`databox-modal-content`) : le graphique lui-même n'est pas agrandi (#1179).
+   * Posé SEUL, il ne rend rien : un avertissement console le dit (#1289).
    */
   @property({ type: Boolean, attribute: 'databox-fullscreen' })
   databoxFullscreen = false;
@@ -497,27 +513,54 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String, attribute: 'databox-trend' })
   databoxTrend = '';
 
-  /** Titre du tooltip info DataBox */
+  /**
+   * Titre du tooltip info DataBox (rendu comme du texte)
+   */
   @property({ type: String, attribute: 'databox-tooltip-title' })
   databoxTooltipTitle = '';
 
-  /** Contenu du tooltip info DataBox */
+  /**
+   * Contenu du tooltip info DataBox (rendu comme du texte, aucune balise)
+   */
   @property({ type: String, attribute: 'databox-tooltip-content' })
   databoxTooltipContent = '';
 
-  /** Titre de la modale DataBox */
+  /**
+   * Titre de la modale DataBox (texte). La fenêtre n'existe qu'avec ce titre ET
+   * `databox-fullscreen` : sans l'un des deux, rien n'est rendu et un
+   * avertissement console le dit (#1289).
+   */
   @property({ type: String, attribute: 'databox-modal-title' })
   databoxModalTitle = '';
 
-  /** Contenu de la modale DataBox */
+  /**
+   * Contenu de la modale DataBox, en HTML SIMPLE (paragraphes, gras, liens,
+   * listes). DSFR Chart le pose tel quel dans la page : le composant le nettoie
+   * avant de le relayer (#1289) — scripts, iframes, styles, attributs `on*`, URL
+   * `javascript:` et `data:` sont retirés, et le retrait signalé dans la console.
+   * Une valeur venue d'une donnée s'échappe avant d'y être écrite. Sans effet
+   * sans `databox-modal-title` et `databox-fullscreen`.
+   */
   @property({ type: String, attribute: 'databox-modal-content' })
   databoxModalContent = '';
 
-  /** Source par défaut dans le selecteur multi-source DataBox */
+  /**
+   * Source par défaut du sélecteur multi-source de la DataBox. SANS EFFET avec
+   * `dsfr-data-chart`, qui ne déclare au cadre qu'une source : aucun sélecteur
+   * n'est affiché, et un avertissement console le dit (#1289).
+   */
   @property({ type: String, attribute: 'databox-default-source' })
   databoxDefaultSource = '';
 
-  /** Actions personnalisees DataBox (JSON array, ex: '["Source officielle","Pole emploi"]') */
+  /**
+   * Entrées ajoutées au menu « Plus d'actions » du cadre : tableau JSON de
+   * libellés, ex. `'["Source officielle","Méthode"]'`. Une entrée n'a AUCUN
+   * comportement par elle-même : la page la branche en écoutant le clic du
+   * bouton, qui porte `data-action` (le libellé en minuscules, sans accents, tout
+   * autre caractère en tiret : `source-officielle`) et `data-id` (l'id du cadre).
+   * Valeur mal formée : erreur de configuration (`data-dsfr-config-error`), les
+   * entrées fautives sont écartées et le cadre reste affiché (#1289).
+   */
   @property({ type: String, attribute: 'databox-actions' })
   databoxActions = '';
 
@@ -1084,13 +1127,43 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     console.warn(message);
   }
 
+  // --- HTML relaye a DSFR Chart, attributs du cadre (#1289) ----------------
+
+  /** Avertissements du cadre deja emis (cle : attribut, ou attribut + valeur). */
+  private _databoxWarned = new Set<string>();
+
+  /** Un avertissement par cle pour la vie du composant (render() repasse). */
+  private _warnDataboxOnce(cle: string, message: string): void {
+    if (this._databoxWarned.has(cle)) return;
+    this._databoxWarned.add(cle);
+    console.warn(`dsfr-data-chart[${this.id}]: ${message}`);
+  }
+
+  /**
+   * Valeur d'un attribut que DSFR Chart pose par `innerHTML` (contenu de la
+   * fenetre, unite des infobulles) : HTML simple garde, contenu actif retire.
+   * Un retrait est signale une fois par valeur — jamais en silence.
+   */
+  private _htmlRelaye(attr: string, valeur: string): string {
+    const { html, retire } = nettoyerHtmlRelaye(valeur);
+    if (retire) {
+      this._warnDataboxOnce(
+        `nettoye:${attr}:${valeur}`,
+        `${attr} : contenu actif retiré avant affichage (script, gestionnaire on*, URL ` +
+          `javascript: ou data:, iframe, style…). Seul le HTML simple est rendu.`
+      );
+    }
+    return html;
+  }
+
   // --- Attribute builders ---
 
   private _getCommonAttributes(): Record<string, string> {
     const attrs: Record<string, string> = {};
 
     if (this.selectedPalette) attrs['selected-palette'] = this.selectedPalette;
-    if (this.unitTooltip) attrs['unit-tooltip'] = this.unitTooltip;
+    if (this.unitTooltip)
+      attrs['unit-tooltip'] = this._htmlRelaye('unit-tooltip', this.unitTooltip);
     // Les bornes d'axe (x-min, x-max, y-min, y-max) ne sont PAS des attributs
     // communs : ce qu'elles deviennent dépend du type et des données (#1273),
     // voir _getTypeSpecificAttributes() et utils/chart-axis-bounds.ts.
@@ -1322,8 +1395,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
       if (names[0]) attrs['name-bar'] = names[0];
       if (names[1]) attrs['name-line'] = names[1];
     }
-    if (this.unitTooltipBar) attrs['unit-tooltip-bar'] = this.unitTooltipBar;
-    if (this.unitTooltip) attrs['unit-tooltip-line'] = this.unitTooltip;
+    if (this.unitTooltipBar)
+      attrs['unit-tooltip-bar'] = this._htmlRelaye('unit-tooltip-bar', this.unitTooltipBar);
+    if (this.unitTooltip)
+      attrs['unit-tooltip-line'] = this._htmlRelaye('unit-tooltip', this.unitTooltip);
   }
 
   /**
@@ -1485,21 +1560,26 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Resume de carte (#763) : son erreur partage le canal des overlays, qui
     // sinon l'effacerait au premier rendu sans ligne de reference.
     const summaryError = this.type.startsWith('map') ? this._mapSummaryError : null;
+    // `databox-actions` mal forme (#1289) : meme canal. La decision est pure,
+    // elle se relit ici plutot que de dependre de l'ordre des rendus.
+    const actionsError = this.databox ? parseDataboxActions(this.databoxActions).error : null;
+    const baseErrors = [summaryError, actionsError].filter((e): e is string => !!e);
 
     const hasRefLines = !!this.referenceLines.trim();
     const hasTargets = !!this.targets.trim();
     if (!hasRefLines && !hasTargets) {
       this._cleanupChartOverlays();
       // updated() passe a chaque rendu : une seule console.error par message.
-      if (summaryError) {
-        if (this.getAttribute('data-dsfr-config-error') !== summaryError) {
-          reportConfigError(this, 'dsfr-data-chart', summaryError);
+      if (baseErrors.length) {
+        const message = baseErrors.join(' ; ');
+        if (this.getAttribute('data-dsfr-config-error') !== message) {
+          reportConfigError(this, 'dsfr-data-chart', message);
         }
       } else clearConfigError(this);
       return;
     }
 
-    const errors: string[] = summaryError ? [summaryError] : [];
+    const errors: string[] = [...baseErrors];
     let lines: ReferenceLine[] = [];
     if (hasRefLines) {
       const parsed = parseReferenceLines(this.referenceLines);
@@ -2174,10 +2254,43 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     if (this.databoxTooltipContent)
       databoxEl.setAttribute('tooltip-content', this.databoxTooltipContent);
     if (this.databoxModalTitle) databoxEl.setAttribute('modal-title', this.databoxModalTitle);
-    if (this.databoxModalContent) databoxEl.setAttribute('modal-content', this.databoxModalContent);
+    // DSFR Chart pose `modal-content` par `innerHTML`, et la fenetre est rendue
+    // des l'affichage du cadre : le contenu est nettoye AVANT d'etre relaye
+    // (#1289). HTML simple garde, contenu actif retire.
+    if (this.databoxModalContent) {
+      const contenu = this._htmlRelaye('databox-modal-content', this.databoxModalContent);
+      if (contenu) databoxEl.setAttribute('modal-content', contenu);
+    }
     if (this.databoxDefaultSource)
       databoxEl.setAttribute('default-source', this.databoxDefaultSource);
-    if (this.databoxActions) databoxEl.setAttribute('actions', this.databoxActions);
+    // `actions` : DSFR Chart fait `JSON.parse` puis `libelle.normalize()` —
+    // une valeur mal formee y leve et emporte le cadre entier. Seules les
+    // entrees valides sont relayees, re-serialisees ; l'erreur de
+    // configuration est posee par `_refreshChartOverlays` (#1289).
+    const { actions } = parseDataboxActions(this.databoxActions);
+    if (actions.length) databoxEl.setAttribute('actions', JSON.stringify(actions));
+
+    // Attributs qui ne peuvent pas agir : dits une fois, jamais ignores en
+    // silence (regle des bornes d'axe, #1280).
+    for (const w of databoxInertAttributes({
+      fullscreen: this.databoxFullscreen,
+      modalTitle: this.databoxModalTitle,
+      modalContent: this.databoxModalContent,
+      defaultSource: this.databoxDefaultSource,
+    })) {
+      this._warnDataboxOnce(`inerte:${w.attr}`, w.message);
+    }
+
+    // Menu, infobulle et fenetre ne s'ouvrent qu'avec le JavaScript du DSFR :
+    // verification differee, une fois par page (#1289).
+    const interactif =
+      this.databoxDownload ||
+      this.databoxScreenshot ||
+      actions.length > 0 ||
+      !!this.databoxTooltipTitle ||
+      !!this.databoxTooltipContent ||
+      (this.databoxFullscreen && !!this.databoxModalTitle.trim());
+    if (interactif) surveillerJsDsfr(this, `dsfr-data-chart[${this.id}]`);
 
     // Create chart element
     const chartEl = this._createRawChartElement(tagName, attributes, deferred);
