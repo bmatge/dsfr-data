@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — cadre officiel : HTML relayé au VRAI DSFR Chart (#1289)</title>
+  <!--
+    DSFR Chart pose par `innerHTML` le contenu de la fenêtre du cadre
+    (`modal-content`) et l'unité des infobulles (`unit-tooltip`). Aucun DOM
+    simulé ne le rejoue : happy-dom n'exécute pas un `onerror`, et il ne lit
+    pas une balise comme Chromium (`<textarea>`, `<a ="…">`). La vraie
+    bibliothèque est chargée depuis node_modules — pas de CDN, pas de réseau.
+
+    Chaque charge pousse son nom dans `window.__exec`. Le test échoue si la
+    liste n'est pas vide.
+
+    Le JavaScript du DSFR n'est PAS chargé ici (il n'est pas une dépendance du
+    dépôt) : c'est aussi ce que mesure le quatrième test.
+  -->
+  <script>window.__exec = [];</script>
+  <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    main { max-width: 700px; }
+    section { margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <main id="main">
+    <dsfr-data-source id="rows" data='[
+      {"nom":"A","v":10,"w":5},
+      {"nom":"B","v":20,"w":8},
+      {"nom":"C","v":30,"w":2}
+    ]'></dsfr-data-source>
+
+    <!-- Rétrocompatibilité : une page qui met du gras, un lien, une liste dans la fenêtre les garde. -->
+    <section>
+      <dsfr-data-chart id="fenetre-simple" source="rows" type="bar" label-field="nom" value-field="v"
+        databox databox-title="Effectifs" databox-download databox-fullscreen databox-modal-title="Méthode"
+        databox-modal-content="<p>Source : <strong>DEPP</strong>, <em>rentrée 2025</em>. <a href='https://exemple.fr/methode'>La méthode</a>.</p><ul><li>un</li><li>deux</li></ul>"
+        unit-tooltip="m<sup>2</sup>">
+      </dsfr-data-chart>
+    </section>
+
+    <!-- La charge de l'issue, ÉCRITE DANS L'ATTRIBUT, telle qu'un intégrateur la recopierait. -->
+    <section>
+      <dsfr-data-chart id="fenetre-ecrite" source="rows" type="bar" label-field="nom" value-field="v"
+        databox databox-title="Effectifs" databox-fullscreen databox-modal-title="Méthode"
+        databox-modal-content="<p>avant</p><img data-sonde='fenetre-ecrite' src='x' onerror=&quot;window.__exec.push('fenetre-ecrite')&quot;><p>après</p>">
+      </dsfr-data-chart>
+    </section>
+
+    <!-- `databox-actions` mal formé : le cadre reste. -->
+    <section>
+      <dsfr-data-chart id="actions-fautives" source="rows" type="bar" label-field="nom" value-field="v"
+        databox databox-title="Actions fautives" databox-actions='["Source officielle",'>
+      </dsfr-data-chart>
+      <dsfr-data-chart id="actions-melees" source="rows" type="bar" label-field="nom" value-field="v"
+        databox databox-title="Actions mêlées" databox-actions='[1,"Méthode",null]'>
+      </dsfr-data-chart>
+    </section>
+
+    <!-- Attributs sans effet. -->
+    <section>
+      <dsfr-data-chart id="defaut" source="rows" type="bar" label-field="nom" value-field="v"
+        databox databox-title="Source par défaut" databox-default-source="insee">
+      </dsfr-data-chart>
+      <dsfr-data-chart id="plein-seul" source="rows" type="bar" label-field="nom" value-field="v"
+        databox databox-title="Plein écran seul" databox-fullscreen>
+      </dsfr-data-chart>
+    </section>
+  </main>
+
+  <script>
+    // Charges posées par setAttribute : exactement ce que l'analyseur HTML
+    // remet au composant, sans l'échappement d'attribut qui brouille la lecture.
+    const E = (id) => `window.__exec.push('${id}')`;
+    const P = (id) => `<img data-sonde="${id}" src="x" onerror="${E(id)}">`;
+    const main = document.getElementById('main');
+    window.__cas = [];
+    function cas(id, attrs, rows) {
+      const section = document.createElement('section');
+      let source = 'rows';
+      if (rows) {
+        const src = document.createElement('dsfr-data-source');
+        src.id = `rows-${id}`;
+        src.setAttribute('data', JSON.stringify(rows));
+        section.append(src);
+        source = src.id;
+      }
+      const chart = document.createElement('dsfr-data-chart');
+      chart.id = id;
+      chart.setAttribute('source', source);
+      for (const [k, v] of Object.entries(attrs)) chart.setAttribute(k, v);
+      section.append(chart);
+      main.append(section);
+      window.__cas.push(id);
+    }
+    const base = { type: 'bar', 'label-field': 'nom', 'value-field': 'v' };
+    const cadre = { ...base, databox: '', 'databox-title': 'T' };
+    const fenetre = { ...cadre, 'databox-fullscreen': '', 'databox-modal-title': 'M' };
+
+    // --- 1. Fenêtre du cadre : charges classiques, et les contournements du
+    //        nettoyeur mesurés dans Chromium avant #1289.
+    // Les liens `javascript:` portent `void(…)` : sans lui, la valeur rendue
+    // remplacerait le document et le test rougirait sans dire pourquoi.
+    const CHARGES = {
+      'onerror': P('onerror'),
+      'script': `<p>a</p><script>${E('script')}<\/script>`,
+      'svg-onload': `<svg onload="${E('svg-onload')}"></svg>`,
+      'details': `<details open ontoggle="${E('details')}">x</details>`,
+      'iframe': `<iframe srcdoc="<img src=x onerror=parent.window.__exec.push('iframe')>"></iframe>`,
+      'lien-js': `<a class="clic" href="javascript:void(${E('lien-js')})">clic</a>`,
+      'texte-brut': `<textarea><a title="</textarea><img src=x onerror=${E('texte-brut')}>">x</a></textarea>`,
+      'noscript': `<noscript><a title="</noscript><img src=x onerror=${E('noscript')}>">x</a></noscript>`,
+      'title': `<title><a title="</title><img src=x onerror=${E('title')}>">x</a></title>`,
+      'attribut-egal': `<a ="><img src=x onerror=${E('attribut-egal')}>">x</a>`,
+      'attribut-colle': `<a title="a"="><img src=x onerror=${E('attribut-colle')}>">x</a>`,
+      'entite': `<a class="clic" href="&#106avascript:void(${E('entite')})">clic</a>`,
+      'svg-animate': `<svg width="100" height="40"><a class="clic"><animate attributeName="href" values="javascript:void(${E('svg-animate')})" /><text x="5" y="20">clic</text></a></svg>`,
+      'svg-set': `<svg width="100" height="40"><a class="clic"><set attributeName="href" to="javascript:void(${E('svg-set')})" /><text x="5" y="20">clic</text></a></svg>`,
+      'recollement': `<<script><\/script>img src=x onerror=${E('recollement')}>`,
+      'recollement-commentaire': `<<!---->img src=x onerror=${E('recollement-commentaire')}>`,
+      'recollement-attributs': `<img src=x o onx="1"nerror=${E('recollement-attributs')}>`,
+    };
+    window.__charges = Object.keys(CHARGES);
+    for (const [nom, charge] of Object.entries(CHARGES)) {
+      cas(`charge-${nom}`, { ...fenetre, 'databox-modal-content': charge });
+    }
+
+    // --- 2. Unité des infobulles, par type de graphique.
+    window.__unites = [];
+    for (const type of ['bar', 'line', 'pie', 'radar', 'bar-line']) {
+      const a = { ...base, type, 'unit-tooltip': `u${P(`unite-${type}`)}` };
+      if (type === 'bar-line') {
+        a['value-field-2'] = 'w';
+        a['unit-tooltip-bar'] = `b${P(`unite-barres-${type}`)}`;
+      }
+      cas(`unite-${type}`, a);
+      window.__unites.push(`unite-${type}`);
+    }
+
+    // --- 3. Le tableau : chaque attribut qui porte un libellé reçoit la même
+    //        charge. Seuls les puits connus doivent en faire un élément.
+    window.__texte = [];
+    const texte = (id, attrs, rows) => {
+      cas(id, attrs, rows);
+      window.__texte.push(id);
+    };
+    texte('t-databox-title', { ...cadre, 'databox-title': P('t-databox-title') });
+    texte('t-databox-source', { ...cadre, 'databox-source': P('t-databox-source') });
+    texte('t-databox-date', { ...cadre, 'databox-date': P('t-databox-date') });
+    texte('t-databox-trend', { ...cadre, 'databox-trend': P('t-databox-trend') });
+    texte('t-databox-tooltip-title', { ...cadre, 'databox-tooltip-title': P('t-databox-tooltip-title') });
+    texte('t-databox-tooltip-content', { ...cadre, 'databox-tooltip-content': P('t-databox-tooltip-content') });
+    texte('t-databox-modal-title', { ...fenetre, 'databox-modal-title': P('t-databox-modal-title') });
+    texte('t-databox-actions', { ...cadre, 'databox-actions': JSON.stringify([P('t-databox-actions')]) });
+    texte('t-databox-default-source', { ...cadre, 'databox-default-source': P('t-databox-default-source') });
+    texte('t-name', { ...cadre, name: JSON.stringify([P('t-name')]) });
+    texte('t-alias', { ...cadre, 'value-field': `v:${P('t-alias')}` });
+    texte('t-libelle', { ...cadre }, [
+      { nom: `A${P('t-libelle')}`, v: 10 },
+      { nom: 'B', v: 20 },
+    ]);
+    texte('t-serie', { ...cadre, 'series-field': 's' }, [
+      { nom: 'A', v: 10, s: `S${P('t-serie')}` },
+      { nom: 'B', v: 20, s: 'T' },
+    ]);
+    texte('t-reference-lines', {
+      ...base,
+      'reference-lines': JSON.stringify([{ axis: 'y', value: 15, label: P('t-reference-lines') }]),
+    });
+    texte('t-targets', {
+      ...base,
+      type: 'line',
+      targets: JSON.stringify([{ x: 'D', value: 25, label: P('t-targets') }]),
+      'targets-legend': P('t-targets-legend'),
+    });
+    texte('t-empty-label', { ...base, 'empty-label': P('t-empty-label') }, [
+      { nom: null, v: 4 },
+      { nom: 'B', v: 20 },
+    ]);
+  </script>
+</body>
+</html>

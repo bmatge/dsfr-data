@@ -178,6 +178,24 @@ Côté client, quatre couches protègent contre l'injection et le détournement 
 
 La CSP et les headers sont validés sur chaque URL crawlée par le job ZAP DAST. Le snippet d'en-têtes est inclus dans **chaque `location`** nginx (pas au niveau server) car nginx n'hérite pas les `add_header` dès qu'une location en déclare un — cette architecture est documentée dans [`docker/security-headers.conf`](../docker/security-headers.conf).
 
+## Bibliothèque — HTML relayé à DSFR Chart
+
+`dsfr-data-chart` crée ses éléments par l'API DOM et échappe le seul HTML qu'il écrit lui-même (le tableau du cadre). Mais il relaie des attributs à DSFR Chart, qui en pose deux par `innerHTML`. Mesuré dans un navigateur sur DSFR Chart 2.1.1 (#1289) :
+
+| Attribut de `dsfr-data-chart` | Puits dans DSFR Chart | Exécutait une charge avant #1289 |
+|---|---|---|
+| `databox-modal-content` | `innerHTML` de la fenêtre du cadre, rendue dès l'affichage | oui, sans aucun clic |
+| `unit-tooltip`, `unit-tooltip-bar` | `innerHTML` de l'infobulle du graphique | oui, au survol |
+| tous les autres (`databox-title`, `-source`, `-date`, `-trend`, `-tooltip-*`, `-modal-title`, `-actions`, `name`, libellés et séries lus dans les données) | texte | non |
+
+Ces deux attributs passent par `nettoyerGabarit` (`packages/shared/src/dashboard/sanitize-template.ts`) avant d'être relayés — le nettoyeur du Studio, le seul du dépôt, exporté par l'entrée lib-safe. Il garde le HTML simple et retire : `script`, `iframe`, `object`, `embed`, `style`, `template`, `meta`, `base`, `link`, les éléments à texte brut (`textarea`, `title`, `xmp`, `noscript`, `noembed`, `noframes`, `plaintext`), les animations SVG `animate` et `set`, tout attribut `on*`, les URL `javascript:`, `vbscript:` et `data:`, les commentaires.
+
+**Ce que le nettoyage ne couvre pas.** Il retire ce qui s'exécute, pas ce qui trompe : un `<form action>` vers un tiers, un `<input>`, un lien, une image distante (qui signale la visite à son hôte), un attribut `style` (qui peut recouvrir la page) ou `id` (qui peut masquer une variable globale) restent. Ces deux attributs sont du HTML **de l'auteur de la page** : une valeur lue dans les données ou saisie par un tiers s'échappe avant d'y être écrite. La CSP du site reste la défense de fond (`form-action`, `img-src`).
+
+**Le nettoyeur est un analyseur maison** (il doit rendre la même chose sous Node, pour l'export du Studio, et dans un navigateur) : il n'est sûr que s'il lit une balise comme le navigateur. Onze contournements ont été mesurés dans Chromium et fermés par #1289 — éléments à texte brut, nom d'attribut commençant par `=`, référence numérique sans point-virgule (`&#106avascript:`), animation SVG d'un `href`, morceaux qui se recollent après un retrait. Ils valaient aussi pour les blocs du Studio IA nettoyés depuis #1226. Tout écart nouveau entre l'analyseur et un navigateur est une vulnérabilité : il se signale par le canal ci-dessus.
+
+Comment c'est tenu : `e2e/chart-cadre-html.spec.ts` (bloquant, `e2e-layout.yml`) pose une charge dans chaque attribut sur le vrai DSFR Chart et échoue si l'une s'exécute — ou si un attribut « texte » devient du HTML à une montée de version ; `tests/shared/sanitize-template.test.ts` ; `tests/apps/studio/cadre-fenetre-1289.test.ts` pour le chemin du Studio IA (bloc « composant libre »).
+
 ## Hardening runtime
 
 - **nginx non-root** : l'image prod utilise [`nginxinc/nginx-unprivileged:alpine`](https://hub.docker.com/r/nginxinc/nginx-unprivileged) et écoute sur `8080` (pas 80). Finding Trivy `DS-0002` (container running as root) éliminé.

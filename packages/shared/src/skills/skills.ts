@@ -1701,8 +1701,8 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | color-map | String | \`""\` | non | Couleur fixee par modalite : paires \`modalite:#couleur\` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: \`"Realise:#000091,Objectif:#E1000F"\`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert, barre, ou point d'une courbe, d'un radar, d'un nuage : le trait garde la couleur de sa serie). Virgule ou deux-points dans une modalite : \`%2C\` / \`%3A\`. Sans effet sur les types map* |
-| unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
-| unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line |
+| unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. Rendue comme du HTML simple (\`m<sup>2</sup>\`) ; script, attribut on*, URL javascript: retires. Jamais une valeur lue dans les donnees sans l'echapper |
+| unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line (meme regle que unit-tooltip) |
 | horizontal | Boolean | \`false\` | non | Barres horizontales (type bar uniquement) |
 | stacked | Boolean | \`false\` | non | Barres empilees (type bar uniquement) |
 | fill | Boolean | \`false\` | non | Camembert plein au lieu d'anneau (type pie) |
@@ -1856,14 +1856,30 @@ ce que l'axe affiche (\`empty-label\` compris) et son en-tête l'alias de \`labe
 | databox-date-field | String | \`""\` | Colonne de dates ISO (AAAA-MM-JJ) : la plus récente est affichée comme date, formatée JJ/MM/AAAA (ex: \`databox-date-field="gazole_maj"\`) |
 | databox-download | Boolean | \`false\` | Bouton téléchargement CSV |
 | databox-screenshot | Boolean | \`false\` | Bouton screenshot PNG |
-| databox-fullscreen | Boolean | \`false\` | Bouton plein écran |
+| databox-fullscreen | Boolean | \`false\` | Bouton qui ouvre la fenêtre d'information. N'apparaît qu'AVEC databox-modal-title : seul, il ne rend rien (avertissement console). Le graphique n'est pas agrandi |
 | databox-trend | String | \`""\` | Tendance (ex: "+5.2" ou "-3.1") |
-| databox-tooltip-title | String | \`""\` | Titre du tooltip info |
-| databox-tooltip-content | String | \`""\` | Contenu du tooltip info |
-| databox-modal-title | String | \`""\` | Titre de la modale |
-| databox-modal-content | String | \`""\` | Contenu de la modale |
-| databox-default-source | String | \`""\` | Source par défaut (selecteur multi-source) |
-| databox-actions | String | \`""\` | Actions personnalisees (JSON array) |
+| databox-tooltip-title | String | \`""\` | Titre du tooltip info (texte) |
+| databox-tooltip-content | String | \`""\` | Contenu du tooltip info (texte, aucune balise) |
+| databox-modal-title | String | \`""\` | Titre de la fenêtre d'information (texte). Exige databox-fullscreen : sans lui, aucune fenêtre |
+| databox-modal-content | String | \`""\` | Contenu de la fenêtre, en HTML SIMPLE : p, strong, em, a, ul/li, table, img. Script, iframe, style, attribut on*, URL javascript: et data: sont retirés avant affichage |
+| databox-default-source | String | \`""\` | SANS EFFET avec dsfr-data-chart (une seule source, aucun sélecteur) : ne pas l'écrire |
+| databox-actions | String | \`""\` | Entrées ajoutées au menu « Plus d'actions » : tableau JSON de libellés, ex. \`'["Source officielle","Méthode"]'\`. Une entrée n'a AUCUN comportement : la page la branche par \`data-action\` |
+
+Trois règles du cadre (#1289) :
+
+- **Le menu « Plus d'actions », l'infobulle et la fenêtre ne s'ouvrent qu'avec le JavaScript du DSFR**
+  (\`dsfr.module.min.js\`, chargé par la page). Sans lui, le téléchargement CSV et la capture du cadre sont
+  hors d'atteinte ; le composant le dit dans la console. Le basculement graphique / tableau, lui, marche sans.
+- **Une action de \`databox-actions\` est un bouton sans comportement.** Il porte \`data-action\` (le libellé
+  en minuscules, sans accents, tout autre caractère en tiret : « Source officielle » → \`source-officielle\`)
+  et \`data-id\` (l'id du cadre). La page écoute le clic :
+  \`document.addEventListener('click', (e) => { if (e.target.closest('[data-action="source-officielle"]')) … })\`.
+  Une valeur mal formée (JSON invalide, pas un tableau, entrée qui n'est pas une chaîne) est une erreur de
+  configuration (\`data-dsfr-config-error\`) : les entrées fautives sont écartées, le cadre reste affiché.
+- **Deux attributs reçoivent du HTML**, \`databox-modal-content\` et \`unit-tooltip\` (\`unit-tooltip-bar\`) ;
+  tous les autres (titre, source, date, tendance, infobulle, noms de séries, libellés) sont rendus comme du
+  texte. Le HTML est nettoyé — le contenu actif est retiré — mais une valeur lue dans les DONNÉES s'échappe
+  quand même avant d'y être écrite.
 
 Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`download\`
 (DataBox les fournit déjà). Conserver uniquement \`description\` sur dsfr-data-a11y.

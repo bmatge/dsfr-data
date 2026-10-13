@@ -40,6 +40,14 @@ name: E2E layout
 # le vrai DSFR Chart : la decision se teste sous happy-dom, pas l'axe dessine.
 # Quatre defauts mesures dans un navigateur etaient invisibles ailleurs
 # (categories fantomes, bornes ignorees, arrondi a la graduation).
+#
+# `chart-cadre-html.spec.ts` (#1289) n'est pas de la mise en page non plus : il
+# pose une charge (`<img onerror>`, et les contournements du nettoyeur) dans
+# chaque attribut du cadre officiel et du graphique, sur le vrai DSFR Chart, et
+# echoue si l'une s'EXECUTE. DSFR Chart pose le contenu de la fenetre et
+# l'unite des infobulles par `innerHTML` ; happy-dom n'execute pas un
+# `onerror` et ne lit pas une balise comme Chromium. Meme criteres :
+# deterministe, DSFR Chart depuis node_modules, aucun reseau.
 
 on:
   pull_request:
@@ -86,6 +94,7 @@ jobs:
           e2e/layout-map.spec.ts
           e2e/chart-legend.spec.ts
           e2e/chart-axis-bounds.spec.ts
+          e2e/chart-cadre-html.spec.ts
           e2e/mobile-chrome.spec.ts
           e2e/source-lazy.spec.ts
           e2e/buttons.spec.ts
