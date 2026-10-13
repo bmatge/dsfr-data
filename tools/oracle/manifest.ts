@@ -132,6 +132,14 @@ export interface RawUrlSource {
   url: string;
   /** Chemin pointé du tableau de lignes (`data`, `observations`) ; défaut : la racine. */
   rowsPath?: string;
+  /**
+   * Chemin pointé, DANS chaque élément du tableau, de l'objet qui porte ses
+   * colonnes (#1279) : `fields` pour un enregistrement Grist (`{ id, fields }`),
+   * `dimensions` pour une observation Melodi. Sans lui, l'élément est la ligne.
+   * L'oracle ne fait que descendre d'un cran : il n'aplatit rien, ne renomme
+   * rien, ne fusionne rien — un élément sans objet à ce chemin est une erreur.
+   */
+  rowPath?: string;
   /** Chemin pointé de l'URL de page suivante (`links.next`, `paging.next`). */
   nextPath?: string;
   /** Plafond de pages suivies — une pagination qui boucle ne doit pas pendre. */

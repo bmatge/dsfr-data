@@ -112,6 +112,32 @@ describe('vérification des données — les jeux JSON', () => {
     expect(empreinte(jeux.get('delegation-tabular-ex-aequo'))).toBe(empreinte(attendu));
   });
 
+  it('`delegation-grist-ex-aequo.json` est le même jeu, la colonne unique nommée `rang` (#1279)', () => {
+    // `id` est réservé par Grist à l'identifiant de ligne : une table n'a pas
+    // de colonne de ce nom. Le faux Grist donne à chaque ligne l'`id` de son rang.
+    const CATEGORIES = [
+      'Homicides',
+      'Usage de stupéfiants (AFD)',
+      'Vols (avec violence)',
+      'Cambriolages',
+    ];
+    const attendu = Array.from({ length: 450 }, (_, i) => ({
+      rang: i + 1,
+      categorie: CATEGORIES[i % 4],
+      nombre: (i * 7) % 5,
+    }));
+    expect(empreinte(jeux.get('delegation-grist-ex-aequo'))).toBe(empreinte(attendu));
+  });
+
+  it('`adaptateurs-melodi-long.json` est exactement ce que sa formule engendre (#1279)', () => {
+    const attendu = Array.from({ length: 1200 }, (_, i) => ({
+      ZONE: `Z${String(i + 1).padStart(4, '0')}`,
+      TIME_PERIOD: String(2020 + (i % 5)),
+      OBS_VALUE: ((i * 37) % 101) + 1,
+    }));
+    expect(empreinte(jeux.get('adaptateurs-melodi-long'))).toBe(empreinte(attendu));
+  });
+
   it('`canari-volume.json` est exactement ce que son générateur à graine engendre (#882)', () => {
     // Générateur congruentiel linéaire, graine 42 — la formule est écrite dans
     // jeux/README.md ; le fichier en est la matérialisation, et les deux ne

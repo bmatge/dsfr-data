@@ -33,8 +33,12 @@
  *
  * Grist — `LIKE` de SQLite : casse ignorée pour l'ASCII seulement (« école »
  * ne trouve pas « École »), `%` et `_` en jokers, `NOT LIKE` écarte les
- * valeurs absentes. Sémantique documentée de SQLite, non mesurée sur une
- * instance.
+ * valeurs absentes. Mesuré le 2026-10-13 par l'endpoint `/sql` du document
+ * public `pU5HXX7VJC6jdgU6oBJRxn` de grist.numerique.gouv.fr (table
+ * `Scrutin_c1`, 101 lignes) : `nom_dept LIKE '%ain%'` = `'%AIN%'` = 3 ;
+ * `'%è%'` -> 8, `'%È%'` -> 0 ; `'%A_n%'` -> 11 et `'%_%'` -> 101 (joker),
+ * `'%\%%'` -> 0 (pas d'échappement sans clause ESCAPE) ; sur une colonne dont
+ * 12 valeurs sont rendues nulles, `NOT LIKE '%zz%'` -> 89 sur 101.
  *
  * INSEE Melodi — ne filtre qu'en égalité sur des dimensions (`eq`, `in`).
  *

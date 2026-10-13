@@ -191,8 +191,9 @@ describe('GristAdapter', () => {
     const overlay = { page: 3, effectiveWhere: '', orderBy: '' } as ServerSideOverlay;
     const url = adapter.buildServerSideUrl(params, overlay);
     const parsed = new URL(url);
-    expect(parsed.searchParams.get('limit')).toBe('20');
-    expect(parsed.searchParams.get('offset')).toBe('40');
+    // `/records` ne connait pas `offset` (#1279) : la page 3 part en `limit = 3 x 20`
+    expect(parsed.searchParams.get('limit')).toBe('60');
+    expect(parsed.searchParams.has('offset')).toBe(false);
   });
 });
 

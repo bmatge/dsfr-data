@@ -199,7 +199,11 @@ chemin pointé du tableau de lignes dans l'enveloppe (`data` pour Tabular,
 `nextPath` celui de l'URL de page suivante (`links.next`, `paging.next` —
 résolue contre la page courante si elle est relative), et `maxPages` borne le
 nombre de pages suivies (50 par défaut) pour qu'une pagination qui boucle
-s'arrête au lieu de pendre. C'est la seule façon d'écrire un contrôle vivant
+s'arrête au lieu de pendre. `rowPath` (#1279) nomme, DANS chaque élément du
+tableau, l'objet qui porte ses colonnes — `fields` pour un enregistrement Grist
+(`{ id, fields }`), `dimensions` pour une observation Melodi : l'oracle descend
+d'un cran, il n'aplatit rien et ne renomme rien, et un élément sans objet à ce
+chemin est une erreur. C'est la seule façon d'écrire un contrôle vivant
 sur une API dont l'enveloppe n'est pas celle d'Opendatasoft ; l'oracle
 n'emprunte toujours rien à l'adaptateur correspondant.
 
@@ -614,7 +618,7 @@ multivalué, un jeu de 1 001 lignes derrière un plafond de 1 000. Le canari
 (#882) est **un jeu de quarante lignes écrites à la main** — `jeux/canari.json`,
 chaque ligne décrite dans `jeux/README.md` —, une table de droite à doublon,
 un jeu de volume engendré à graine, un jeu de dix lignes pour les pièges de
-facette (`jeux/canari-facettes.json`), et **trente et un contrôles** dans
+facette (`jeux/canari-facettes.json`), et **trente-deux contrôles** dans
 `tests/verif-donnees/canari.ts`, un par piège, chacun citant le registre
 (`constats`) et nommant le contrôle existant qui couvrait déjà le cas plutôt
 que de le dupliquer. C'est la première chose qu'un contributeur rejoue.
@@ -960,6 +964,17 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | canari | la sonde de `_fetchAllPaged` neutralisée (état d'avant #1202) | `canari-tabular-tri-pagine`, et `delegation/tabular-tri-pagine-sans-perte` | somme des identifiants 104 475 au lieu de 101 475 (brut et groupé), 87 625 au lieu de 84 025 (tronqué) : le compte est juste, l'ensemble des lignes ne l'est pas |
 | canari | la sonde n'entraîne plus de relecture sur l'ordre total (`_fetchRecords`, état d'avant #1274) | `canari-ods-pagination-sans-ordre` | 70 au lieu de 57 pour le sous-ensemble, somme des identifiants 20 225 au lieu de 25 425 et 91 475 au lieu de 101 475 — et le compte total, 113, reste JUSTE : c'est la signature du piège (162 taux au lieu de 154, total 321 exact) |
 | banc-adaptateurs | même mutation, contre le VRAI portail (2026-10-12) | `ods-taux-de-change-pagination-vivant` | « ligne 0 : clé « HTG \| 2026-01-06 » rendue, « HTG \| 2005-05-01 » recalculée » ; 0/4 URL portent l'`order_by` de départage. Le nombre de taux en gourdes, lui, est resté juste (154) : ce jour-là le portail servait ses pages dans un ordre stable. Le défaut est intermittent — c'est l'ORDRE livré et l'URL qui gardent le contrôle les jours où l'API ne faute pas |
+| delegation | état d'avant #1279 : la page N de Grist demandée par `limit` + `offset`, sans découpe (`buildServerSideUrl` et `fetchPage`, `grist-adapter.ts`) | `grist-pagination-serveur-page-deux` | « ligne 0 / rang : affiché « 1 », recalculé 41 » sur le tableau sans tri, « 3 » au lieu de 203 sur le tableau trié : la page deux est la page un ; 4/4 URL portent `offset=` |
+| canari | même mutation | `canari-grist-page-deux-egale-page-un` | somme des rangs de la page deux : **820 au lieu de 2 420** — exactement la somme de la page un |
+| banc-adaptateurs | même mutation, contre le VRAI Grist (grist.numerique.gouv.fr, 2026-10-13) | `grist-pagination-serveur-vivant` (vivant) | « ligne 0 / code_dept : affiché « 01 », recalculé « 22 » » sur les deux tableaux : l'API réelle ignore bien `offset` |
+| delegation | état d'avant #1279 : les lignes `{ fields }` de `/sql` ne sont pas lues (`_sqlResultToObjects`, `grist-adapter.ts`) | `grist-regroupement-delegue-sql`, `grist-pagination-sql-page-deux` | quatre groupes rendus VIDES (« clé «  » rendue, « Vols (avec violence) » recalculée »), et « — » dans chaque cellule des deux tableaux paginés |
+| banc-adaptateurs | même mutation, contre le VRAI Grist (2026-10-13) | `grist-sql-reponse-et-pagination-vivant` (vivant) | quatorze régions rendues vides (« clé «  » rendue, « NAq » recalculée ») et « — » au lieu de « 47 » : la forme de réponse du faux serveur est bien celle du vrai |
+| delegation | `ORDER BY` sans clé de départage en pagination SQL Grist (`_pageOrder` rend `[]` — l'état d'avant) | `grist-pagination-sql-page-deux` | page deux fausse sur les deux tableaux : « affiché « 410 », recalculé 41 » sans tri, « 248 » au lieu de 203 sur le tri non unique |
+| delegation | le total d'une page SQL Grist vaut son nombre de lignes (`_fetchSql` — l'état d'avant) | `grist-pagination-sql-page-deux` | le tableau n'offre plus de page suivante : le clic sur « suivant » n'aboutit jamais |
+| delegation | le tri paginé de `/records` n'est plus complété par `id` (`buildServerSideUrl`) | `grist-pagination-serveur-page-deux` | `urls:tri-de-page-avec-identifiant-de-ligne` : 0/4 URL portent `sort=-nombre,id`. Les lignes, elles, restent justes : `/records` trie toute la table par un tri stable — seule l'URL garde cette clé |
+| adaptateurs | les observations revenues ne sont plus comptées (`fetchAll`, `insee-adapter.ts`) | `insee-melodi-plusieurs-pages` | « diagnostic:s-insee-glisse:warning — aucun message console de la bibliothèque » : sept observations doublées et sept perdues, compte juste à 1 200, et plus rien pour le dire |
+| adaptateurs | la clé d'une observation réduite à sa première dimension (`_repeatedObservations` : `entries.slice(0, 1)`) | `insee-melodi-plusieurs-pages` | le constat crie au loup : « 200 observation(s) de "DS_VERIF_LONG" sont revenues » sur le jeu dont l'ordre est stable — le silence exigé est rompu |
+| banc-adaptateurs | même mutation, contre la VRAIE API Melodi (2026-10-13) | `insee-melodi-deux-pages-vivant` (vivant) | « 678 observation(s) de "DS_EC_DECES" sont revenues » là où aucune ne revient : le silence du contrôle vivant garde aussi la clé |
 | canari | `quoteInValue` rend la valeur nue | `canari-tabular-in-parenthese` | 112 au lieu de 224, sur la source comme sur la query — les deux délèguent la clause depuis #1233 |
 | banc-adaptateurs | la sonde de `_fetchAllPaged` neutralisée, contre la VRAIE API (2026-10-03) | `tabular-ssmsi-pertes-silencieuses-vivant` (vivant) | 1 818 groupes comptés, et pourtant somme 3 605 665 au lieu de 3 616 155 ; tronqué : 5 617 079 au lieu de 5 575 928 ; 0/23 URL portent `Code_region__sort=asc,"__id".asc` — ce contrôle garde la forme de tri composée, que l'API ne documente pas |
 | banc-adaptateurs | `quoteInValue` rend la valeur nue, contre la VRAIE API (2026-10-04) | `tabular-ssmsi-pertes-silencieuses-vivant` (vivant) | `in` : 101 lignes au lieu de 202 ; `notin` : 1 818 au lieu de 1 717 ; 0/26 URL portent `indicateur__in=Homicides,"Usage de stupéfiants (AFD)"` — ce contrôle garde AUSSI la liste entre guillemets, seconde forme que l'API ne documente pas (#1233) |

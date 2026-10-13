@@ -48,7 +48,7 @@
                 <tr><td><code>empty-label</code></td><td>String</td><td>Libellé affiché pour une catégorie vide (<code>null</code>, <code>undefined</code> ou <code>""</code> dans <code>label-field</code>) : légende du pie, axe X des cartésiens (#647). Sans lui, DSFR Chart substituerait « Série N » à un nom vide. Pour EXCLURE ces lignes plutôt que les nommer, filtrer en amont : <code>where="champ:isnotnull"</code> (query) ou <code>where="champ is not null"</code> (source ODS).</td></tr>
                 <tr><td><code>heading-level</code></td><td>Number</td><td>Niveau de titre HTML du titre de la DataBox (RGAA 9.1, #670) : entier de 2 à 6, borné (défaut 3, rendu historique de DSFR Chart). <code>heading-level="2"</code> rend un h2.</td></tr>
                 <tr><td><code>selected-palette</code></td><td>String</td><td>Palette de couleurs</td></tr>
-                <tr><td><code>unit-tooltip</code></td><td>String</td><td>Unité à afficher dans les tooltips</td></tr>
+                <tr><td><code>unit-tooltip</code></td><td>String</td><td>Unité à afficher dans les tooltips (<code>%</code>, <code>€</code>…). DSFR Chart l'insère comme du HTML : le HTML simple est gardé (<code>m&lt;sup&gt;2&lt;/sup&gt;</code>), le contenu actif retiré avant d'être relayé (#1289).</td></tr>
                 <tr><td><code>horizontal</code></td><td>Boolean</td><td>Affichage horizontal (bar chart uniquement)</td></tr>
                 <tr><td><code>stacked</code></td><td>Boolean</td><td>Barres empilées (bar chart uniquement)</td></tr>
                 <tr><td><code>fill</code></td><td>Boolean</td><td>Remplir le graphique (pie chart: true = plein, false = donut)</td></tr>
@@ -59,7 +59,7 @@
                 <tr><td><code>value-fields</code></td><td>String</td><td>Champs de valeur supplémentaires, séparés par des virgules (ex: 'budget,score'). Alias inline <code>champ:Libellé</code> par série (#668) : <code>value-fields="budget:Budget, score:Score"</code>. Un <code>name</code> explicite (tableau JSON) prime sur les alias.</td></tr>
                 <tr><td><code>series-field</code></td><td>String</td><td>Champ "clé de série" pour des données au format long/tidy : ses valeurs distinctes deviennent autant de series (mode multi-series sans colonnes multiples). Ex: données {mois, groupe, valeur} avec series-field="groupe" → une série par groupe. S'applique aux types multi-series (bar, line, radar). Prioritaire sur value-fields. Une cellule (libellé, série) sans observation vaut <code>null</code> (#1198) : la courbe s'interrompt, la barre est absente — jamais un 0 dessiné.</td></tr>
                 <tr><td><code>name</code></td><td>String</td><td>Nom(s) de série. Chaîne simple recommandée (<code>name="Taux"</code>), enveloppée automatiquement pour DSFR Chart ; tableau JSON pour le multi-séries (<code>name='["Réalisé","Objectif"]'</code>). Sur les cartes (<code>map*</code>), un seul nom : le premier élément d'un JSON est retenu (#653). Priorité (#668) : <code>name</code> explicite, sinon l'alias inline <code>champ:Libellé</code> de value-field(s), sinon le nom du champ (ou les valeurs de series-field en mode tidy).</td></tr>
-                <tr><td><code>unit-tooltip-bar</code></td><td>String</td><td>Unité pour les barres (bar-line uniquement)</td></tr>
+                <tr><td><code>unit-tooltip-bar</code></td><td>String</td><td>Unité pour les barres (bar-line uniquement). Même nettoyage que <code>unit-tooltip</code>.</td></tr>
                 <tr><td><code>highlight-index</code></td><td>String</td><td>Index des éléments à mettre en avant (ex: "[0, 2]")</td></tr>
                 <tr><td><code>x-min</code></td><td>String</td><td>Borne minimale de l'axe HORIZONTAL, quand il porte des nombres : <code>scatter</code> et <code>line</code> dont les étiquettes sont numériques (années, mesures), et barres horizontales (<code>type="bar" horizontal</code>), où l'axe horizontal est celui des valeurs. La borne est posée exactement. Elle est ignorée, avec un avertissement console, si elle masquerait une donnée (minimum au-dessus de la plus petite valeur portée par l'axe) et, sur des barres horizontales, si elle est positive : des barres partent de zéro. Sans effet, et signalée en console, sur un axe d'étiquettes (<code>bar</code> vertical, <code>bar-line</code>, <code>line</code> ou <code>scatter</code> à étiquettes texte), sur <code>radar</code> et sur les types sans axe (<code>pie</code>, <code>gauge</code>, cartes).</td></tr>
                 <tr><td><code>x-max</code></td><td>String</td><td>Borne maximale de l'axe HORIZONTAL, quand il porte des nombres : <code>scatter</code> et <code>line</code> dont les étiquettes sont numériques (années, mesures), et barres horizontales (<code>type="bar" horizontal</code>), où l'axe horizontal est celui des valeurs. La borne est posée exactement. Elle est ignorée, avec un avertissement console, si elle masquerait une donnée (maximum en dessous de la plus grande valeur portée par l'axe). Sans effet, et signalée en console, sur un axe d'étiquettes (<code>bar</code> vertical, <code>bar-line</code>, <code>line</code> ou <code>scatter</code> à étiquettes texte), sur <code>radar</code> et sur les types sans axe (<code>pie</code>, <code>gauge</code>, cartes).</td></tr>
@@ -280,21 +280,21 @@
           <thead><tr><th>Attribut</th><th>Type</th><th>Description</th></tr></thead>
           <tbody>
               <!-- ATTRS:dsfr-data-chart fields="databox,databox-title,databox-source,databox-date,databox-date-field,databox-download,databox-screenshot,databox-fullscreen,databox-trend,databox-tooltip-title,databox-tooltip-content,databox-modal-title,databox-modal-content,databox-default-source,databox-actions" -->
-                <tr><td><code>databox</code></td><td>Boolean</td><td>Envelopper le chart dans une DataBox DSFR native</td></tr>
+                <tr><td><code>databox</code></td><td>Boolean</td><td>Envelopper le chart dans une DataBox DSFR native. Son menu « Plus d'actions » (CSV, capture, actions), son infobulle et sa fenêtre ne s'ouvrent que si la page charge le JavaScript du DSFR (<code>dsfr.module.min.js</code>) ; sinon un avertissement console le dit (#1289).</td></tr>
                 <tr><td><code>databox-title</code></td><td>String</td><td>Titre affiché dans l'en-tête DataBox</td></tr>
                 <tr><td><code>databox-source</code></td><td>String</td><td>Mention de la source (ex: "INSEE, 2024")</td></tr>
                 <tr><td><code>databox-date</code></td><td>String</td><td>Date de la donnée (ex: "Mars 2024"), affichée dans le pied de la DataBox et sur les cartes. Aucune date n'est rendue si l'attribut est absent — plus de repli sur la date du jour, qui n'est pas celle des données (#650). Prime sur <code>databox-date-field</code> quand les deux sont posés.</td></tr>
                 <tr><td><code>databox-date-field</code></td><td>String</td><td>Fraîcheur lue dans la donnée (#661) : chemin d'une colonne de dates ISO (<code>AAAA-MM-JJ</code>, heure facultative). La plus récente est affichée comme date de la DataBox (et des cartes), formatée JJ/MM/AAAA. Ignoré si <code>databox-date</code> est posé ; aucune date rendue si la colonne ne contient aucune date ISO valide.</td></tr>
                 <tr><td><code>databox-download</code></td><td>Boolean</td><td>Bouton téléchargement CSV dans DataBox</td></tr>
                 <tr><td><code>databox-screenshot</code></td><td>Boolean</td><td>Bouton screenshot PNG</td></tr>
-                <tr><td><code>databox-fullscreen</code></td><td>Boolean</td><td>Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il n'apparaît qu'accompagné de <code>databox-modal-title</code>, et il ouvre cette modale (<code>databox-modal-content</code>) : le graphique lui-même n'est pas agrandi (#1179).</td></tr>
+                <tr><td><code>databox-fullscreen</code></td><td>Boolean</td><td>Bouton à l'icône « plein écran » de la DataBox. Avec DSFR Chart 2.1.1, il n'apparaît qu'accompagné de <code>databox-modal-title</code>, et il ouvre cette modale (<code>databox-modal-content</code>) : le graphique lui-même n'est pas agrandi (#1179). Posé SEUL, il ne rend rien : un avertissement console le dit (#1289).</td></tr>
                 <tr><td><code>databox-trend</code></td><td>String</td><td>Badge tendance (ex: "+5.2", "-3.1")</td></tr>
-                <tr><td><code>databox-tooltip-title</code></td><td>String</td><td>Titre du tooltip info DataBox</td></tr>
-                <tr><td><code>databox-tooltip-content</code></td><td>String</td><td>Contenu du tooltip info DataBox</td></tr>
-                <tr><td><code>databox-modal-title</code></td><td>String</td><td>Titre de la modale DataBox</td></tr>
-                <tr><td><code>databox-modal-content</code></td><td>String</td><td>Contenu de la modale DataBox</td></tr>
-                <tr><td><code>databox-default-source</code></td><td>String</td><td>Source par défaut dans le selecteur multi-source DataBox</td></tr>
-                <tr><td><code>databox-actions</code></td><td>String</td><td>Actions personnalisees DataBox (JSON array, ex: '["Source officielle","Pole emploi"]')</td></tr>
+                <tr><td><code>databox-tooltip-title</code></td><td>String</td><td>Titre du tooltip info DataBox (rendu comme du texte)</td></tr>
+                <tr><td><code>databox-tooltip-content</code></td><td>String</td><td>Contenu du tooltip info DataBox (rendu comme du texte, aucune balise)</td></tr>
+                <tr><td><code>databox-modal-title</code></td><td>String</td><td>Titre de la modale DataBox (texte). La fenêtre n'existe qu'avec ce titre ET <code>databox-fullscreen</code> : sans l'un des deux, rien n'est rendu et un avertissement console le dit (#1289).</td></tr>
+                <tr><td><code>databox-modal-content</code></td><td>String</td><td>Contenu de la modale DataBox, en HTML SIMPLE (paragraphes, gras, liens, listes). DSFR Chart le pose tel quel dans la page : le composant le nettoie avant de le relayer (#1289) — scripts, iframes, styles, attributs <code>on*</code>, URL <code>javascript:</code> et <code>data:</code> sont retirés, et le retrait signalé dans la console. Une valeur venue d'une donnée s'échappe avant d'y être écrite. Sans effet sans <code>databox-modal-title</code> et <code>databox-fullscreen</code>.</td></tr>
+                <tr><td><code>databox-default-source</code></td><td>String</td><td>Source par défaut du sélecteur multi-source de la DataBox. SANS EFFET avec <code>dsfr-data-chart</code>, qui ne déclare au cadre qu'une source : aucun sélecteur n'est affiché, et un avertissement console le dit (#1289).</td></tr>
+                <tr><td><code>databox-actions</code></td><td>String</td><td>Entrées ajoutées au menu « Plus d'actions » du cadre : tableau JSON de libellés, ex. <code>'["Source officielle","Méthode"]'</code>. Une entrée n'a AUCUN comportement par elle-même : la page la branche en écoutant le clic du bouton, qui porte <code>data-action</code> (le libellé en minuscules, sans accents, tout autre caractère en tiret : <code>source-officielle</code>) et <code>data-id</code> (l'id du cadre). Valeur mal formée : erreur de configuration (<code>data-dsfr-config-error</code>), les entrées fautives sont écartées et le cadre reste affiché (#1289).</td></tr>
               <!-- /ATTRS -->
             </tbody>
         </table>
@@ -307,6 +307,76 @@
           Conserver uniquement <code>description</code> sur dsfr-data-a11y.
         </p>
       </div>
+      <h4 class="fr-mt-3w" id="cadre-html">Ce que le cadre fait de vos attributs (#1289)</h4>
+      <p>
+        Mesuré dans un navigateur, sur DSFR Chart 2.1.1. Deux attributs sont posés dans la page comme du
+        <strong>HTML</strong> ; tous les autres sont rendus comme du <strong>texte</strong> — une balise
+        qu'on y écrit se lit à l'écran, elle ne produit pas d'élément.
+      </p>
+      <div class="fr-table">
+        <table class="attr-table">
+          <thead><tr><th>Attribut</th><th>Rendu comme</th><th>Ce que fait la bibliothèque</th></tr></thead>
+          <tbody>
+            <tr><td><code>databox-modal-content</code></td><td>HTML</td><td>Nettoyé avant d'être relayé : paragraphes, gras, italique, liens, listes, tableaux, images sont gardés ; le contenu actif est retiré, et le retrait signalé dans la console.</td></tr>
+            <tr><td><code>unit-tooltip</code>, <code>unit-tooltip-bar</code></td><td>HTML (dans l'infobulle du graphique, au survol)</td><td>Même nettoyage. <code>m&lt;sup&gt;2&lt;/sup&gt;</code> garde son exposant.</td></tr>
+            <tr><td><code>databox-title</code>, <code>databox-source</code>, <code>databox-date</code>, <code>databox-trend</code></td><td>Texte</td><td>Relayé tel quel.</td></tr>
+            <tr><td><code>databox-tooltip-title</code>, <code>databox-tooltip-content</code>, <code>databox-modal-title</code></td><td>Texte</td><td>Relayé tel quel.</td></tr>
+            <tr><td><code>databox-actions</code> (chaque libellé)</td><td>Texte</td><td>Validé avant d'être relayé (voir plus bas).</td></tr>
+            <tr><td><code>name</code>, alias de <code>value-field</code> et de <code>label-field</code>, valeurs de <code>label-field</code> et de <code>series-field</code>, <code>empty-label</code></td><td>Texte (légende, axe, tableau)</td><td>Relayé tel quel ; le tableau du cadre est échappé par la bibliothèque.</td></tr>
+            <tr><td><code>reference-lines</code>, <code>targets</code>, <code>targets-legend</code> (libellés)</td><td>Texte</td><td>Dessinés par la bibliothèque, sans <code>innerHTML</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <strong>Ce qui est retiré du HTML.</strong> Les éléments <code>script</code>, <code>iframe</code>,
+        <code>object</code>, <code>embed</code>, <code>style</code>, <code>template</code>, <code>meta</code>,
+        <code>base</code>, <code>link</code>, <code>textarea</code>, <code>title</code>, <code>xmp</code>,
+        <code>noscript</code>, <code>noembed</code>, <code>noframes</code>, <code>plaintext</code>, les animations
+        SVG <code>animate</code> et <code>set</code> ; tout attribut <code>on*</code> ; les URL
+        <code>javascript:</code>, <code>vbscript:</code> et <code>data:</code> dans <code>href</code>,
+        <code>src</code>, <code>action</code>, <code>formaction</code> (une image en <code>data:</code> perd donc
+        sa source) ; les commentaires. Le reste est rendu à l'identique.
+      </p>
+      <div class="fr-callout fr-callout--brown-caramel fr-mt-2w fr-mb-4w">
+        <p class="fr-callout__text">
+          Le nettoyage retire ce qui s'<strong>exécute</strong>, pas ce qui trompe : un lien, un formulaire qui
+          poste vers un autre site, une image distante, un attribut <code>style</code> restent. Une valeur lue
+          dans les <strong>données</strong> ou saisie par un tiers s'échappe (<code>&amp;lt;</code>,
+          <code>&amp;amp;</code>) avant d'être écrite dans ces deux attributs.
+        </p>
+      </div>
+      <p>
+        <strong>Menu, infobulle et fenêtre exigent le JavaScript du DSFR.</strong> Le bouton « Plus d'actions »
+        (qui porte « Télécharger en CSV », « Capture d'écran » et vos actions), l'infobulle
+        (<code>databox-tooltip-*</code>) et la fenêtre d'information (<code>databox-modal-*</code>) sont des
+        composants du DSFR : ils ne s'ouvrent que si la page charge <code>dsfr.module.min.js</code>. Sans lui,
+        le clic ne fait rien ; le composant l'écrit une fois dans la console. Le basculement graphique / tableau
+        fonctionne sans.
+      </p>
+      <p>
+        <strong>La fenêtre d'information exige deux attributs.</strong> <code>databox-fullscreen</code> et
+        <code>databox-modal-title</code> : l'un sans l'autre ne rend rien, et un avertissement console nomme
+        celui qui manque. <code>databox-default-source</code> est sans effet avec <code>dsfr-data-chart</code>,
+        qui ne déclare au cadre qu'une source ; il est signalé de la même façon.
+      </p>
+      <p>
+        <strong>Brancher une action.</strong> <code>databox-actions='["Source officielle","Méthode"]'</code>
+        ajoute deux entrées au menu. Une entrée n'a <strong>aucun comportement</strong> par elle-même : c'est un
+        bouton qui porte <code>data-action</code> — le libellé en minuscules, sans accents, tout autre caractère
+        remplacé par un tiret — et <code>data-id</code>, l'id du cadre (<code>databox-</code> suivi de l'id du
+        graphique). La page écoute le clic :
+      </p>
+      <pre><code>document.addEventListener('click', (e) =&gt; {
+  const bouton = e.target.closest('[data-action="source-officielle"]');
+  if (bouton &amp;&amp; bouton.dataset.id === 'databox-mon-graphique') {
+    window.open('https://exemple.fr/source', '_blank', 'noopener');
+  }
+});</code></pre>
+      <p>
+        Une valeur mal formée — JSON invalide, autre chose qu'un tableau, entrée qui n'est pas une chaîne non
+        vide — est une erreur de configuration (<code>data-dsfr-config-error</code> sur le composant, message
+        dans la console) : les entrées fautives sont écartées, les autres gardées, et le cadre reste affiché.
+      </p>
       <p>
         <strong>Vue tableau de la DataBox.</strong> Elle reprend ce que le graphique trace : une colonne
         par champ de valeur (<code>value-field</code>, <code>value-field-2</code>, <code>value-fields</code>),

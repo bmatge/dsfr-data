@@ -625,6 +625,12 @@ const RESERVES: Record<string, { titre: string; explication: string; action: str
     action:
       'Poser un order-by sur une colonne unique, ou charger le jeu en une requête avec fetch-mode="export"',
   },
+  'repeated-rows': {
+    titre: 'lignes revenues d’une page à l’autre',
+    explication:
+      "Le chargement s'étend sur plusieurs pages d'une API qui pagine sans tri, et des lignes sont revenues sur deux pages : son ordre a changé pendant le chargement. Autant d'autres lignes n'ont jamais été servies. Le nombre de lignes, lui, reste juste.",
+    action: 'Resserrer le where pour que le chargement tienne en une page, ou recharger la source',
+  },
   'in-values-dropped': {
     titre: 'valeur d’un filtre « in » écartée par le serveur',
     explication:

@@ -180,6 +180,10 @@ export interface FetchResult {
  *   page a l'autre, des lignes peuvent manquer ou revenir deux fois, a compte
  *   juste (API Opendatasoft, chargement de plus d'une page ou pagination
  *   serveur, quand la cle de departage est refusee ou ne peut pas s'ecrire) ;
+ * - `repeated-rows` (#1279) : CONSTATE, pas suppose — des lignes sont
+ *   revenues d'une page a l'autre d'un chargement que l'adapter ne peut pas
+ *   ordonner (API INSEE Melodi : aucun parametre de tri). Autant d'autres
+ *   manquent, a compte juste. Jamais posee sur un chargement d'une page ;
  * - `in-values-dropped` : une liste `in` / `notin` est partie au serveur avec
  *   une valeur qu'il ecarte en silence (PG-034, valeur a parenthese sur
  *   l'API Tabular, en pagination serveur, quand la liste entre guillemets
@@ -196,6 +200,7 @@ export interface FetchResult {
 export type FetchCaveat =
   | 'unstable-sort'
   | 'unstable-pagination'
+  | 'repeated-rows'
   | 'in-values-dropped'
   | 'in-quoted-refused'
   | 'aggregate-on-page';

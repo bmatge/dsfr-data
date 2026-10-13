@@ -348,14 +348,16 @@ function lireComposant(
         error: `${ici} : ce composant ne lit pas de <template>. Seuls ${BALISES_A_GABARIT.join(', ')} en lisent un.`,
       };
     }
+    // Avant le filtre, qui retire lui aussi ces elements depuis #1289 : le
+    // refus qui NOMME l'element est plus utile au modele que le refus general.
+    const bas = c.template.toLowerCase();
+    const brut = ELEMENTS_TEXTE_BRUT.find((e) => bas.includes(`<${e}`));
+    if (brut) return { error: `${ici} : gabarit refusé — élément <${brut}> non permis.` };
     if (nettoyerGabarit(c.template) !== c.template) {
       return {
         error: `${ici} : gabarit refusé — il contient du contenu actif (script, style, iframe, template imbriqué, attribut on*, lien javascript:, commentaire). Garde un HTML simple avec des {{champ}}.`,
       };
     }
-    const bas = c.template.toLowerCase();
-    const brut = ELEMENTS_TEXTE_BRUT.find((e) => bas.includes(`<${e}`));
-    if (brut) return { error: `${ici} : gabarit refusé — élément <${brut}> non permis.` };
     composant.template = c.template;
   }
 

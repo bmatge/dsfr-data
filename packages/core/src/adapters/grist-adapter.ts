@@ -6,7 +6,11 @@
  * **Mode Records** (GET /records) :
  *   - filter equality/IN via ?filter={"col":["v1","v2"]}
  *   - sort via ?sort=-col,col2
- *   - pagination via ?limit=N&offset=M
+ *   - `limit=N`, et RIEN d'autre pour paginer : `/records` ne connait pas
+ *     `offset` (#1279 — mesure le 2026-10-13 sur grist.numerique.gouv.fr :
+ *     `limit=5&offset=5` rend les memes cinq lignes que `limit=5` ; le source
+ *     de grist-core ne lit que `sort` et `limit`, `DocApiUtils.ts`). La page N
+ *     est donc demandee par `limit = N x taille` et decoupee ici.
  *   - Utilise pour les cas simples (datalist, affichage pagine)
  *
  * **Mode SQL** (POST /sql) :
@@ -15,6 +19,8 @@
  *   - Facettes via SELECT col, COUNT(*) ... GROUP BY col
  *   - Utilise quand group-by, aggregate ou operateurs avances sont demandes
  *   - Fallback gracieux en mode Records + client-side si endpoint SQL indisponible
+ *   - Pagination par `LIMIT` / `OFFSET`, toujours sur un ordre TOTAL (#1279) :
+ *     voir `_pageOrder`
  *
  * Le base-url passe en attribut doit déjà inclure le proxy si necessaire
  * (ex: https://<proxy-domain>/grist-gouv-proxy/api/docs/xxx/tables/yyy/records).
@@ -59,6 +65,14 @@ function buildFetchOptions(
   }
   return opts;
 }
+
+/**
+ * Identifiant de ligne d'une table Grist : colonne reservee, presente sur
+ * toute table, unique — triable par `/records` (`sort=…,id`, mesure le
+ * 2026-10-13 : `sort=-id&limit=3` rend 101, 100, 99) comme par `/sql`.
+ * C'est la cle de departage d'une pagination (#1279).
+ */
+const GRIST_ROW_ID = 'id';
 
 // ---------------------------------------------------------------------------
 // Types internes
@@ -164,15 +178,19 @@ export class GristAdapter implements ApiAdapter {
     if (!response.ok) throw httpError(response);
 
     const json = await response.json();
-    const data = this._flattenRecords(json.records || []);
-    const pageSize = params.pageSize || data.length;
+    // `/records` ne sait pas sauter de lignes (#1279) : la requete a demande
+    // les `page x taille` premieres, la page est leur derniere tranche.
+    const received = this._flattenRecords(json.records || []);
+    const pageSize = params.pageSize || received.length;
+    const start = overlay.page && params.pageSize ? (overlay.page - 1) * pageSize : 0;
+    const data = start > 0 ? received.slice(start) : received;
     const isLastPage = data.length < pageSize;
 
     return {
       data,
       // Total inconnu hors derniere page : undefined, jamais -1 (#270).
       // L'aval propose "page suivante" tant que la page courante est pleine.
-      totalCount: isLastPage ? ((overlay.page || 1) - 1) * pageSize + data.length : undefined,
+      totalCount: isLastPage ? received.length : undefined,
       needsClientProcessing: false,
     };
   }
@@ -217,16 +235,24 @@ export class GristAdapter implements ApiAdapter {
       }
     }
 
-    // Sort
+    const paged = !!(overlay.page && params.pageSize);
+
+    // Sort. Pagine, le tri demande est complete par `id`, l'identifiant de
+    // ligne que porte toute table Grist : l'ordre est TOTAL, le meme d'une
+    // page a l'autre et le meme que celui du mode SQL (`_pageOrder`).
     const sort = overlay.orderBy || params.orderBy;
     if (sort) {
-      url.searchParams.set('sort', this._orderByToGristSort(sort));
+      const keys = this._orderByToGristSort(sort);
+      const total = paged && !parseOrderBy(sort).some((p) => p.field === GRIST_ROW_ID);
+      url.searchParams.set('sort', total ? `${keys},${GRIST_ROW_ID}` : keys);
     }
 
-    // Pagination
-    if (overlay.page && params.pageSize) {
-      url.searchParams.set('limit', String(params.pageSize));
-      url.searchParams.set('offset', String((overlay.page - 1) * params.pageSize));
+    // Pagination : `/records` ne connait que `limit` — `offset` y est ignore
+    // sans erreur, et chaque page rendait les lignes de la premiere (#1279).
+    // La page N part donc en `limit = N x taille` ; `fetchPage` n'en garde
+    // que la derniere tranche.
+    if (paged) {
+      url.searchParams.set('limit', String(overlay.page * params.pageSize));
     }
 
     return url.toString();
@@ -276,13 +302,19 @@ export class GristAdapter implements ApiAdapter {
         }
 
         const json = await response.json();
-        const rows: unknown[][] = json.records || [];
+        // Lignes lues par NOM de colonne (#1279) : l'API rend des objets
+        // `{ fields }`, pas des tableaux — voir `_sqlResultToObjects`.
+        // L'ancienne forme positionnelle (`[valeur, compte]`) reste lue.
+        const records: unknown[] = json.records || [];
+        const rows = Array.isArray(records[0])
+          ? (records as unknown[][]).map((row) => ({ [field]: row[0], cnt: row[1] }))
+          : this._sqlResultToObjects({ records });
         results.push({
           field,
           values: rows
             .map((row) => ({
-              value: String(row[0] ?? ''),
-              count: Number(row[1]) || 0,
+              value: String(row[field] ?? ''),
+              count: Number(row.cnt) || 0,
             }))
             .filter((v) => v.value !== ''),
         });
@@ -321,8 +353,10 @@ export class GristAdapter implements ApiAdapter {
    * (« école » ne trouve pas « École »), `%` et `_` de la valeur sont des
    * jokers, et `NOT LIKE` écarte les valeurs absentes que le client garde.
    * Les deux restent donc au client, comme `wordstart`, qui n'a pas
-   * d'équivalent SQL. (Sémantique documentée de SQLite, moteur de l'endpoint
-   * `/sql` de Grist ; non mesurée sur une instance.)
+   * d'équivalent SQL. Mesuré le 2026-10-13 sur l'endpoint `/sql` d'un document
+   * public de grist.numerique.gouv.fr : `LIKE '%è%'` -> 8 lignes, `'%È%'` -> 0 ;
+   * `'%A_n%'` -> 11 (joker) ; `NOT LIKE` sur 12 valeurs nulles -> 89 sur 101.
+   * Détail dans `serverComputesClause` (`@dsfr-data/shared`).
    */
   supportsServerClause(clause: string): boolean {
     // Table de vérité partagée avec les exports (`@dsfr-data/shared`).
@@ -573,9 +607,20 @@ export class GristAdapter implements ApiAdapter {
     const json = await response.json();
     const data = this._sqlResultToObjects(json);
 
+    // Une PAGE (#1279) : son nombre de lignes n'est pas le total. Comme en
+    // mode Records, le total n'est connu qu'a la derniere page (#270) — le
+    // dire egal a la taille de page cachait toutes les pages suivantes.
+    const page = overlay?.page && params.pageSize ? overlay.page : 0;
+    const totalCount =
+      page === 0
+        ? data.length
+        : data.length < params.pageSize
+          ? (page - 1) * params.pageSize + data.length
+          : undefined;
+
     return {
       data,
-      totalCount: data.length,
+      totalCount,
       needsClientProcessing: false,
     };
   }
@@ -609,7 +654,6 @@ export class GristAdapter implements ApiAdapter {
     let select = '*';
     let groupBy = '';
     let where = '';
-    let orderBy = '';
     let limit = '';
     let offset = '';
 
@@ -649,13 +693,21 @@ export class GristAdapter implements ApiAdapter {
       where = this._colonWhereToSql(mergedWhere, args);
     }
 
-    // ORDER BY
+    // ORDER BY — complete en ordre TOTAL des que la requete pagine (#1279)
     const sort = overlay?.orderBy || params.orderBy;
-    if (sort) {
-      orderBy = parseOrderBy(sort)
-        .map((p) => `${this._escapeIdentifier(p.field)} ${p.direction.toUpperCase()}`)
-        .join(', ');
-    }
+    const sortParts = sort ? parseOrderBy(sort) : [];
+    const paged = !!(overlay?.page && params.pageSize);
+    const orderBy = [
+      ...sortParts.map((p) => ({ field: p.field, direction: p.direction.toUpperCase() })),
+      ...(paged
+        ? this._pageOrder(
+            params,
+            sortParts.map((p) => p.field)
+          )
+        : []),
+    ]
+      .map((p) => `${this._escapeIdentifier(p.field)} ${p.direction}`)
+      .join(', ');
 
     // LIMIT / OFFSET
     if (overlay?.page && params.pageSize) {
@@ -668,6 +720,34 @@ export class GristAdapter implements ApiAdapter {
     }
 
     return { select, groupBy, where, orderBy, limit, offset, args };
+  }
+
+  /**
+   * Cles de DEPARTAGE d'une requete SQL paginee (#1279), a poser apres le tri
+   * demande : `LIMIT` / `OFFSET` ne rend chaque ligne une fois que si l'ordre
+   * est total d'une page a l'autre, et SQLite ne promet rien de l'ordre des
+   * lignes que l'`ORDER BY` ne departage pas — encore moins sans `ORDER BY`.
+   *
+   * - lignes brutes : `id`, l'identifiant de ligne de toute table Grist
+   *   (cle primaire : le tri ne coute rien) ;
+   * - groupes : les colonnes du `group-by` que le tri ne nomme pas — a elles
+   *   toutes, elles identifient un groupe.
+   *
+   * Rien si le tri demande nomme deja ces colonnes.
+   */
+  private _pageOrder(
+    params: AdapterParams,
+    sorted: string[]
+  ): Array<{ field: string; direction: 'ASC' }> {
+    const keys = params.groupBy
+      ? params.groupBy
+          .split(',')
+          .map((f) => f.trim())
+          .filter(Boolean)
+      : [GRIST_ROW_ID];
+    return keys
+      .filter((key, i) => keys.indexOf(key) === i && !sorted.includes(key))
+      .map((field) => ({ field, direction: 'ASC' as const }));
   }
 
   // =========================================================================
@@ -775,21 +855,32 @@ export class GristAdapter implements ApiAdapter {
   // =========================================================================
 
   /**
-   * Convertit le format reponse SQL Grist en tableau d'objets.
-   * Input:  { records: [[v1, v2], [v3, v4]], columns: ["col1", "col2"] }
-   * Output: [{ col1: v1, col2: v2 }, { col1: v3, col2: v4 }]
+   * Convertit la reponse de l'endpoint SQL en tableau d'objets.
+   *
+   * La forme que sert Grist (#1279, mesuree le 2026-10-13 en GET et en POST
+   * sur grist.numerique.gouv.fr, et decrite par la documentation de l'API) :
+   *   { statement, records: [{ fields: { col1: v1, col2: v2 } }, …] }
+   * — la meme enveloppe que `/records`, sans `id` de premier niveau.
+   *
+   * L'adaptateur ne lisait que `{ records: [[v1, v2]], columns: [...] }`, une
+   * forme que l'API ne rend pas : chaque ligne devenait un objet VIDE. Elle
+   * reste lue, pour une instance ou un intermediaire qui la servirait.
    */
   _sqlResultToObjects(json: {
-    records?: unknown[][];
+    records?: unknown[];
     columns?: string[];
   }): Record<string, unknown>[] {
     const { records = [], columns = [] } = json;
     return records.map((row) => {
-      const obj: Record<string, unknown> = {};
-      columns.forEach((col, i) => {
-        obj[col] = row[i];
-      });
-      return obj;
+      if (Array.isArray(row)) {
+        const obj: Record<string, unknown> = {};
+        columns.forEach((col, i) => {
+          obj[col] = row[i];
+        });
+        return obj;
+      }
+      const fields = (row as { fields?: unknown } | null)?.fields;
+      return fields && typeof fields === 'object' ? { ...(fields as Record<string, unknown>) } : {};
     });
   }
 

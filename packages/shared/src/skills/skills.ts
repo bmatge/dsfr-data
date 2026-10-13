@@ -64,7 +64,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | params | String | \`""\` | non | Parametres de requete en JSON. Mode URL : query string (GET) ou corps (POST). Mode adaptateur (#726) : les paires sont ajoutees a l'URL construite par l'adaptateur — c'est ce qui permet a une page a \`timezone\` d'utiliser \`fetch-mode="export"\`, ex. \`params='{"timezone":"Europe/Paris"}'\` sur un jeu ODS a dates. Les cles que l'adaptateur construit lui-meme sont reservees, chacun declarant les siennes (#1137 — ODS : \`select\`, \`where\`, \`group_by\`, \`order_by\`, \`limit\`, \`offset\`, \`facet\` ; Tabular : \`page\`, \`page_size\`, \`columns\`, \`or\`, \`champ__sort\`…) : refusees avec une erreur de configuration. Transmis par OpenDataSoft seulement. |
 | transform | String | \`""\` | non | Chemin JSONPath vers les données : \`"results"\`, \`"data.items"\`, \`"records"\` |
 | refresh | Number | \`0\` | non | Rafraichissement auto en secondes (0 = desactive) |
-| paginate | Boolean | \`false\` | non | Active la pagination serveur (injecte page/page_size dans l'URL, stocke la meta) |
+| paginate | Boolean | \`false\` | non | Active la pagination serveur (injecte page/page_size dans l'URL, stocke la meta). L'ordre des lignes est celui de l'API : la source ne peut rien en garantir — poser dans l'URL (ou \`params\`) le tri de l'API sur une colonne UNIQUE, sinon une ligne peut revenir sur deux pages et une autre n'etre jamais servie (#1279) |
 | page-size | Number | \`20\` | non | Taille de page pour la pagination serveur (nombre de records par page) |
 | cache-ttl | Number | \`3600\` | non | TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre window.DSFR_DATA_CACHE_PROVIDER (#307) — no-op en embed anonyme. Repli hors ligne cote navigateur : AUCUN rapport avec le relais (\`relay-url\`), dont la duree de cache se regle sur le relais. |
 | api-type | String | \`"generic"\` | non | Type de provider (opendatasoft, tabular, grist, insee, generic, ou un adaptateur ajoute par \`registerAdapter\`). Active le mode adapter. |
@@ -169,6 +169,16 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > page part sur cet ordre ; sur un jeu de plus d'un million de lignes sans \`where\`, la premiere page peut prendre
 > quelques secondes. Si l'API refuse ce tri : la source charge comme avant, et le volet Diagnostic signale une
 > pagination sans ordre garanti.
+> Grist en \`server-side\` (#1279) : l'API \`/records\` ne sait pas sauter de lignes (\`offset\` y est ignore sans
+> erreur). La source demande donc la page N par \`limit = N x page-size\` et n'en garde que la derniere tranche :
+> chaque page est juste, et la page N coute N pages de transfert — garder un \`page-size\` raisonnable, ou retirer
+> \`server-side\` (Grist rend toute la table en une requete). Un \`order-by\` pagine est complete par l'identifiant
+> de ligne (\`id\`) : les ex-aequo ne changent pas de page. Avec un \`where\` a operateur avance, un \`group-by\` ou
+> un \`aggregate\`, la requete passe par l'endpoint SQL, pagine par LIMIT / OFFSET sur le meme ordre total.
+> INSEE Melodi, plus de 1 000 observations (#1279) : l'API pagine par numero de page et n'offre AUCUN tri. L'ordre
+> mesure est stable, rien ne le garantit, et la source ne peut pas l'imposer. Elle verifie donc apres coup qu'aucune
+> observation n'est revenue d'une page a l'autre ; si c'est le cas, le volet Diagnostic affiche « lignes revenues
+> d'une page a l'autre » — resserrer alors le \`where\` pour tenir en une page, ou recharger.
 > Tabular, \`where\` avec \`in\`/\`notin\` et une valeur a parenthese ou a virgule (#1233) : la clause part au serveur,
 > la valeur ENTRE GUILLEMETS (nue, l'API l'ecarterait sans erreur) — une requete filtree, sur la source comme sur une
 > dsfr-data-query, en chargement complet comme en \`server-side\`. Si l'API refuse cette forme : en chargement complet
@@ -1742,8 +1752,8 @@ ce tableau en format DSFR Chart (tableaux imbriques x/y).
 | empty-label | String | \`"Non renseigné"\` | non | Libellé d'une catégorie vide (\`null\`, \`undefined\` ou \`""\` dans label-field) : légende du pie, axe X. Évite le « Série N » de DSFR Chart sur un nom vide. Ex: \`empty-label="Sans objet"\` |
 | selected-palette | String | \`"categorical"\` | non | Palette : categorical, sequentialAscending, sequentialDescending, divergentAscending, divergentDescending, neutral, default |
 | color-map | String | \`""\` | non | Couleur fixee par modalite : paires \`modalite:#couleur\` separees par virgule, meme grammaire que dsfr-data-map-layer. Ex: \`"Realise:#000091,Objectif:#E1000F"\`. La modalite est un nom de serie, sinon un libelle de l'axe (part de camembert, barre, ou point d'une courbe, d'un radar, d'un nuage : le trait garde la couleur de sa serie). Virgule ou deux-points dans une modalite : \`%2C\` / \`%3A\`. Sans effet sur les types map* |
-| unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. |
-| unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line |
+| unit-tooltip | String | \`""\` | non | Unite dans les info-bulles : %, EUR, etc. Rendue comme du HTML simple (\`m<sup>2</sup>\`) ; script, attribut on*, URL javascript: retires. Jamais une valeur lue dans les donnees sans l'echapper |
+| unit-tooltip-bar | String | \`""\` | non | Unite des barres dans un bar-line (meme regle que unit-tooltip) |
 | horizontal | Boolean | \`false\` | non | Barres horizontales (type bar uniquement) |
 | stacked | Boolean | \`false\` | non | Barres empilees (type bar uniquement) |
 | fill | Boolean | \`false\` | non | Camembert plein au lieu d'anneau (type pie) |
@@ -1897,14 +1907,30 @@ ce que l'axe affiche (\`empty-label\` compris) et son en-tête l'alias de \`labe
 | databox-date-field | String | \`""\` | Colonne de dates ISO (AAAA-MM-JJ) : la plus récente est affichée comme date, formatée JJ/MM/AAAA (ex: \`databox-date-field="gazole_maj"\`) |
 | databox-download | Boolean | \`false\` | Bouton téléchargement CSV |
 | databox-screenshot | Boolean | \`false\` | Bouton screenshot PNG |
-| databox-fullscreen | Boolean | \`false\` | Bouton plein écran |
+| databox-fullscreen | Boolean | \`false\` | Bouton qui ouvre la fenêtre d'information. N'apparaît qu'AVEC databox-modal-title : seul, il ne rend rien (avertissement console). Le graphique n'est pas agrandi |
 | databox-trend | String | \`""\` | Tendance (ex: "+5.2" ou "-3.1") |
-| databox-tooltip-title | String | \`""\` | Titre du tooltip info |
-| databox-tooltip-content | String | \`""\` | Contenu du tooltip info |
-| databox-modal-title | String | \`""\` | Titre de la modale |
-| databox-modal-content | String | \`""\` | Contenu de la modale |
-| databox-default-source | String | \`""\` | Source par défaut (selecteur multi-source) |
-| databox-actions | String | \`""\` | Actions personnalisees (JSON array) |
+| databox-tooltip-title | String | \`""\` | Titre du tooltip info (texte) |
+| databox-tooltip-content | String | \`""\` | Contenu du tooltip info (texte, aucune balise) |
+| databox-modal-title | String | \`""\` | Titre de la fenêtre d'information (texte). Exige databox-fullscreen : sans lui, aucune fenêtre |
+| databox-modal-content | String | \`""\` | Contenu de la fenêtre, en HTML SIMPLE : p, strong, em, a, ul/li, table, img. Script, iframe, style, attribut on*, URL javascript: et data: sont retirés avant affichage |
+| databox-default-source | String | \`""\` | SANS EFFET avec dsfr-data-chart (une seule source, aucun sélecteur) : ne pas l'écrire |
+| databox-actions | String | \`""\` | Entrées ajoutées au menu « Plus d'actions » : tableau JSON de libellés, ex. \`'["Source officielle","Méthode"]'\`. Une entrée n'a AUCUN comportement : la page la branche par \`data-action\` |
+
+Trois règles du cadre (#1289) :
+
+- **Le menu « Plus d'actions », l'infobulle et la fenêtre ne s'ouvrent qu'avec le JavaScript du DSFR**
+  (\`dsfr.module.min.js\`, chargé par la page). Sans lui, le téléchargement CSV et la capture du cadre sont
+  hors d'atteinte ; le composant le dit dans la console. Le basculement graphique / tableau, lui, marche sans.
+- **Une action de \`databox-actions\` est un bouton sans comportement.** Il porte \`data-action\` (le libellé
+  en minuscules, sans accents, tout autre caractère en tiret : « Source officielle » → \`source-officielle\`)
+  et \`data-id\` (l'id du cadre). La page écoute le clic :
+  \`document.addEventListener('click', (e) => { if (e.target.closest('[data-action="source-officielle"]')) … })\`.
+  Une valeur mal formée (JSON invalide, pas un tableau, entrée qui n'est pas une chaîne) est une erreur de
+  configuration (\`data-dsfr-config-error\`) : les entrées fautives sont écartées, le cadre reste affiché.
+- **Deux attributs reçoivent du HTML**, \`databox-modal-content\` et \`unit-tooltip\` (\`unit-tooltip-bar\`) ;
+  tous les autres (titre, source, date, tendance, infobulle, noms de séries, libellés) sont rendus comme du
+  texte. Le HTML est nettoyé — le contenu actif est retiré — mais une valeur lue dans les DONNÉES s'échappe
+  quand même avant d'y être écrite.
 
 Quand \`databox\` est active, dsfr-data-a11y ne doit PAS inclure \`table\` ni \`download\`
 (DataBox les fournit déjà). Conserver uniquement \`description\` sur dsfr-data-a11y.
@@ -3979,10 +4005,15 @@ déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730,
   un chiffre.
 - **Compte juste, lignes fausses** (pagination par décalage, #1274, #1233) : un jeu de plus d'une
   page dont un sous-total, un cumul ou un historique varie d'un chargement à l'autre alors que
-  le total reste bon. La source le corrige seule sur OpenDataSoft et Tabular (ordre total) ;
+  le total reste bon. La source le corrige seule sur OpenDataSoft, Tabular et Grist (ordre total) ;
   si le volet Diagnostic affiche « pagination sans ordre garanti » ou « tri serveur instable »,
   l'API a refusé la clé de départage : poser un \`order-by\` sur une colonne unique, ou charger
-  en une requête (\`fetch-mode="export"\`).
+  en une requête (\`fetch-mode="export"\`). Sur INSEE Melodi, qui n'a pas de tri, la source ne
+  peut que le constater : « lignes revenues d'une page à l'autre » (#1279) — resserrer le
+  \`where\`. En mode URL \`paginate\`, rien ne le détecte : le tri total est à écrire dans l'URL.
+- **Tableau Grist paginé qui montre toujours les mêmes lignes** (#1279) :
+  \`api-type="grist"\` avec \`server-side\` affichait la première page à toutes les pages —
+  l'API ignore \`offset\`. Corrigé ; sur une instance servie en retard, retirer \`server-side\`.
 - **Instance servie en retard** : un attribut inconnu de la version CHARGÉE est signalé (#727),
   mais une instance publique peut servir une version antérieure — \`curl …/dist/skills-meta.json\`
   donne sa \`libVersion\`.

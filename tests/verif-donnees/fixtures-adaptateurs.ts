@@ -30,6 +30,7 @@ import type { Row } from '../../tools/oracle/manifest.js';
 import territoires from './jeux/territoires.json' with { type: 'json' };
 import tabularLong from './jeux/adaptateurs-tabular-long.json' with { type: 'json' };
 import melodi from './jeux/adaptateurs-melodi.json' with { type: 'json' };
+import melodiLong from './jeux/adaptateurs-melodi-long.json' with { type: 'json' };
 import grist from './jeux/adaptateurs-grist.json' with { type: 'json' };
 import jsonLignes from './jeux/adaptateurs-json.json' with { type: 'json' };
 
@@ -225,6 +226,47 @@ export function repondreMelodiData(url: URL): Record<string, unknown> {
 }
 
 // ---------------------------------------------------------------------------
+// INSEE Melodi — plus d'une page, sans tri possible (#1279)
+// ---------------------------------------------------------------------------
+
+/**
+ * 1 200 observations : deux pages de 1 000 côté adaptateur. Melodi pagine par
+ * numéro de page et n'offre aucun paramètre de tri (mesuré le 2026-10-13 :
+ * `sort=` et `order_by=` → 400, `orderBy=` accepté et sans effet). L'ordre
+ * mesuré est stable ; rien ne le garantit.
+ *
+ * Deux jeux servent les MÊMES lignes :
+ *   - `DS_VERIF_LONG` : l'ordre tient d'une page à l'autre, comme mesuré ;
+ *   - `DS_VERIF_GLISSE` : l'ordre GLISSE de sept observations entre la
+ *     première page et les suivantes — ce que ferait une API dont l'ordre
+ *     bouge pendant le chargement. Sept observations reviennent, sept ne sont
+ *     jamais servies, et `paging.count` reste juste : 1 200.
+ */
+export const DATASET_INSEE_LONG = 'DS_VERIF_LONG';
+export const DATASET_INSEE_GLISSE = 'DS_VERIF_GLISSE';
+export const MELODI_LONG: Row[] = melodiLong;
+const MELODI_GLISSEMENT = 7;
+
+/** `GET {base}/data/{id}` des deux jeux longs. Aucune dimension n'y est traduite. */
+function repondreMelodiLong(url: URL, glissement: number): Record<string, unknown> {
+  const taille = Number(url.searchParams.get('maxResult') ?? '1000');
+  const page = Number(url.searchParams.get('page') ?? '1');
+  const debut = Math.max(0, (page - 1) * taille - (page > 1 ? glissement : 0));
+  const n = Math.max(0, Math.min(taille, MELODI_LONG.length - (page - 1) * taille));
+  return {
+    paging: {
+      count: MELODI_LONG.length,
+      page,
+      isLast: page * taille >= MELODI_LONG.length,
+    },
+    observations: MELODI_LONG.slice(debut, debut + n).map((ligne) => ({
+      dimensions: { ZONE: ligne.ZONE, TIME_PERIOD: ligne.TIME_PERIOD },
+      measures: { OBS_VALUE_NIVEAU: { value: ligne.OBS_VALUE } },
+    })),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Grist — des champs IMBRIQUÉS sous `fields`
 // ---------------------------------------------------------------------------
 
@@ -384,6 +426,15 @@ export function repondreAdaptateurs(url: URL): unknown | null {
 
   if (url.href.startsWith(`${HOTE_INSEE}/data/${DATASET_INSEE}`)) return repondreMelodiData(url);
   if (url.href.startsWith(`${HOTE_INSEE}/range/${DATASET_INSEE}`)) return repondreMelodiRange();
+  // Les deux jeux longs (#1279) : aucune modalité à traduire
+  for (const [jeu, glissement] of [
+    [DATASET_INSEE_LONG, 0],
+    [DATASET_INSEE_GLISSE, MELODI_GLISSEMENT],
+  ] as const) {
+    if (url.href.startsWith(`${HOTE_INSEE}/data/${jeu}`))
+      return repondreMelodiLong(url, glissement);
+    if (url.href.startsWith(`${HOTE_INSEE}/range/${jeu}`)) return { code: jeu, range: [] };
+  }
 
   if (url.origin === HOTE_GRIST) {
     if (url.pathname === `/api/docs/${GRIST_DOC}/tables/${GRIST_TABLE}/records`) {

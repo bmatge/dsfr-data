@@ -18,10 +18,14 @@
  * ou sur une PR étiquetée `oracle` — jamais en bloquant
  * (`.github/workflows/oracle.yml`).
  *
- * Grist n'y figure pas : l'API demande un document et un jeton, il n'existe
- * pas d'instance publique en lecture anonyme sur laquelle un contrôle
- * reproductible puisse s'appuyer. Le chemin Grist reste couvert en
- * déterministe (`adaptateurs.ts`, `grist-champs-imbriques`).
+ * Grist y figure depuis #1279, par un document PUBLIC de
+ * grist.numerique.gouv.fr que le guide du dépôt cite déjà
+ * (`guide/examples/exemple-masa-v2.html`, résultats d'un scrutin par
+ * département) : lecture anonyme, sans jeton, en-têtes CORS ouverts. C'est
+ * sur lui qu'ont été mesurés les deux défauts que ces contrôles gardent —
+ * `/records` ignore `offset`, `/sql` rend des lignes `{ fields }`. Si le
+ * document venait à être retiré ou fermé, les contrôles se requalifient
+ * (`skip`, avec la raison) : ils ne disent rien de la bibliothèque.
  */
 import type { Check, Manifest } from '../../tools/oracle/manifest.js';
 
@@ -113,6 +117,30 @@ const MELODI_PERIODE = '2026-06-21';
 const MELODI_URL =
   `https://api.insee.fr/melodi/data/${MELODI_DATASET}` +
   `?maxResult=1000&totalCount=TRUE&GEO=${MELODI_GEO}&TIME_PERIOD=${MELODI_PERIODE}`;
+
+/**
+ * INSEE Melodi — décès MENSUELS de trois départements : 1 678 observations au
+ * 2026-10-13, donc deux pages de 1 000 côté adaptateur (#1279). L'API n'offre
+ * aucun tri ; l'oracle relève les mêmes observations en UNE requête
+ * (`maxResult=5000`), que la pagination ne touche pas, et ne garde que leurs
+ * dimensions (`rowPath`).
+ */
+const MELODI_LONG_FILTRE = 'GEO=2025-DEP-01&GEO=2025-DEP-02&GEO=2025-DEP-03&FREQ=M';
+const MELODI_LONG_URL =
+  `https://api.insee.fr/melodi/data/${MELODI_DATASET}` +
+  `?maxResult=5000&totalCount=TRUE&${MELODI_LONG_FILTRE}`;
+
+/**
+ * Grist — document public de grist.numerique.gouv.fr, table `Scrutin_c1` :
+ * une ligne par département (101 au 2026-10-13), `code_dept` unique, `region`
+ * sur treize valeurs. L'oracle lit la table entière par `/records`, en une
+ * requête, et descend dans `fields`.
+ */
+const GRIST_DOC = 'https://grist.numerique.gouv.fr/api/docs/pU5HXX7VJC6jdgU6oBJRxn';
+const GRIST_RECORDS = `${GRIST_DOC}/tables/Scrutin_c1/records`;
+const GRIST_SOURCE = { url: GRIST_RECORDS, rowsPath: 'records', rowPath: 'fields' };
+const GRIST_PAGE = 20;
+const GRIST_COLONNES = [{ column: 'code_dept' }, { column: 'nom_dept' }];
 
 /**
  * Opendatasoft — taux de change de chancellerie (DGFiP), Haïti, monnaies en
@@ -717,6 +745,157 @@ const CHECKS: Check[] = [
       // une mesure, la page compte les lignes dont `OBS_VALUE` est renseignee.
       // Les deux comptes ne coincident que si l'aplatissement n'en perd aucune.
       { kind: 'kpi', id: 'k-melodi-obs', agg: 'count', field: 'measures' },
+    ],
+  },
+
+  {
+    id: 'insee-melodi-deux-pages-vivant',
+    mode: 'live',
+    origin:
+      "INSEE Melodi — #1279, contre la vraie API. Au-delà de 1 000 observations l'adaptateur pagine par numéro de page, et Melodi n'offre aucun paramètre de tri : rien ne garantit qu'une observation ne revienne pas sur deux pages. Mesuré stable le 2026-10-13 (1 678 distinctes sur 1 678, cinq passages, pages de 1 000 et de 200) — ce contrôle le remesure chaque nuit. L'oracle lit les mêmes observations en une seule requête. Trois chiffres que seul l'ENSEMBLE exact des observations rend juste : le compte, le nombre de mois distincts, et le compte d'un mois ; et le silence de la bibliothèque, qui dirait une observation revenue d'une page à l'autre.",
+    feed: {
+      kind: 'raw',
+      source: { url: MELODI_LONG_URL, rowsPath: 'observations', rowPath: 'dimensions' },
+    },
+    markup: `
+  <dsfr-data-source id="s-melodi-long" api-type="insee" dataset-id="${MELODI_DATASET}"
+    where="GEO:in:2025-DEP-01|2025-DEP-02|2025-DEP-03, FREQ:eq:M"></dsfr-data-source>
+  <dsfr-data-kpi id="k-melodi-long-n" source="s-melodi-long" value="count" format="nombre" label="Observations"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-melodi-long-mois" source="s-melodi-long" value="TIME_PERIOD:distinct" format="nombre" label="Mois"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-melodi-long-janvier" source="s-melodi-long" value="count{TIME_PERIOD:eq:2024-01}" format="nombre" label="Janvier 2024"></dsfr-data-kpi>`,
+    expects: [
+      { kind: 'kpi', id: 'k-melodi-long-n', agg: 'count' },
+      { kind: 'kpi', id: 'k-melodi-long-mois', agg: 'distinct', field: 'TIME_PERIOD' },
+      {
+        kind: 'kpi',
+        id: 'k-melodi-long-janvier',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'TIME_PERIOD', op: 'eq', value: '2024-01' }] },
+        ],
+      },
+      {
+        // Deux pages, la seconde demandée par son numéro
+        kind: 'urls',
+        id: 'melodi-deuxieme-page',
+        among: `/melodi/data/${MELODI_DATASET}`,
+        contains: 'page=2',
+        verdict: 'last',
+      },
+      { kind: 'diagnostic', id: 's-melodi-long', expect: 'silence', contains: 'sont revenues' },
+    ],
+  },
+
+  {
+    id: 'grist-pagination-serveur-vivant',
+    mode: 'live',
+    origin:
+      "Grist (grist.numerique.gouv.fr, document public) — #1279, contre la vraie API. `/records` ne connaît pas `offset` : `limit=5&offset=5` rend les lignes 1 à 5 (mesuré le 2026-10-13). Un tableau `server-side` montrait la première page à toutes les pages. Deux tableaux, pages de 20, lus à la page DEUX : sans tri (lignes 21 à 40 de la table), et trié sur `region`, clé non unique, complété par l'identifiant de ligne — que `code_dept`, croissant avec lui dans cette table, dit ici.",
+    feed: { kind: 'raw', source: GRIST_SOURCE },
+    markup: `
+  <dsfr-data-source id="s-grist-vivant" api-type="grist" base-url="${GRIST_RECORDS}"
+    server-side page-size="${GRIST_PAGE}"></dsfr-data-source>
+  <dsfr-data-list id="l-grist-vivant" source="s-grist-vivant"
+    columns="code_dept:Code, nom_dept:Département" server-sort></dsfr-data-list>
+  <dsfr-data-source id="s-grist-vivant-trie" api-type="grist" base-url="${GRIST_RECORDS}"
+    order-by="region:asc" server-side page-size="${GRIST_PAGE}"></dsfr-data-source>
+  <dsfr-data-list id="l-grist-vivant-trie" source="s-grist-vivant-trie"
+    columns="code_dept:Code, nom_dept:Département" server-sort></dsfr-data-list>`,
+    actions: [
+      { kind: 'click', selector: '#l-grist-vivant .fr-pagination__link--next' },
+      { kind: 'click', selector: '#l-grist-vivant-trie .fr-pagination__link--next' },
+    ],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-grist-vivant',
+        columns: GRIST_COLONNES,
+        pipeline: [{ op: 'page', size: GRIST_PAGE, number: 2 }],
+      },
+      {
+        kind: 'list',
+        id: 'l-grist-vivant-trie',
+        columns: GRIST_COLONNES,
+        pipeline: [
+          {
+            op: 'order-by-keys',
+            keys: [
+              { column: 'region', dir: 'asc' },
+              { column: 'code_dept', dir: 'asc' },
+            ],
+          },
+          { op: 'page', size: GRIST_PAGE, number: 2 },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'grist-aucun-offset',
+        among: '/tables/Scrutin_c1/records',
+        contains: 'offset=',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'grist-sql-reponse-et-pagination-vivant',
+    mode: 'live',
+    origin:
+      "Grist (grist.numerique.gouv.fr, document public) — #1279, contre la vraie API. L'endpoint SQL rend `{ records: [{ fields }] }` ; l'adaptateur lisait des lignes en tableaux, et chaque ligne d'un regroupement délégué ou d'une page filtrée devenait un objet vide (mesuré le 2026-10-13, GET et POST). Deux lectures par SQL : un regroupement délégué (inscrits et départements par région, triés sur les inscrits), et un tableau filtré par un opérateur que `/records` ne connaît pas (`nb_sieges:gte:0`, qui garde toutes les lignes), trié sur `nb_sieges`, clé non unique, paginé par `LIMIT` / `OFFSET` sur un ordre total et lu à la page DEUX. Les tris portent sur des NOMBRES : SQLite range les textes par code de caractère (« CVdL » avant « Corse »), ce qui n'est pas l'ordre de l'oracle et ne dit rien de la pagination.",
+    feed: { kind: 'raw', source: GRIST_SOURCE },
+    markup: `
+  <dsfr-data-source id="s-grist-groupe-vivant" api-type="grist" base-url="${GRIST_RECORDS}"></dsfr-data-source>
+  <dsfr-data-query id="q-grist-groupe-vivant" source="s-grist-groupe-vivant" group-by="region"
+    aggregate="nb_inscrits:sum:inscrits, code_dept:count:departements" order-by="inscrits:desc"></dsfr-data-query>
+  <dsfr-data-list id="l-grist-groupe-vivant" source="q-grist-groupe-vivant"
+    columns="region:Région, inscrits:Inscrits, departements:Départements"></dsfr-data-list>
+  <dsfr-data-source id="s-grist-sql-vivant" api-type="grist" base-url="${GRIST_RECORDS}"
+    where="nb_sieges:gte:0" order-by="nb_sieges:desc" server-side page-size="${GRIST_PAGE}"></dsfr-data-source>
+  <dsfr-data-list id="l-grist-sql-vivant" source="s-grist-sql-vivant"
+    columns="code_dept:Code, nom_dept:Département" server-sort></dsfr-data-list>`,
+    actions: [{ kind: 'click', selector: '#l-grist-sql-vivant .fr-pagination__link--next' }],
+    expects: [
+      {
+        kind: 'rows',
+        id: 'q-grist-groupe-vivant',
+        key: 'region',
+        columns: ['inscrits', 'departements'],
+        pipeline: [
+          {
+            op: 'group-by',
+            by: 'region',
+            columns: {
+              inscrits: { agg: 'sum', field: 'nb_inscrits' },
+              departements: { agg: 'count', field: 'code_dept' },
+            },
+          },
+          { op: 'order-by', column: 'inscrits', dir: 'desc' },
+        ],
+      },
+      {
+        kind: 'list',
+        id: 'l-grist-sql-vivant',
+        columns: GRIST_COLONNES,
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'nb_sieges', op: 'gte', value: 0 }] },
+          {
+            // L'identifiant de ligne départage : `code_dept` croît avec lui
+            op: 'order-by-keys',
+            keys: [
+              { column: 'nb_sieges', dir: 'desc' },
+              { column: 'code_dept', dir: 'asc' },
+            ],
+          },
+          { op: 'page', size: GRIST_PAGE, number: 2 },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'grist-par-sql',
+        among: 'pU5HXX7VJC6jdgU6oBJRxn/sql',
+        contains: '/sql',
+        verdict: 'last',
+      },
     ],
   },
 ];
