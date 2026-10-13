@@ -612,3 +612,50 @@ describe('ADR-159 lot 3 — dsfr-data-source calcule la recherche que son API ne
     expect(query._hasFilter()).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Facettes serveur : une recherche que la source calcule leur échappe
+// ---------------------------------------------------------------------------
+
+describe('ADR-159 lot 3 — server-facets à côté d’une recherche calculée dans le navigateur', () => {
+  it('erreur de configuration qui nomme la recherche ; levée quand elle disparaît', async () => {
+    await import('@/components/dsfr-data-facets.js');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    let searches: ContextSearch[] = [{ term: 'cote', fields: ['nom'], operator: 'contains' }];
+    const fetchFacets = vi.fn(async (_p: unknown, fields: string[]) =>
+      fields.map((field) => ({ field, values: [{ value: 'Bretagne', count: 2 }] }))
+    );
+    const el = document.createElement('div');
+    el.id = 'cs-a';
+    Object.assign(el, {
+      getAdapter: () => ({
+        type: 'faux',
+        capabilities: { serverFacets: true, whereFormat: 'colon' },
+        fetchFacets,
+        buildFacetWhere: () => '',
+      }),
+      getAdapterParams: () => ({ baseUrl: 'https://exemple.invalid', datasetId: 'jeu' }),
+      getEffectiveWhere: () => '',
+      getClientWhere: () => '',
+      getClientSearches: () => searches,
+    });
+    document.body.appendChild(el);
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `<dsfr-data-facets id="cs-b" source="cs-a" server-facets fields="region">
+      </dsfr-data-facets>`;
+    document.body.appendChild(wrapper);
+    dispatchDataLoaded('cs-a', [{ region: 'Bretagne', nom: 'x' }]);
+    await settle(40);
+    const facets = document.getElementById('cs-b') as HTMLElement;
+    const message = facets.getAttribute('data-dsfr-config-error') ?? '';
+    expect(message).toContain('la recherche « cote » dans nom est calculée dans le navigateur');
+    expect(message).toContain('Retirez server-facets');
+    expect(fetchFacets).not.toHaveBeenCalled();
+
+    searches = [];
+    dispatchDataLoaded('cs-a', [{ region: 'Bretagne', nom: 'x' }]);
+    await settle(40);
+    expect(facets.hasAttribute('data-dsfr-config-error')).toBe(false);
+    expect(fetchFacets).toHaveBeenCalled();
+  });
+});

@@ -210,6 +210,23 @@ def replier(v: Any) -> str:
     return "".join(c for c in nfd if unicodedata.category(c) != "Mn").lower().strip()
 
 
+def mots_de(v: Any) -> list[str]:
+    """Les mots d'un TEXTE, repliés : suites de lettres et de chiffres. Rien pour une autre valeur."""
+    if not isinstance(v, str):
+        return []
+    mots: list[str] = []
+    courant = ""
+    for c in replier(v):
+        if unicodedata.category(c)[0] in ("L", "N"):
+            courant += c
+        elif courant:
+            mots.append(courant)
+            courant = ""
+    if courant:
+        mots.append(courant)
+    return mots
+
+
 def cle_collation(s: str) -> tuple[str, str]:
     """Clé d'ordre d'un texte — la convention écrite de cette voix (voir l'en-tête)."""
     nfd = unicodedata.normalize("NFD", s)
@@ -297,6 +314,12 @@ def passe_filtre(row: Row, f: dict[str, Any]) -> bool:
         # Le OU entre champs (#1026) : la ligne passe dès qu'UN filtre passe —
         # miroir de la clause multi-champs `a|b:op:valeur` de la bibliothèque.
         return any(passe_filtre(row, g) for g in f["any"])
+    if op == "word-prefix":
+        # Recherche par DÉBUT DE MOT (#1285) : chaque terme commence un mot de
+        # l'un des champs, sans casse ni accents ; les termes en ET.
+        mots = [m for champ in f["fields"] for m in mots_de(row.get(champ))]
+        termes = mots_de(f["value"])
+        return len(termes) > 0 and all(any(m.startswith(t) for m in mots) for t in termes)
     v = row.get(f["field"])
     if op == "isnotnull":
         return not absent(v)

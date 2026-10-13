@@ -45,7 +45,13 @@ import {
   urlsDe,
   type Forme,
 } from './fixtures-delegation.js';
-import { GRIST_LIGNES, URL_GRIST } from './fixtures-adaptateurs.js';
+import {
+  DATASET_INSEE,
+  GRIST_LIGNES,
+  HOTE_INSEE,
+  MELODI_LIGNES,
+  URL_GRIST,
+} from './fixtures-adaptateurs.js';
 
 // ---------------------------------------------------------------------------
 // 1. L'invariant : la même forme de query, avec et sans `server-side`
@@ -2936,6 +2942,182 @@ const CONTAINS_NON_DELEGUE: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 20. La recherche portée par le contexte : chaque source la traduit (ADR-159, lot 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Une recherche en mode `context` n'émet plus de filtre `contains` (#1285) :
+ * le contexte porte le terme, et chaque cible le traduit selon ce que son API
+ * sait faire. Le domaine `contexte` tient le portail Opendatasoft (moteur de
+ * recherche, par début de mot). Ici, les trois autres voies — et d'abord
+ * qu'une page existante sur Tabular ou Grist rend les mêmes lignes qu'avant.
+ */
+const sourceInsee = (id: string, attrs = ''): string =>
+  `<dsfr-data-source id="${id}" api-type="insee" base-url="${HOTE_INSEE}" dataset-id="${DATASET_INSEE}"${attrs ? ` ${attrs}` : ''}></dsfr-data-source>`;
+
+const recherche = (id: string, source: string, contexte: string, champ: string): string =>
+  `<dsfr-data-search id="${id}" source="${source}" context="${contexte}" fields="${champ}"
+    debounce="0" min-length="0" count label="Rechercher"></dsfr-data-search>`;
+
+const RECHERCHE_PAR_LE_CONTEXTE: Check[] = [
+  {
+    id: 'recherche-contexte-tabular-sous-chaine',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, #1285 — non-régression sur Tabular. La recherche du contexte y reste la clause qu’elle émettait déjà : `categorie__contains=stup`, une sous-chaîne (« stup » est au milieu de « Usage de stupéfiants (AFD) »), casse ignorée. 113 lignes sur 450, comme avant. Le compteur de la recherche lit le total du serveur.',
+    feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
+    markup: `
+  ${SOURCE_EX_AEQUO('s-r-tab')}
+  <dsfr-data-context id="ctx-tab" sources="s-r-tab"></dsfr-data-context>
+  ${recherche('r-tab', 's-r-tab', 'ctx-tab', 'categorie')}
+  <dsfr-data-kpi id="k-r-tab" source="s-r-tab" value="count" format="nombre" label="Faits"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-r-tab-somme" source="s-r-tab" value="nombre:sum" format="nombre" label="Total"></dsfr-data-kpi>`,
+    actions: [{ kind: 'fill', selector: '#r-tab input', value: 'STUP' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-r-tab',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'categorie', op: 'contains', value: 'STUP' }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-r-tab-somme',
+        agg: 'sum',
+        field: 'nombre',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'categorie', op: 'contains', value: 'STUP' }] },
+        ],
+      },
+      {
+        kind: 'text',
+        id: 'r-tab',
+        selector: '.dsfr-data-search-count',
+        numeric: true,
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'categorie', op: 'contains', value: 'STUP' }] },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'recherche-tabular-en-contains',
+        among: DATA_EX_AEQUO,
+        contains: 'categorie__contains=STUP',
+        verdict: 'last',
+      },
+    ],
+  },
+
+  {
+    id: 'recherche-contexte-grist-sous-chaine',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, #1285 — non-régression sur Grist. Grist n’a pas de recherche plein texte, mais son SQL cherche une sous-chaîne (`LIKE`) : la recherche du contexte lui reste confiée, par la clause qu’elle émettait déjà. Deux recherches, deux chiffres. « stup » : les 113 lignes de la catégorie, dont la source en `server-side` montre la première page. « stupefiants », saisi SANS accent : zéro, parce que le `LIKE` de SQLite respecte les accents — c’est le traitement du serveur qui s’applique (ADR-159, point 3), et c’est ce zéro qui dit que la recherche n’a pas été reprise dans le navigateur, où elle en trouverait 113. La source est en `server-side` : calculée dans le navigateur, la recherche y serait une erreur de configuration.',
+    feed: { kind: 'fixture', datasets: { main: GRIST_EX_AEQUO } },
+    markup: `
+  ${sourceGristExAequo('s-r-gri', `server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-context id="ctx-gri" sources="s-r-gri"></dsfr-data-context>
+  ${recherche('r-gri', 's-r-gri', 'ctx-gri', 'categorie')}
+  <dsfr-data-kpi id="k-r-gri" source="s-r-gri" value="nombre:sum" format="nombre" label="Total de la page"></dsfr-data-kpi>
+  ${sourceGristExAequo('s-r-gri-acc')}
+  <dsfr-data-context id="ctx-gri-acc" sources="s-r-gri-acc"></dsfr-data-context>
+  ${recherche('r-gri-acc', 's-r-gri-acc', 'ctx-gri-acc', 'categorie')}
+  <dsfr-data-kpi id="k-r-gri-acc" source="s-r-gri-acc" value="count" format="nombre" label="Sans accent"></dsfr-data-kpi>`,
+    actions: [
+      { kind: 'fill', selector: '#r-gri input', value: 'stup' },
+      { kind: 'fill', selector: '#r-gri-acc input', value: 'stupefiants' },
+    ],
+    expects: [
+      {
+        // La première page des lignes retenues, dans l'ordre de la table.
+        kind: 'kpi',
+        id: 'k-r-gri',
+        agg: 'sum',
+        field: 'nombre',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'categorie', op: 'contains', value: 'stup' }] },
+          { op: 'page', size: TAILLE_PAGE, number: 1 },
+        ],
+      },
+      { kind: 'diagnostic', id: 's-r-gri', expect: 'silence', contains: 'server-side' },
+      {
+        kind: 'kpi',
+        id: 'k-r-gri-acc',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'categorie', op: 'contains', value: 'stupefiants' }] },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'recherche-contexte-insee-dans-le-navigateur',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, #1285 — INSEE Melodi n’a rien pour chercher : aucun moteur, aucun filtre de texte. Avant, le `contains` que la recherche du contexte émettait était écarté de la requête sans être repris nulle part — la source restait entière sous une recherche active. La source calcule désormais la recherche elle-même, dans le navigateur, avec la comparaison tolérante de `dsfr-data-search` : « cote », saisi sans accent ni majuscule, retient les observations de la Côte-d’Or. Aucun paramètre de plus ne part à l’API.',
+    feed: { kind: 'fixture', datasets: { main: MELODI_LIGNES } },
+    markup: `
+  ${sourceInsee('s-r-insee')}
+  <dsfr-data-context id="ctx-insee" sources="s-r-insee"></dsfr-data-context>
+  ${recherche('r-insee', 's-r-insee', 'ctx-insee', 'GEO')}
+  <dsfr-data-kpi id="k-r-insee" source="s-r-insee" value="count" format="nombre" label="Observations"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-r-insee-somme" source="s-r-insee" value="OBS_VALUE:sum" format="nombre" label="Décès"></dsfr-data-kpi>`,
+    actions: [{ kind: 'fill', selector: '#r-insee input', value: 'cote' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-r-insee',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'GEO', op: 'contains', value: 'cote', fold: true }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-r-insee-somme',
+        agg: 'sum',
+        field: 'OBS_VALUE',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'GEO', op: 'contains', value: 'cote', fold: true }] },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'recherche-insee-rien-a-l-api',
+        among: `/data/${DATASET_INSEE}`,
+        contains: 'cote',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'recherche-contexte-insee-server-side-refuse',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, règle de #1242 — la même recherche vers une source INSEE en `server-side`. La source ne reçoit qu’une page, et la recherche, que son API ne sait pas servir, n’en filtrerait que les lignes : erreur de configuration qui nomme la recherche et dit de retirer `server-side`, plutôt qu’une page partielle. (Avant, la recherche y était perdue sans un mot.)',
+    feed: { kind: 'fixture', datasets: { main: MELODI_LIGNES } },
+    markup: `
+  ${sourceInsee('s-r-insee-page', 'server-side page-size="5"')}
+  <dsfr-data-context id="ctx-insee-page" sources="s-r-insee-page"></dsfr-data-context>
+  ${recherche('r-insee-page', 's-r-insee-page', 'ctx-insee-page', 'GEO')}`,
+    actions: [{ kind: 'fill', selector: '#r-insee-page input', value: 'cote' }],
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 's-r-insee-page',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-r-insee-page"',
+      },
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -2958,5 +3140,6 @@ export const DELEGATION: Manifest = {
     ...RELAIS_CACHABLE,
     ...TRI_SUR_COLONNE_CLIENT,
     ...CONTAINS_NON_DELEGUE,
+    ...RECHERCHE_PAR_LE_CONTEXTE,
   ],
 };

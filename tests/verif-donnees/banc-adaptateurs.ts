@@ -221,6 +221,114 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'ods-rappelconso-recherche-contexte-vivant',
+    mode: 'live',
+    origin:
+      "data.economie.gouv.fr / RappelConso — #1285, ADR-159 lot 3, contre le vrai portail. Une recherche `dsfr-data-search` en mode `context` n'est plus un filtre `contains` : vers une cible Opendatasoft, le contexte la confie au moteur de recherche du portail, borné au champ (`search(champ, \"terme\")`). Ce moteur cherche par DÉBUT DE MOT, sans casse ni accents — et c'est ce que l'oracle recalcule depuis l'export, sans rien lui emprunter. Trois montages. « cre » dans `libelle` : les libellés dont un mot COMMENCE par « cre » (113 le 2026-10-13), et non les 118 qui portent la sous-chaîne — l'écart de cinq est ce qui distingue la recherche du filtre. « VÉLOS » dans `sous_categorie_produit` : casse et accents ignorés. « cosm » vers une source en `server-side`, à côté de facettes `server-facets` : les deux montages que le lot 1 laissait en erreur de configuration — le total publié par la pagination et les compteurs des facettes comptent le même ensemble que l'oracle. Aucun `like` ne part. Ce contrôle garde aussi ce que le faux portail du dépôt ne sait pas voir : que le portail accepte la clause telle que la bibliothèque l'écrit.",
+    feed: {
+      kind: 'raw',
+      source: { baseUrl: RAPPEL_PORTAIL, dataset: RAPPEL_JEU, where: RAPPEL_WHERE },
+    },
+    markup: `${RAPPEL_SOURCE('s-rr-mot')}
+  <dsfr-data-context id="ctx-rr-mot" sources="s-rr-mot"></dsfr-data-context>
+  <dsfr-data-search id="r-rr-mot" source="s-rr-mot" context="ctx-rr-mot" fields="libelle"
+    debounce="0" min-length="0" label="Libellé"></dsfr-data-search>${rappelKpi('k-rr-mot', 's-rr-mot')}${RAPPEL_SOURCE('s-rr-accent')}
+  <dsfr-data-context id="ctx-rr-accent" sources="s-rr-accent"></dsfr-data-context>
+  <dsfr-data-search id="r-rr-accent" source="s-rr-accent" context="ctx-rr-accent"
+    fields="sous_categorie_produit" debounce="0" min-length="0" label="Sous-catégorie"></dsfr-data-search>${rappelKpi('k-rr-accent', 's-rr-accent')}
+  <dsfr-data-source id="s-rr-page" api-type="opendatasoft"
+    base-url="${RAPPEL_PORTAIL}" dataset-id="${RAPPEL_JEU}" server-side page-size="20"
+    where="${RAPPEL_WHERE.replace(/"/g, '&quot;')}"></dsfr-data-source>
+  <dsfr-data-context id="ctx-rr-page" sources="s-rr-page"></dsfr-data-context>
+  <dsfr-data-search id="r-rr-page" source="s-rr-page" context="ctx-rr-page"
+    fields="sous_categorie_produit" debounce="0" min-length="0" count label="Sous-catégorie, paginée"></dsfr-data-search>
+  <dsfr-data-kpi id="k-rr-total" source="s-rr-page" value="meta:total" format="nombre" label="Total publié"></dsfr-data-kpi>
+  <dsfr-data-facets id="f-rr-page" source="s-rr-page" server-facets fields="categorie_produit"
+    labels="categorie_produit:Catégorie"></dsfr-data-facets>`,
+    actions: [
+      { kind: 'fill', selector: '#r-rr-mot input', value: 'cre' },
+      { kind: 'fill', selector: '#r-rr-accent input', value: 'VÉLOS' },
+      { kind: 'fill', selector: '#r-rr-page input', value: 'cosm' },
+    ],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-rr-mot',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'cre' }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-rr-accent',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ op: 'word-prefix', fields: ['sous_categorie_produit'], value: 'VÉLOS' }],
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-rr-total',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ op: 'word-prefix', fields: ['sous_categorie_produit'], value: 'cosm' }],
+          },
+        ],
+      },
+      {
+        kind: 'text',
+        id: 'r-rr-page',
+        selector: '.dsfr-data-search-count',
+        numeric: true,
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ op: 'word-prefix', fields: ['sous_categorie_produit'], value: 'cosm' }],
+          },
+        ],
+      },
+      {
+        kind: 'facets',
+        id: 'f-rr-page',
+        group: 'Catégorie',
+        valueColumn: 'categorie_produit',
+        countColumn: 'n',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ op: 'word-prefix', fields: ['sous_categorie_produit'], value: 'cosm' }],
+          },
+          { op: 'group-by', by: 'categorie_produit', columns: { n: { agg: 'count' } } },
+          { op: 'order-by', column: 'n', dir: 'desc' },
+        ],
+      },
+      { kind: 'diagnostic', id: 's-rr-page', expect: 'silence', contains: 'server-side' },
+      { kind: 'diagnostic', id: 'f-rr-page', expect: 'silence', contains: 'server-facets' },
+      {
+        kind: 'urls',
+        id: 'rappel-recherche-par-le-moteur',
+        among: `/datasets/${RAPPEL_JEU}/`,
+        contains: 'search(libelle, "cre")',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'rappel-recherche-jamais-en-like',
+        among: `/datasets/${RAPPEL_JEU}/`,
+        contains: ' like ',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
     id: 'ods-taux-de-change-pagination-vivant',
     mode: 'live',
     origin:
