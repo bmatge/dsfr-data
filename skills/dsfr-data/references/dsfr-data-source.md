@@ -235,6 +235,25 @@ La phrase dépend de la cause :
 - Sans bandeau, chaque bloc en erreur porte son propre « Réessayer » (dans une tuile de KPI : un
   bouton compact, et « Détails » replié à la suite de la phrase). Avec le bandeau, la tuile de KPI
   n'a ni bouton, ni lien, ni détail.
+- AUCUN bloc ne garde à l'écran une ligne du dernier chargement (#1288) — sans date, elle serait
+  prise pour le chiffre du jour :
+  - `dsfr-data-a11y` retire son tableau et désactive « Télécharger en CSV » (aucun fichier ne
+    sort) : « Données momentanément indisponibles. Le tableau et le téléchargement reviendront avec
+    les données. » ;
+  - `dsfr-data-map-layer` se vide (formes, grappes, carte de chaleur, légende, clones des
+    encarts). Plus rien de tracé : le message de panne est centré sur la carte, dont le fond reste
+    manipulable. Une autre couche trace encore : une ligne en bas de carte, « Couche « Bornes de
+    recharge » : données momentanément indisponibles. » — le nom vient du `label` de la couche,
+    sinon de sa légende : poser `label` sur chaque couche d'une carte à plusieurs sources ;
+  - `dsfr-data-list` et `dsfr-data-display` en pagination serveur : un changement de page
+    refusé garde la page précédente et le dit (« La page 4 n'a pas pu être chargée. Vous consultez
+    toujours la page 3. ») ; tout autre échec rend le message de panne, sans ligne ;
+  - `dsfr-data-facets` et `dsfr-data-search` sont désactivés (« Filtres momentanément
+    indisponibles. »), compteurs et compte de résultats masqués ; la sélection et le terme posés
+    sont gardés et s'appliquent de nouveau au retour des données. Ils restent actifs sur un HTTP 400
+    (le filtre posé peut être la cause du refus).
+  Ces phrases suivent la cause du tableau ci-dessus et `error-message`. Pendant un nouvel essai,
+  tableau équivalent, carte et filtres gardent leur rendu de panne jusqu'au résultat.
 - L'événement `dsfr-data-error` et la trace console ne changent pas : le code HTTP reste dans
   `error.message`.
 - PENDANT la panne, les lignes du dernier chargement réussi ne sont pas jetées, mais elles ne

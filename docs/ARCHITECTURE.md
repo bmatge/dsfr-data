@@ -662,8 +662,33 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   `dispatchDataIdle` (`require-where` qui repasse en attente n'est pas une panne). La `meta`
   (`__dsfrDataMeta`) n'est pas déplacée : la négociation d'une query la relit pendant la panne.
   **Aucun afficheur ne rend ces lignes** : l'affichage « dernières données connues, datées »
-  (proposition 3 de #1203) est une issue à part, #1288 — qui porte aussi les composants sans rendu
-  de panne (`dsfr-data-map-layer`, `dsfr-data-a11y` et son export CSV), laissés tels quels ici.
+  (proposition 3 de #1203) est la proposition B de #1288, encore à faire. La proposition A — donner
+  un rendu de panne aux afficheurs qui n'en avaient pas — est le point suivant.
+- **Dire la panne partout** (#1288, proposition A) — sortir les lignes du cache ne suffisait pas : un
+  afficheur qui garde SA copie continuait de la montrer. Quatre familles, une règle (aucune ligne du
+  dernier chargement à l'écran sans être marquée, donc aucune) :
+  `dsfr-data-a11y` ne lit plus `_sourceData` que par `_currentRows()` (vide tant que `_sourceError`) :
+  tableau retiré, export sans effet, bouton `aria-disabled` relié à la phrase par `aria-describedby`,
+  description `aria-describedby` de la cible réécrite. `dsfr-data-map-layer` gagne `onSourceError`
+  (lignes lâchées, `_clearRendered()`) et `getSourceFailure()` ; elle prévient la carte depuis
+  `updated()` (`_syncErrorWithMap`, même schéma que `_syncIdleWithMap`), et `dsfr-data-map._syncError()`
+  choisit : plus aucune couche ne trace → `renderSourceError` centré dans le conteneur Leaflet
+  (`.dsfr-data-map__error-host`, z-index 900 : sous les contrôles Leaflet, au-dessus des volets) ;
+  une autre trace encore → ligne `.dsfr-data-map__layer-status`, sœur du conteneur, mise à jour en
+  place. La carte rejuge à chaque `dsfr-data-map-layer-render` : un rendu peut finir après l'erreur.
+  `PaginationController` distingue l'échec d'un CHANGEMENT DE PAGE (`_pendingPage` → `failedPage`,
+  page et URL ramenées à la page affichée) de tout autre échec : dans le premier cas la liste et les
+  fiches gardent la page et posent `renderPageLoadError`, dans le second elles lâchent `_data` et
+  rendent `renderSourceError`. `dsfr-data-facets` et `dsfr-data-search` lisent `getError()` du mixin
+  (`resolveFiltersUnavailable`) : contrôles `aria-disabled`, gestes arrêtés en phase de capture,
+  compteurs masqués, sélection intacte. Textes : `unavailablePhrase` et `inlineCauseTitle`
+  (`source-errors.ts`) composent avec les titres du barème, sans en écrire de nouveaux.
+  **Pendant un nouvel essai** ces blocs n'ont pas de sablier : ils gardent leur rendu de panne, lu
+  par `resolveSourceErrorKept` — `dsfr-data-loading` efface le registre, et une relecture sans lui
+  perdrait `error-message`, l'origine, et reclasserait la cause avec le réseau du moment.
+  Annonce : le tableau équivalent (s'il accompagne une cible) et les filtres ne sont jamais des
+  régions live ; la carte l'est si aucun bandeau ne couvre la source ; la page refusée est dite par
+  la région live que la liste avait déjà.
 - **Les lecteurs, un par un** (#1272) — `SourceSubscriberMixin` : rien au cache, erreur relue au
   registre ; ni erreur ni lignes mais `isDataStale` → un nouvel essai est en vol, le bloc monté à cet
   instant est en chargement. `TransformerMixin` : au branchement, l'erreur de l'amont est relue au
@@ -701,7 +726,9 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   lisent le registre par la MÊME fonction, `resolveSourceError` (`status-templates.ts`) : cause, bouton,
   lien et couverture par un bandeau ne peuvent pas diverger. Couvert par un bandeau, le KPI n'a ni
   bouton, ni lien, ni détail. Les autres afficheurs gardent le gabarit complet. La hauteur est mesurée
-  par `e2e/kpi-source-en-panne.spec.ts` (140 px, bureau et 375 px).
+  par `e2e/kpi-source-en-panne.spec.ts` (140 px, bureau et 375 px). Les autres blocs en panne
+  (tableau équivalent, carte, pagination serveur, filtres) sont mesurés par
+  `e2e/panne-partout.spec.ts` (#1288), dans le même job `e2e-layout`.
 - **Un bloc monté APRÈS la panne** (#1222) — `SourceSubscriberMixin` relit le registre d'erreur à
   l'abonnement, comme il relit `isDataIdle`. Depuis #1272 le cache ne porte plus les lignes d'une
   étape en panne : sans ce relevé, le bloc tardif ne montrerait plus l'ancien chiffre, mais resterait
@@ -1556,6 +1583,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 - **Le tri du pipeline d'une query passe AVANT ses colonnes de fenêtre** (#1244) — `dsfr-data-query.ts` (`_processClientSide` : 3 tri, 3 bis fenêtres, 3 ter tri rejoué ; `_delegateOrderBy`, `_orderByReadsWindowColumn`). Un cumul se calcule après le tri, donc une part, un cumul ou un écart n'existent pas encore quand `order-by` est appliqué : un tri qui les nomme ne trouvait rien à trier, et côté négociation il partait au serveur, qui ne les connaît pas (`order_by=n__share_percent`, refusé par Tabular). Deux règles en découlent : une clé de tri qui nomme une colonne de fenêtre interdit la délégation du tri ENTIER, et le tri est rejoué après les fenêtres, avant `limit`. Les clés qui portent sur des colonnes déjà là gardent seules le premier passage — ce sont elles qui ordonnent un cumul. Toute nouvelle colonne produite par la query après le tri doit entrer dans `_windowColumns()`. Garde : `tests/query-order-by-client-column.test.ts` (cinq adaptateurs) et les contrôles `delegation/tri-sur-*`.
 - **Un faux portail qui lit `like` comme une sous-chaîne ne garde rien** (#1285) — `tests/builder-e2e/ods-like.ts`, lu par `filtrerOdsql` (`api-fixtures.ts`) et `filtrerOdsqlContexte` (`fixtures-contexte.ts`). Le `like` d'un portail Opendatasoft compare des MOTS (`like "%aliment%"` : 0 ligne pour 14 366 « alimentation ») ; le faux portail du dépôt lisait `like "%x%"` comme une sous-chaîne, et tous les contrôles d'un `contains` délégué étaient verts sur un comportement que le vrai n'a pas. Même famille que le faux serveur de #958, qui rendait 52 comme le client divergent. Règle : toute forme de clause qu'un faux serveur apprend à lire se lit comme le VRAI la lit, mesurée, et son test (`api-fixtures.test.ts`) le fixe. Le contrôle vivant `banc-adaptateurs/ods-rappelconso-contains-vivant` est le seul juge contre le vrai portail.
 - **Une clause peut être calculée par la SOURCE, et `getEffectiveWhere()` ne la rend pas** (#1285) — `dsfr-data-source.ts` (`_clientWhereOverlays`, `getClientWhere()`, `_clientWhereConfigError`), `utils/client-where.ts`, champ `clientWhere` de `SourceCommandEvent`. Qui lit `getEffectiveWhere()` pour interroger l'API à côté de la source (facettes serveur, carte) n'a donc PAS le filtre entier : `dsfr-data-facets server-facets` le refuse (`_refuseClientWhere`, erreur de configuration). Un nouvel émetteur de filtre colon doit passer par `splitWhere` et envoyer les DEUX parts sous le même `whereKey` ; une commande `where` sans `clientWhere` LIBÈRE la part cliente de cet émetteur. `translateWhere` seul, sur une clause `contains` vers Opendatasoft, rend une chaîne vide et un avertissement : la clause serait perdue.
+- **Un afficheur qui garde sa copie des lignes doit la lâcher à l'erreur** (#1288) — `packages/core/src/utils/source-subscriber.ts`, et tout hôte de `SourceSubscriberMixin`. Le mixin pose `_sourceError` mais **ne vide pas `_sourceData`**, et ne purge l'état dérivé de l'hôte (`onSourceReset`) qu'au réabonnement et au retour en attente : un composant dont le `render()` ne teste pas `_sourceError` AVANT de lire ses lignes continue de les montrer, sous des voisins qui disent « indisponible ». C'est ce qui est arrivé au tableau équivalent, à la couche de carte et à leurs exports. Tout nouvel afficheur implémente donc `onSourceError` (ou teste `_sourceError` en tête de rendu) et s'ajoute à `e2e/panne-partout.spec.ts`. Trois pièges à distance : (a) `_sourceError` **survit à `dsfr-data-loading`** (il n'est levé que par un chargement réussi ou une attente), mais le registre d'erreur, lui, est effacé — un bloc qui garde son rendu de panne pendant l'essai lit `resolveSourceErrorKept`, pas `resolveSourceError`, sinon `error-message` disparaît et la cause est reclassée ; (b) après un changement de page refusé, **la source reste sur la page demandée** : lui renvoyer la même page est une commande dédupliquée (#276) qui ne produit rien — `PaginationController.changePage` envoie alors `requestSourceRetry` ; (c) un contrôle `aria-disabled` **n'est pas désactivé pour le navigateur** : `dsfr-data-facets` arrête les gestes en phase de capture (`_blockUnavailableGesture`), et un contrôle ajouté hors d'un `.dsfr-data-facets__group` y échapperait. Gardes : `tests/panne-partout.test.ts`, `e2e/panne-partout.spec.ts`, contrôles `tableau-equivalent-source-en-panne`, `carte-couche-source-en-panne`, `liste-page-refusee`, `filtres-source-en-panne`.
 - **Les lignes d'une étape en panne ne sont plus dans `__dsfrDataCache`** (#1272) — `packages/core/src/utils/data-bridge.ts` (`retireDataCache`, `getLastKnownData`, `isDataStale`), `transformer-mixin.ts` (`_unusableInput`, `_refuseStaleEmission`), `dsfr-data-source.ts` (`_hasCurrentData`). `dispatchDataError` DÉPLACE les lignes vers `__dsfrDataStale` (datées, cause du barème) au lieu de les laisser au cache : tout lecteur du chemin par défaut reçoit `undefined`, y compris un bundle d'une version antérieure chargé sur la même page et le collecteur de diagnostic. Trois pièges à distance : (a) **un composant qui garde SA copie des lignes doit se taire pendant la panne** — c'est `emitTransformedData` qui s'y refuse pour tous les transformateurs, et un hôte qui appellerait `dispatchDataLoaded` lui-même effacerait l'erreur de l'étape (l'aval repasse de « indisponible » à l'ancien chiffre) ; (b) **`dispatchDataLoading` efface l'erreur mais pas le marquage** : pendant un nouvel essai, « pas d'erreur » ne veut pas dire « lignes à jour » — lire `isDataStale` ; (c) **`getData()` d'une source ou d'un transformateur rend vide quand `isStale()`**, et la ré-émission d'une commande dédupliquée (#276) est suspendue : un test qui pose `_data` à la main sur une source dont un vrai fetch a échoué en arrière-plan ne verra plus de ré-émission. Tout nouvel adaptateur qui teste `!response.ok` passe par `httpError` / `releaseBody` (`utils/http-error.ts`) : un corps d'erreur non lu laisse la requête ouverte, et `networkidle` n'arrive jamais. Gardé par `tests/cache-perime-date.test.ts`, `tests/debug/lignes-perimees.test.ts` et trois contrôles de `tests/verif-donnees/affichages.ts`.
 
 ---

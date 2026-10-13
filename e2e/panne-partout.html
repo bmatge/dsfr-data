@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — une source en panne, dite partout (#1288)</title>
+  <!--
+    #1288, proposition A : pendant une panne de source, AUCUN afficheur ne garde
+    à l'écran une ligne de l'ancien jeu sans la marquer. Cette page pose, sur de
+    vrais composants (DSFR Chart depuis node_modules, Leaflet), les afficheurs
+    que le rendu de panne de la 0.44 / 0.48 ne couvrait pas :
+
+      - le tableau équivalent (`dsfr-data-a11y`) et son export CSV ;
+      - la carte : une couche en panne seule, puis à côté d'une couche qui
+        trace encore, avec son encart, sa légende, ses grappes, sa carte de
+        chaleur ;
+      - la liste et les fiches en pagination serveur, quand un changement de
+        page échoue ;
+      - les facettes et la recherche d'une source en panne.
+
+    Toutes les données viennent du spec (`page.route` sur `/e2e/panne-partout/…`),
+    qui fait passer chaque jeu de 200 à 503 (ou 404, 429…) puis le rend. Aucun
+    serveur tiers : les tuiles pointent sur un gabarit local inexistant.
+
+    Variantes par l'URL, pour qu'une seule page serve tous les cas :
+      ?bandeau=1    pose un <dsfr-data-source-status> en tête ;
+      ?message=…    pose error-message sur la source « aides ».
+  -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <link rel="stylesheet" href="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.css">
+  <script type="module" src="/node_modules/@gouvfr/dsfr-chart/dist/DSFRChart/DSFRChart.js"></script>
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    section { margin-bottom: 2rem; }
+  </style>
+</head>
+<body>
+  <main id="page">
+    <h1 class="fr-h3">Aides à l'industrie du futur</h1>
+    <div id="tete"></div>
+
+    <dsfr-data-source id="aides" url="/e2e/panne-partout/aides"></dsfr-data-source>
+    <dsfr-data-source id="bornes" url="/e2e/panne-partout/bornes"></dsfr-data-source>
+    <dsfr-data-source id="stations" url="/e2e/panne-partout/stations"></dsfr-data-source>
+    <dsfr-data-source id="pages" url="/e2e/panne-partout/pages" paginate page-size="3"></dsfr-data-source>
+    <dsfr-data-source id="pages-fiches" url="/e2e/panne-partout/pages-fiches" paginate page-size="3"></dsfr-data-source>
+    <dsfr-data-source id="annuaire" url="/e2e/panne-partout/annuaire"></dsfr-data-source>
+
+    <section id="s-graphique">
+      <h2 class="fr-h5">Graphique et tableau équivalent</h2>
+      <dsfr-data-chart id="g" source="aides" type="bar" label-field="region"
+        value-field="beneficiaires:Bénéficiaires" name="Bénéficiaires par région"></dsfr-data-chart>
+      <dsfr-data-a11y id="acc" for="g" source="aides" table download
+        label-field="region:Région" value-field="beneficiaires:Bénéficiaires,montant:Montant (M€)"></dsfr-data-a11y>
+    </section>
+
+    <section id="s-cadre">
+      <h2 class="fr-h5">Graphique en cadre officiel</h2>
+      <dsfr-data-chart id="g-cadre" source="aides" type="bar" label-field="region"
+        value-field="beneficiaires:Bénéficiaires" databox databox-title="Bénéficiaires par région"
+        databox-source="Ministère" databox-download></dsfr-data-chart>
+    </section>
+
+    <section id="s-carte-seule">
+      <h2 class="fr-h5">Carte, une seule couche</h2>
+      <dsfr-data-map id="carte-seule" name="Bornes de recharge" center="46.5,2.5" zoom="5" height="320px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer id="c-seule" source="bornes" type="circle" radius="8"
+          label="Bornes de recharge" shape-class="forme-seule"
+          lat-field="lat" lon-field="lon" tooltip-field="nom"></dsfr-data-map-layer>
+        <dsfr-data-map-legend label="Bornes de recharge"></dsfr-data-map-legend>
+        <dsfr-data-map-inset territory="guadeloupe"></dsfr-data-map-inset>
+      </dsfr-data-map>
+      <dsfr-data-a11y id="acc-carte" for="carte-seule" source="bornes" table download></dsfr-data-a11y>
+    </section>
+
+    <section id="s-carte-deux">
+      <h2 class="fr-h5">Carte, deux couches de deux sources</h2>
+      <dsfr-data-map id="carte-deux" name="Bornes et stations" center="46.5,2.5" zoom="5" height="320px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer id="c-bornes" source="bornes" type="circle" radius="8" color="#000091"
+          label="Bornes de recharge" shape-class="forme-bornes"
+          lat-field="lat" lon-field="lon" tooltip-field="nom"></dsfr-data-map-layer>
+        <dsfr-data-map-layer id="c-stations" source="stations" type="circle" radius="8" color="#e1000f"
+          label="Stations" shape-class="forme-stations"
+          lat-field="lat" lon-field="lon" tooltip-field="nom"></dsfr-data-map-layer>
+      </dsfr-data-map>
+    </section>
+
+    <section id="s-carte-grappes">
+      <h2 class="fr-h5">Carte, grappes et carte de chaleur</h2>
+      <dsfr-data-map id="carte-grappes" name="Grappes" center="46.5,2.5" zoom="5" height="240px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer id="c-grappes" source="bornes" type="marker" cluster
+          lat-field="lat" lon-field="lon"></dsfr-data-map-layer>
+      </dsfr-data-map>
+      <dsfr-data-map id="carte-chaleur" name="Chaleur" center="46.5,2.5" zoom="5" height="240px"
+        tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+        <dsfr-data-map-layer id="c-chaleur" source="bornes" type="heatmap"
+          lat-field="lat" lon-field="lon"></dsfr-data-map-layer>
+      </dsfr-data-map>
+    </section>
+
+    <section id="s-liste">
+      <h2 class="fr-h5">Liste en pagination serveur</h2>
+      <dsfr-data-list id="liste" source="pages" colonnes="nom:Commune,population:Population"></dsfr-data-list>
+    </section>
+
+    <section id="s-fiches">
+      <h2 class="fr-h5">Fiches en pagination serveur</h2>
+      <dsfr-data-display id="fiches" source="pages-fiches" cols="3">
+        <template><p class="fiche">{{nom}} — {{population}}</p></template>
+      </dsfr-data-display>
+    </section>
+
+    <section id="s-filtres">
+      <h2 class="fr-h5">Facettes et recherche</h2>
+      <dsfr-data-facets id="f" source="annuaire" fields="type" labels="type:Type"></dsfr-data-facets>
+      <dsfr-data-search id="r" source="f" fields="nom" count label="Rechercher une structure"></dsfr-data-search>
+      <dsfr-data-list id="resultats" source="r" colonnes="nom:Structure,type:Type"></dsfr-data-list>
+    </section>
+  </main>
+
+  <!-- Script classique : il s'exécute AVANT le module de la bibliothèque (différé). -->
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      if (params.get('message')) {
+        document.getElementById('aides').setAttribute('error-message', params.get('message'));
+      }
+      if (params.get('bandeau')) {
+        var bandeau = document.createElement('dsfr-data-source-status');
+        bandeau.id = 'bandeau';
+        document.getElementById('tete').appendChild(bandeau);
+      }
+    })();
+  </script>
+</body>
+</html>

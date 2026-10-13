@@ -16,8 +16,15 @@
  * du mode serveur depuis la meta (#270), la synchronisation URL (lecture,
  * écriture, popstate) et les transitions (changement de page, tri, erreur).
  * Les composants gardent leur rendu et leurs états locaux.
+ *
+ * Changement de page REFUSÉ en mode serveur (#1288) : la page précédente
+ * reste affichée, et le contrôleur sait laquelle a échoué (`failedPage`) —
+ * l'hôte dit « La page 4 n'a pas pu être chargée. Vous consultez toujours la
+ * page 3. » au lieu de garder l'ancienne page sans un mot. Un échec qui n'est
+ * PAS un changement de page (rafraîchissement, tri, filtre) ne laisse aucune
+ * page affichée : `failedPage` reste `null` et l'hôte rend le message de panne.
  */
-import { dispatchSourceCommand, type PaginationMeta } from './data-bridge.js';
+import { dispatchSourceCommand, requestSourceRetry, type PaginationMeta } from './data-bridge.js';
 
 /** Surface minimale attendue du composant hôte */
 export interface PaginationHostLike {
@@ -40,6 +47,16 @@ export class PaginationController {
   serverMode = false;
   serverTotal: number | undefined = undefined;
   serverPageSize = 0;
+
+  /**
+   * Page dont le chargement a échoué en mode serveur (#1288), `null` sinon.
+   * Tant qu'elle est posée, `currentPage` est la page réellement affichée —
+   * la précédente — et la source, elle, est restée sur la page demandée.
+   */
+  failedPage: number | null = null;
+
+  /** Page demandée au serveur, pas encore reçue (#1288). */
+  private _pendingPage: number | null = null;
 
   /**
    * Page restaurée depuis l'URL, à préserver à la première arrivée de
@@ -92,6 +109,8 @@ export class PaginationController {
    * fait foi. Mode client : reset page 1, SAUF restauration URL en attente.
    */
   onData(meta: PaginationMeta | undefined): void {
+    this._pendingPage = null;
+    this.failedPage = null;
     if (meta && meta.serverSide && meta.pageSize > 0) {
       this.serverMode = true;
       this.serverTotal = meta.total;
@@ -109,11 +128,27 @@ export class PaginationController {
     }
   }
 
-  /** Échec de fetch en mode serveur : revert à la page précédente */
+  /**
+   * Échec de fetch en mode serveur. Si c'est un changement de page qui a
+   * échoué et qu'une page est affichée : retour à la page précédente, dans
+   * l'état comme dans l'URL, et la page refusée est notée (#1288).
+   *
+   * Tout autre échec ne touche pas à la page : avant #1288 un rafraîchissement
+   * raté ramenait `currentPage` à la page d'un changement ANCIEN, et la
+   * pagination désignait une page qui n'était pas celle des lignes affichées.
+   * Un nouvel échec sur la même page refusée (« Réessayer ») garde l'état.
+   */
   onError(hasData: boolean): void {
-    if (this.serverMode && hasData) {
-      this.currentPage = this.previousPage;
+    if (!this.serverMode || !hasData) {
+      this._pendingPage = null;
+      this.failedPage = null;
+      return;
     }
+    if (this._pendingPage === null) return;
+    this.failedPage = this._pendingPage;
+    this._pendingPage = null;
+    this.currentPage = this.previousPage;
+    if (this.host.urlSync) this.syncUrl();
   }
 
   /** Reset des états au changement de source (#284) */
@@ -123,6 +158,8 @@ export class PaginationController {
     this.previousPage = 1;
     this.serverTotal = undefined;
     this.serverPageSize = 0;
+    this._pendingPage = null;
+    this.failedPage = null;
   }
 
   /** Changement de page (optimiste en mode serveur — commande envoyée) */
@@ -130,7 +167,15 @@ export class PaginationController {
     this.previousPage = this.currentPage;
     this.currentPage = page;
     if (this.serverMode && this.host.source) {
-      dispatchSourceCommand(this.host.source, { page, origin: this.host.id });
+      if (this.failedPage === page) {
+        // La source est restée sur la page refusée (#1288) : lui redemander
+        // cette page serait une commande sans effet, dédupliquée (#276). Le
+        // geste de l'usager est un nouvel essai — la source recharge.
+        requestSourceRetry(this.host.source);
+      } else {
+        dispatchSourceCommand(this.host.source, { page, origin: this.host.id });
+      }
+      this._pendingPage = page;
     }
     if (this.host.urlSync) this.syncUrl();
     this.host.requestUpdate();
@@ -144,6 +189,10 @@ export class PaginationController {
   notifyServerSort(orderBy: string): void {
     this.previousPage = this.currentPage;
     this.currentPage = 1;
+    // Un tri n'est pas un changement de page (#1288) : s'il échoue, aucune
+    // page de l'ancien tri ne reste affichée.
+    this._pendingPage = null;
+    this.failedPage = null;
     if (this.host.source) {
       dispatchSourceCommand(this.host.source, { orderBy, page: 1, origin: this.host.id });
     }

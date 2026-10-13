@@ -6,7 +6,13 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import { escapeColonValue, escapeSearchTerm } from '../utils/where.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
-import { renderSourceIdle, IDLE_MESSAGE_DEFAULT } from '../utils/status-templates.js';
+import {
+  renderSourceIdle,
+  renderFiltersUnavailable,
+  resolveFiltersUnavailable,
+  IDLE_MESSAGE_DEFAULT,
+  type FiltersUnavailableView,
+} from '../utils/status-templates.js';
 import type { SourceElement } from '../utils/source-element.js';
 import { ContextBindingMixin } from '../utils/context-binding.js';
 import type { ContextHost } from '../utils/context-registry.js';
@@ -102,6 +108,16 @@ class SearchContextFilter implements ContextFilterLike {
  * `contains` de <dsfr-data-context> sur le champ unique de `fields` : le
  * contexte diffuse a toutes ses sources cibles, porte l'URL (paramètre nomme
  * d'après le champ) et le tag. Elle n'emet plus de commande directe.
+ *
+ * Source en panne (#1288) : le champ est DÉSACTIVÉ (lecture seule,
+ * `aria-disabled`, toujours atteignable au clavier), sous la phrase « Filtres
+ * momentanément indisponibles. » (ou celle de la cause ; `error-message` de la
+ * source la suit), qu'il désigne comme sa raison. Le compte de résultats, qui
+ * date du dernier chargement, n'est plus affiché ni annoncé. Le terme déjà
+ * saisi est GARDÉ : il s'applique de nouveau dès que les données reviennent.
+ * Échap efface toujours le terme — retirer un filtre est parfois ce qui fait
+ * repartir la requête. Le champ reste actif quand le refus vient de la page
+ * elle-même (requête refusée) : le terme saisi peut en être la cause.
  *
  * @fires dsfr-data-search-change - `{ query, count }` sur l'élément — la saisie de recherche a change (pour synchroniser une UI de page).
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — recherche relayee en filtre serveur vers la source amont (hors mode `context`, ou c'est le contexte qui diffuse). `origin` porte l'id de ce composant (#603).
@@ -737,7 +753,16 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     return clone;
   }
 
+  /**
+   * La recherche est-elle désactivée par une panne de la source (#1288) ? Vrai
+   * de l'échec au prochain chargement réussi, nouvel essai compris.
+   */
+  _unavailable(): FiltersUnavailableView | null {
+    return resolveFiltersUnavailable(this.getError(), this.source);
+  }
+
   private _onInput(value: string) {
+    if (this._unavailable()) return;
     this._term = value;
     if (this._debounceTimer !== null) {
       clearTimeout(this._debounceTimer);
@@ -749,6 +774,7 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   }
 
   private _onSubmit() {
+    if (this._unavailable()) return;
     if (this._debounceTimer !== null) {
       clearTimeout(this._debounceTimer);
       this._debounceTimer = null;
@@ -833,10 +859,15 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     // fr-sr-only : la classe sr-only n'existe pas en DSFR — l'attribut
     // sr-label etait sans effet (#312)
     const labelClass = this.srLabel ? 'fr-label fr-sr-only' : 'fr-label';
+    // Source en panne (#1288) : champ et bouton désactivés, la phrase en
+    // dessous est leur raison. Lecture seule plutôt que `disabled` : le champ
+    // garde le focus qu'il portait, et le terme saisi reste lisible.
+    const unavailable = this._unavailable();
+    const reasonId = `dsfr-data-search-${id}-unavailable`;
 
     return html`
       <div
-        class="fr-search-bar"
+        class="fr-search-bar${unavailable ? ' dsfr-data-search--unavailable' : ''}"
         role="search"
         aria-label="${this.getAttribute('aria-label') || this.label}"
       >
@@ -847,9 +878,13 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
           id="dsfr-data-search-${id}"
           placeholder="${this.placeholder}"
           autocomplete="off"
+          ?readonly="${!!unavailable}"
+          aria-disabled="${unavailable ? 'true' : nothing}"
+          aria-describedby="${unavailable ? reasonId : nothing}"
           .value="${this._term}"
           @input="${(e: Event) => this._onInput((e.target as HTMLInputElement).value)}"
           @search="${(e: Event) => {
+            if (this._unavailable()) return;
             this._term = (e.target as HTMLInputElement).value;
             this._onSubmit();
           }}"
@@ -867,6 +902,8 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
           class="fr-btn"
           title="Rechercher"
           type="button"
+          aria-disabled="${unavailable ? 'true' : nothing}"
+          aria-describedby="${unavailable ? reasonId : nothing}"
           @click="${(e: Event) => {
             e.preventDefault();
             this._onSubmit();
@@ -875,7 +912,20 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
           Rechercher
         </button>
       </div>
-      ${this._renderCount()}
+      ${
+        unavailable
+          ? html`
+              ${renderFiltersUnavailable(reasonId, unavailable)}
+              <style>
+                .dsfr-data-search--unavailable .fr-input,
+                .dsfr-data-search--unavailable .fr-btn {
+                  opacity: 0.5;
+                  cursor: not-allowed;
+                }
+              </style>
+            `
+          : this._renderCount()
+      }
     `;
   }
 

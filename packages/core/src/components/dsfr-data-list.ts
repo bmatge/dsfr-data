@@ -7,6 +7,8 @@ import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   renderSourceLoading,
   renderSourceError,
+  renderPageLoadError,
+  pageLoadErrorText,
   renderSourceIdle,
   IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
@@ -66,6 +68,14 @@ export type PageItem = number | 'ellipsis';
 let listInstanceSeq = 0;
 
 /**
+ * Source en panne (#1288) : le tableau laisse place au message de panne, sans
+ * aucune ligne du dernier chargement, et l'export (`export`) ne produit aucun
+ * fichier. Seule exception, en pagination serveur : un CHANGEMENT DE PAGE
+ * refusé garde la page précédente et le dit — « La page 4 n'a pas pu être
+ * chargée. Vous consultez toujours la page 3. » ; la pagination et l'adresse
+ * (`url-sync`) reviennent sur la page affichée, et redemander la page refusée
+ * relance la source.
+ *
  * @fires dsfr-data-select - `{ record, elementId, selected }` sur le tableau (bubbles, composed) — au clic sur une ligne en `refine-on-click` (#734). `selected` vaut `true` à la sélection, `false` quand le clic la retire (second clic sur la même ligne, ou croix du tag de contexte).
  * @fires dsfr-data-source-command - `{ sourceId, where, whereKey, origin }` sur `document` — en `refine-on-click` SANS `context` (chemin dégradé) : clause `eq` poussée directement à `source` sous le whereKey `list-select-ID`. Avec `context`, c'est le contexte qui diffuse.
  */
@@ -357,9 +367,17 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   }
 
   onSourceError(_error: Error): void {
-    // In server pagination mode, revert to previous page on fetch failure
-    // (e.g., API offset limit exceeded). Keep showing current data.
+    // Pagination serveur, changement de page refusé (dépassement de l'offset
+    // admis par l'API, panne passagère) : la page précédente reste, et la
+    // liste le DIT (#1288). Tout autre échec ne laisse aucune ligne : elles
+    // seraient celles d'avant la panne, sans rien pour le dire.
     this._pager.onError(this._data.length > 0);
+    const failed = this._pager.failedPage;
+    if (failed === null) {
+      this._data = [];
+      return;
+    }
+    this._announce(pageLoadErrorText(failed, this._currentPage));
   }
 
   onSourceData(data: unknown): void {
@@ -667,7 +685,19 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
 
   // --- Export ---
 
+  /**
+   * La liste est-elle en panne, sans aucune ligne à montrer (#1288) ? Faux
+   * quand un changement de page a seulement été refusé : la page affichée est
+   * dite pour ce qu'elle est, et s'exporte.
+   */
+  private _outage(): boolean {
+    return this._sourceError !== null && this._pager.failedPage === null;
+  }
+
   private _exportCsv() {
+    // Source en panne (#1288) : aucun fichier — pas même un en-tête seul, qui
+    // se lirait « zéro ligne publiée ».
+    if (this._outage()) return;
     const columns = this.parseColumns();
     const data = this.getFilteredData();
 
@@ -688,6 +718,7 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   }
 
   private _exportHtml() {
+    if (this._outage()) return;
     const columns = this.parseColumns();
     const data = this.getFilteredData();
 
@@ -859,6 +890,7 @@ ${bodyRows}
                     class="fr-btn fr-btn--secondary fr-btn--sm"
                     @click="${this._exportCsv}"
                     type="button"
+                    aria-disabled="${this._outage() ? 'true' : nothing}"
                   >
                     <span class="fr-icon-download-line fr-icon--sm" aria-hidden="true"></span>
                     Exporter CSV
@@ -873,6 +905,7 @@ ${bodyRows}
                     class="fr-btn fr-btn--secondary fr-btn--sm"
                     @click="${this._exportHtml}"
                     type="button"
+                    aria-disabled="${this._outage() ? 'true' : nothing}"
                   >
                     <span class="fr-icon-code-s-slash-line fr-icon--sm" aria-hidden="true"></span>
                     Exporter HTML
@@ -1167,14 +1200,17 @@ ${bodyRows}
    * Corps de la liste : etat de la source (chargement, erreur, attente d'un
    * filtre) ou le compte, le tableau et la pagination.
    *
-   * Une erreur de source n'efface pas une page deja rendue en pagination
-   * serveur — l'ancienne page reste lisible.
+   * Un changement de page refuse en pagination serveur n'efface pas la page
+   * deja rendue : elle reste, sous la phrase qui dit quelle page n'a pas pu
+   * etre chargee (#1288). Toute autre erreur de source rend le message de
+   * panne, sans aucune ligne.
    */
   private _renderBody(columns: ReturnType<DsfrDataList['parseColumns']>) {
     if (this._sourceLoading) {
       return renderSourceLoading('dsfr-data-list', 'Chargement des données...');
     }
-    if (this._sourceError && !(this._serverPagination && this._data.length > 0)) {
+    const failedPage = this._sourceError ? this._pager.failedPage : null;
+    if (this._sourceError && (failedPage === null || this._data.length === 0)) {
       return renderSourceError('dsfr-data-list', this._sourceError, this.source);
     }
     if (this._sourceIdle) {
@@ -1202,6 +1238,16 @@ ${bodyRows}
             : ''
         }
       </p>
+      ${
+        this._sourceError && failedPage !== null
+          ? renderPageLoadError(
+              'dsfr-data-list',
+              { failed: failedPage, current: this._currentPage },
+              this._sourceError,
+              this.source
+            )
+          : nothing
+      }
       ${this._renderTable(columns, paginatedData)} ${this._renderPagination(totalPages)}
     `;
   }
