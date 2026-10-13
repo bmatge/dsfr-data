@@ -141,18 +141,20 @@ describe('GristAdapter — Records mode conversions', () => {
   // =========================================================================
 
   describe('buildServerSideUrl', () => {
-    it('adds pagination params (limit + offset)', () => {
+    // `/records` ne connait pas `offset` (#1279) : la page N est demandee par
+    // `limit = N x taille`, et decoupee par `fetchPage`.
+    it('demande les N premieres pages par limit, sans offset', () => {
       const overlay: ServerSideOverlay = { page: 3, effectiveWhere: '', orderBy: '' };
       const url = new URL(adapter.buildServerSideUrl(makeParams({ pageSize: 20 }), overlay));
-      expect(url.searchParams.get('limit')).toBe('20');
-      expect(url.searchParams.get('offset')).toBe('40');
+      expect(url.searchParams.get('limit')).toBe('60');
+      expect(url.searchParams.has('offset')).toBe(false);
     });
 
-    it('page 1 has offset 0', () => {
+    it('page 1 : limit = taille de page, sans offset', () => {
       const overlay: ServerSideOverlay = { page: 1, effectiveWhere: '', orderBy: '' };
       const url = new URL(adapter.buildServerSideUrl(makeParams({ pageSize: 20 }), overlay));
       expect(url.searchParams.get('limit')).toBe('20');
-      expect(url.searchParams.get('offset')).toBe('0');
+      expect(url.searchParams.has('offset')).toBe(false);
     });
 
     it('uses overlay effectiveWhere over params where', () => {
@@ -174,7 +176,8 @@ describe('GristAdapter — Records mode conversions', () => {
           overlay
         )
       );
-      expect(url.searchParams.get('sort')).toBe('nom');
+      // Pagine : le tri est complete par l'identifiant de ligne (#1279)
+      expect(url.searchParams.get('sort')).toBe('nom,id');
     });
   });
 });
@@ -649,11 +652,12 @@ describe('GristAdapter — fetchPage', () => {
   });
 
   it('calculates totalCount from last page (data < pageSize)', async () => {
+    // Page 3 de 20 : `limit=60` est parti, la table n'a que 55 lignes (#1279)
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () =>
         Promise.resolve({
-          records: Array.from({ length: 15 }, (_, i) => ({
+          records: Array.from({ length: 55 }, (_, i) => ({
             id: i,
             fields: { nom: `item-${i}` },
           })),
@@ -666,7 +670,8 @@ describe('GristAdapter — fetchPage', () => {
       new AbortController().signal
     );
 
-    // (3-1) * 20 + 15 = 55
+    expect(result.data).toHaveLength(15);
+    expect((result.data[0] as { nom: string }).nom).toBe('item-40');
     expect(result.totalCount).toBe(55);
   });
 
