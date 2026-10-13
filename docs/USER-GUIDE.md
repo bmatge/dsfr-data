@@ -976,9 +976,42 @@ mais le total des lignes RENSEIGNEES. Un avertissement de transition nomme en co
 **compte** les lignes qui cessent d'etre retenues (un message par champ, jamais par ligne).
 
 **`notin` et `notcontains` ne changent pas**, et c'est volontaire : ODSQL n'a pas d'infixe
-`not in` / `not like`, ces deux-la se deleguent en `NOT champ in (…)` / `NOT champ like "%…%"`,
-une negation booleenne qui GARDE les nulles (mesure : 52). Le client les gardait deja ; les aligner
+`not in`, `notin` se delegue en `NOT champ in (…)`, une negation booleenne qui GARDE les nulles
+(mesure : 52) ; `notcontains`, calcule dans le navigateur sur Opendatasoft depuis #1285 (voir
+ci-dessous), les garde aussi. Le client les gardait deja ; les aligner
 « par symetrie » aurait rouvert la divergence qu'on vient de fermer. Seul `!=` est a trois valeurs.
+
+#### `contains` est une sous-chaine, partout — et Opendatasoft ne la calcule pas (#1285)
+
+`champ:contains:tation` retient les lignes dont la valeur porte « tation » n'importe ou : casse
+ignoree, accents respectes. `notcontains` en est la negation. C'est la bibliotheque qui dit ce que
+le filtre retient, pas le serveur.
+
+**Le defaut corrige.** Le `like` d'un portail Opendatasoft compare des MOTS, pas une sous-chaine,
+et `%` n'y est pas un joker. La bibliotheque traduisait `contains` en `champ like "%aliment%"`, que
+le portail lit comme le mot entier « aliment » — **0 ligne la ou 14 366 valent « alimentation »**,
+HTTP 200, sans un message (mesure le 2026-10-12 sur `rappelconso-v2-gtin-trie`, remesure sur
+data.education.gouv.fr). Le meme `where` trouvait ses lignes sur un fichier CSV et zero sur un
+portail.
+
+**Ce qui change pour une page existante**, sur une source `api-type="opendatasoft"` seulement :
+
+| Montage | Avant | Maintenant |
+|---|---|---|
+| `where` / `filter` d'une `dsfr-data-query`, filtre de `dsfr-data-context` (dont `dsfr-data-search context`) avec `contains` / `notcontains` | clause envoyee au portail en `like "%x%"` : juste si « x » est un mot entier, zero ligne sinon | clause calculee dans le navigateur : toujours la sous-chaine |
+| les autres clauses du meme filtre (`eq`, `in`, `gte`…) | envoyees au portail | envoyees au portail, inchange |
+| lignes telechargees | les seules lignes retenues | toutes les lignes que laissent passer les AUTRES clauses, dans la limite de `max-records` (1 000 par defaut ; au-dela, troncature signalee) |
+| `group-by` de la meme query | calcule par le portail | calcule dans le navigateur, sur les lignes filtrees |
+| source en `server-side` | une page du resultat du `like` | **erreur de configuration** : retirer `server-side`, ou `dsfr-data-search server-search` pour une saisie du visiteur |
+| `dsfr-data-facets server-facets` a cote | compteurs du `like` | **erreur de configuration** sur les facettes : retirer `server-facets` |
+| `group-by` / `aggregate` / `select` calcule POSES SUR LA SOURCE | agregat du `like` | **erreur de configuration** : porter le calcul par une `dsfr-data-query` |
+
+Pour un jeu de plus de 1 000 lignes, poser `fetch-mode="export"` et `max-records` a la taille du
+jeu sur la source — ou resserrer le filtre par une egalite, qui part au portail. Quand la valeur
+cherchee est connue, `champ:eq:valeur` ou `champ:in:a|b` reste le filtre le moins cher. Le `where`
+d'une `dsfr-data-source` Opendatasoft, ecrit en ODSQL, n'est pas touche : un `like` y garde la
+semantique du portail (mots entiers, `mot*` pour un debut de mot). Tabular et Grist gardent
+`contains` delegue.
 
 #### `contains` reste un piege, et `explode` n'est pas un filtre
 

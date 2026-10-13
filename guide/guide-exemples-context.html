@@ -74,10 +74,10 @@
                 <label class="fr-label" for="ctx-categorie">Catégorie de produit</label>
                 <select class="fr-select" id="ctx-categorie">
                   <option value="" selected>Toutes</option>
-                  <option value="Alimentation">Alimentation</option>
-                  <option value="Automobiles et moyens de déplacement">Automobiles et moyens de déplacement</option>
-                  <option value="Jouets">Jouets</option>
-                  <option value="Appareils électriques, électronique">Appareils électriques, électronique</option>
+                  <option value="alimentation">Alimentation</option>
+                  <option value="automobiles et moyens de déplacement">Automobiles et moyens de déplacement</option>
+                  <option value="hygiène-beauté">Hygiène-beauté</option>
+                  <option value="sports-loisirs">Sports-loisirs</option>
                 </select>
               </div>
             </div>
@@ -169,7 +169,7 @@
         <ul>
           <li><strong>AND systématique</strong> : catégorie + mois se cumulent ; deux filtres sur <code>date_publication</code> restent deux émetteurs distincts (plage = intersection).</li>
           <li><strong>Dialectes automatiques</strong> : la clause est traduite en ODSQL pour OpenDataSoft, en colon pour Tabular/Grist — le même HTML marche sur les deux.</li>
-          <li><strong><code>url-sync</code></strong> : l'état des filtres vit dans l'URL (<code>?categorie_produit=Jouets&amp;date_publication=2026-05</code>) → rechargement et partage de lien. Les bornes dynamiques sérialisent l'<em>intention</em> (« 90 »), jamais les dates résolues.</li>
+          <li><strong><code>url-sync</code></strong> : l'état des filtres vit dans l'URL (<code>?categorie_produit=alimentation&amp;date_publication=2026-05</code>) → rechargement et partage de lien. Les bornes dynamiques sérialisent l'<em>intention</em> (« 90 »), jamais les dates résolues.</li>
           <li><strong><code>apply-to</code></strong> (non utilisé ici) : restreint un filtre à un sous-ensemble des sources.</li>
         </ul>
 

@@ -396,12 +396,34 @@ Multiples filtres separes par virgule (logique ET) :
 | gte | Superieur ou egal | \`"population:gte:10000"\` |
 | lt | Strictement inferieur | \`"score:lt:50"\` |
 | lte | Inferieur ou egal | \`"age:lte:30"\` |
-| contains | Contient (insensible a la casse) | \`"nom:contains:paris"\` |
-| notcontains | Ne contient pas | \`"email:notcontains:spam"\` |
+| contains | Contient : SOUS-CHAINE, n'importe ou dans la valeur (casse ignoree, accents respectes) | \`"nom:contains:paris"\` |
+| notcontains | Ne contient pas (meme sous-chaine ; garde les valeurs absentes) | \`"email:notcontains:spam"\` |
 | in | Dans la liste (separateur \\|) | \`"region:in:IDF\\|OCC\\|BRE"\` |
 | notin | Pas dans la liste | \`"status:notin:archive\\|supprime"\` |
 | isnull | Est vide/null | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
+
+**\`contains\` / \`notcontains\` sont une SOUS-CHAINE, partout (#1285)** : \`nom:contains:tation\`
+trouve « alimentation », quel que soit le fournisseur. C'est la bibliotheque qui dit ce que le
+filtre retient, pas le serveur.
+
+⚠️ **Sur une source Opendatasoft, \`contains\` / \`notcontains\` sont calcules dans le navigateur**,
+jamais par le portail : son \`like\` compare des MOTS, pas une sous-chaine (\`like "%aliment%"\`
+rend 0 ligne pour 14 366 « alimentation », mesure ; il ne trouve qu'un mot entier, ou un debut de
+mot avec \`like "alim*"\`). Consequences a connaitre AVANT de generer :
+- les autres clauses du meme filtre (\`eq\`, \`in\`, comparaisons) partent toujours au portail ; la
+  source charge tout ce qu'elles laissent passer, dans la limite de \`max-records\` (1 000 par
+  defaut ; au-dela la troncature est signalee) — pour un grand jeu, poser \`fetch-mode="export"\` et
+  \`max-records\` a la taille du jeu, ou resserrer le filtre par une egalite ;
+- \`group-by\` n'est plus delegue quand le filtre porte un \`contains\` (il est calcule dans le
+  navigateur, sur les lignes filtrees) ;
+- derriere une source \`server-side\` (une page), ou a cote de \`dsfr-data-facets server-facets\`,
+  c'est une ERREUR DE CONFIGURATION (\`data-dsfr-config-error\`), qui dit quoi ecrire : retirer
+  \`server-side\` / \`server-facets\`, remplacer la clause par une egalite (\`eq\`, \`in\`) quand la
+  valeur est connue, ou, pour une saisie du visiteur, \`dsfr-data-search server-search\` (recherche
+  plein texte du portail, par debut de mot).
+Ne JAMAIS ecrire \`champ like "%x%"\` dans le \`where\` ODSQL d'une source pour « contient » : le
+portail n'y lit pas une sous-chaine. Tabular et Grist gardent \`contains\` delegue.
 
 **Champs multiples — un OU entre champs (#1026)** : \`"nom|commune:contains:martin"\` applique le
 MÊME opérateur et la MÊME valeur à plusieurs champs ; la ligne passe dès qu'UN champ satisfait la
@@ -410,7 +432,8 @@ clause. Les clauses entre elles restent en ET : \`where="nom|commune:contains:ma
 OU de la grammaire (pas de clause \`or(...)\` générale). Traduction serveur : Tabular
 \`or=(nom__contains.martin,commune__contains.martin)\` (une seule clause multi-champs par requête,
 valeur sans \`,\` \`.\` \`(\` \`)\` \`"\` \`&\`, pas de \`in\`/\`notin\`), Opendatasoft et Grist
-\`(… OR …)\` ; INSEE et les sources sans adaptateur filtrent dans le navigateur.
+\`(… OR …)\` (sauf \`contains\` / \`notcontains\` sur Opendatasoft, calcules dans le navigateur,
+#1285) ; INSEE et les sources sans adaptateur filtrent dans le navigateur.
 
 **Champs tableau (#953, ex-#842)** : \`eq\` / \`neq\` / \`in\` / \`notin\` regardent DANS le tableau.
 \`tags:eq:urgent\` retient une ligne dont \`tags\` vaut \`["urgent","social"]\`, exactement comme
@@ -1228,7 +1251,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
 | search-template | String | \`'search("{q}")'\` | non | Template ODSQL pour la recherche serveur ({q} = terme) |
-| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre \`contains\` du contexte sur le champ UNIQUE de \`fields\` (obligatoire). Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
+| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre \`contains\` du contexte sur le champ UNIQUE de \`fields\` (obligatoire). Sur une cible Opendatasoft ce filtre est calcule dans le navigateur, sur les lignes chargees (#1285) : incompatible avec une cible \`server-side\` (erreur de configuration) — y preferer \`server-search\`. Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
 
 ### Recherche serveur
 Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie une commande
@@ -4161,7 +4184,10 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 ### Operateurs
 
 - \`eq\` : egalite — \`in\` : multi-valeurs (select multiple, valeurs jointes par | ou ,)
-- \`contains\` : sous-chaine (input texte ; \`like "%v%"\` en ODSQL) — #678
+- \`contains\` : sous-chaine (input texte) — #678. Jamais confie a un portail Opendatasoft, dont
+  le \`like\` compare des mots (#1285) : la source cible le calcule dans le navigateur, sur les
+  lignes chargees (sous \`max-records\`), et une cible \`server-side\` passe en erreur de
+  configuration
 - \`lt\` / \`gte\` : comparaisons — \`between\` : deux UI (min puis max) -> gte + lt
 - Dates (#230) : \`month-of\` (input type=month -> plage du mois), \`year-of\` (plage annuelle),
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
