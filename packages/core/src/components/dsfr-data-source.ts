@@ -78,6 +78,8 @@ import {
   getDataErrorState,
   getLastKnownData,
   isDataStale,
+  normalizeStaleIfError,
+  type DataErrorOptions,
   type LastKnownData,
   dispatchDataLoading,
   dispatchDataIdle,
@@ -683,6 +685,40 @@ export class DsfrDataSource extends LitElement {
   @property({ type: String, attribute: 'source-page' })
   sourcePage = '';
 
+  /**
+   * Garder à l'écran le DERNIER RELEVÉ pendant une panne passagère (#1288) :
+   * durée, en secondes, pendant laquelle les derniers chiffres reçus restent
+   * affichables. Absent ou `0` (défaut) : une source en panne ne laisse aucun
+   * ancien chiffre à l'écran, chaque bloc dit la panne.
+   *
+   * `stale-if-error="3600"` : si la source échoue après avoir livré, les blocs
+   * branchés dessus (KPI, graphique, liste, fiches, podium, carte, tableau
+   * équivalent) gardent leurs chiffres, atténués, sous l'étiquette « Non
+   * actualisé » et la phrase « Chiffres relevés aujourd’hui à 14 h 32. » —
+   * l'heure est celle où la page a reçu ces chiffres. L'export CSV reste
+   * possible, daté dans son libellé et dans le nom du fichier. Passé la durée
+   * (comptée depuis le relevé), les blocs reviennent d'eux-mêmes au message de
+   * panne.
+   *
+   * C'est à l'intégrateur de le décider, jeu par jeu : un chiffre d'il y a une
+   * heure a un sens pour un recensement, pas pour un stock ou des places
+   * libres. La valeur EST la borne : il n'existe pas de relevé sans durée.
+   *
+   * Le relevé n'est jamais affiché, quelle que soit la valeur, quand :
+   * la cause n'est pas passagère (données introuvables 404 / 410, accès
+   * restreint 401 / 403, page mal réglée) ; l'appel en échec n'est pas celui
+   * qui a produit les chiffres (filtre, page, tri ou emprise changés) ; rien
+   * n'a encore été reçu. Les filtres (`dsfr-data-facets`, `dsfr-data-search`)
+   * restent désactivés pendant la panne.
+   *
+   * Mémoire : celle de la page. Une page OUVERTE pendant la panne n'a rien à
+   * montrer. `getData()` et `getDataCache` rendent toujours vide pendant la
+   * panne : seuls les afficheurs de la bibliothèque lisent le relevé, par
+   * `getLastKnownData()`.
+   */
+  @property({ type: Number, attribute: 'stale-if-error' })
+  staleIfError = 0;
+
   // --- Internal state ---
 
   @state()
@@ -959,13 +995,53 @@ export class DsfrDataSource extends LitElement {
     }
   }
 
-  /** Phrase de l'intégrateur jointe à un échec de chargement (#1203). */
-  private _errorOptions(): { userMessage?: string; sourcePage?: string } {
+  /**
+   * Ce que la source joint à un échec de chargement : la phrase de
+   * l'intégrateur (#1203), la page publique (#1222), et pour le dernier relevé
+   * (#1288) sa consigne `stale-if-error` et l'empreinte de l'appel qui vient
+   * d'échouer.
+   */
+  private _errorOptions(requestKey?: string): DataErrorOptions {
     const sourcePage = this._safeSourcePage();
+    const staleIfError = this._staleIfErrorSeconds();
     return {
       ...(this.errorMessage ? { userMessage: this.errorMessage } : {}),
       ...(sourcePage ? { sourcePage } : {}),
+      ...(staleIfError !== undefined ? { staleIfError } : {}),
+      ...(requestKey !== undefined ? { requestKey } : {}),
     };
+  }
+
+  /** Valeur de `stale-if-error` déjà signalée comme refusée (warn-once par valeur). */
+  private _staleIfErrorWarned: number | null = null;
+
+  /** `stale-if-error` exploitable (#1288), sinon rien — et un avertissement. */
+  private _staleIfErrorSeconds(): number | undefined {
+    const seconds = normalizeStaleIfError(this.staleIfError);
+    const posed = this.hasAttribute('stale-if-error') && this.staleIfError !== 0;
+    if (seconds === undefined && posed && !Object.is(this._staleIfErrorWarned, this.staleIfError)) {
+      this._staleIfErrorWarned = this.staleIfError;
+      console.warn(
+        `dsfr-data-source[${this.id}]: stale-if-error ignoré — attendu une durée en secondes, ` +
+          `strictement positive (ex. stale-if-error="3600") (#1288)`
+      );
+    }
+    return seconds;
+  }
+
+  /**
+   * Empreinte de la requête en cours (#1288) : ce qui distingue l'appel qui a
+   * produit les lignes de celui qui échoue. Lue AU DÉPART de chaque fetch —
+   * une commande arrivée pendant le vol ne doit pas rebaptiser sa réponse.
+   */
+  private _requestKey(): string {
+    // Les regroupements délégués par commande (`dsfr-data-query`) ne sont pas
+    // dans l'empreinte du cache #307 : ils changent pourtant la question posée.
+    return JSON.stringify({
+      ...(this._cacheFingerprint() as Record<string, unknown>),
+      groupByOverlay: this._groupByOverlay,
+      aggregateOverlay: this._aggregateOverlay,
+    });
   }
 
   /** Valeur de `source-page` déjà signalée comme refusée (warn-once par valeur). */
@@ -1128,7 +1204,8 @@ export class DsfrDataSource extends LitElement {
       this._reemitScheduled = false;
       // Un fetch a pu etre demande entre-temps : son emission suffira
       if (!this._fetchScheduled && !this._loading && this._hasCurrentData()) {
-        dispatchDataLoaded(this.id, this._data);
+        // Les MÊMES lignes : leur date et leur empreinte ne changent pas (#1288)
+        dispatchDataLoaded(this.id, this._data, { reemit: true });
       }
     }, 0);
   }
@@ -1320,6 +1397,8 @@ export class DsfrDataSource extends LitElement {
 
     // Hoistee : le catch en a besoin pour nommer l'URL reellement appelee (#598)
     let attemptedUrl = '';
+    // Empreinte de CET appel (#1288), pour sa réponse comme pour son échec
+    const requestKey = this._requestKey();
 
     // Le fournisseur est detecte UNE fois depuis l'URL (#1136) : il decide des
     // en-tetes d'authentification et de l'aplatissement des lignes, par sa
@@ -1410,7 +1489,7 @@ export class DsfrDataSource extends LitElement {
             : flat;
       }
 
-      dispatchDataLoaded(this.id, this._data);
+      dispatchDataLoaded(this.id, this._data, { requestKey });
 
       // Cache externe via hook (fire-and-forget, #307)
       if (this.cacheTtl > 0 && getCacheProvider()) {
@@ -1426,14 +1505,19 @@ export class DsfrDataSource extends LitElement {
         const cached = await this._getCache();
         if (cached) {
           this._data = cached;
-          dispatchDataLoaded(this.id, this._data);
+          dispatchDataLoaded(this.id, this._data, { requestKey });
           this.dispatchEvent(new CustomEvent('cache-fallback', { detail: { sourceId: this.id } }));
           return;
         }
       }
 
       this._error = error as Error;
-      dispatchDataError(this.id, this._error, attemptedUrl || undefined, this._errorOptions());
+      dispatchDataError(
+        this.id,
+        this._error,
+        attemptedUrl || undefined,
+        this._errorOptions(requestKey)
+      );
       logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, attemptedUrl);
     } finally {
       // Un fetch remplace (abort concurrent) ne doit pas eteindre le
@@ -1465,6 +1549,8 @@ export class DsfrDataSource extends LitElement {
     // l'overlay pour le diagnostic (#598). Reste assigne dans la branche
     // server-side, pour ne pas appeler getEffectiveWhere() en mode fetchAll.
     let overlay: ServerSideOverlay | undefined;
+    // Empreinte de CET appel (#1288), pour sa réponse comme pour son échec
+    const requestKey = this._requestKey();
 
     try {
       let result;
@@ -1483,14 +1569,14 @@ export class DsfrDataSource extends LitElement {
       }
 
       this._data = result.data;
-      dispatchDataLoaded(this.id, this._data);
+      dispatchDataLoaded(this.id, this._data, { requestKey });
 
       // Cache externe via hook (fire-and-forget, #307)
       if (this.cacheTtl > 0 && getCacheProvider()) {
         this._putCache(this._data).catch(() => {});
       }
     } catch (error) {
-      await this._handleAdapterFetchError(error, adapter, params, overlay);
+      await this._handleAdapterFetchError(error, adapter, params, overlay, requestKey);
     } finally {
       if (generation === this._fetchGeneration) {
         this._loading = false;
@@ -1696,7 +1782,8 @@ export class DsfrDataSource extends LitElement {
     error: unknown,
     adapter: ApiAdapter,
     params: AdapterParams,
-    overlay: ServerSideOverlay | undefined
+    overlay: ServerSideOverlay | undefined,
+    requestKey: string
   ): Promise<void> {
     if ((error as Error).name === 'AbortError') {
       return;
@@ -1706,7 +1793,7 @@ export class DsfrDataSource extends LitElement {
       const cached = await this._getCache();
       if (cached) {
         this._data = cached;
-        dispatchDataLoaded(this.id, this._data);
+        dispatchDataLoaded(this.id, this._data, { requestKey });
         this.dispatchEvent(new CustomEvent('cache-fallback', { detail: { sourceId: this.id } }));
         return;
       }
@@ -1714,7 +1801,7 @@ export class DsfrDataSource extends LitElement {
 
     this._error = error as Error;
     const diagnosticUrl = this._diagnosticUrl(adapter, params, overlay);
-    dispatchDataError(this.id, this._error, diagnosticUrl, this._errorOptions());
+    dispatchDataError(this.id, this._error, diagnosticUrl, this._errorOptions(requestKey));
     logFetchError(`dsfr-data-source[${this.id}]: Erreur de chargement`, error, diagnosticUrl);
   }
 

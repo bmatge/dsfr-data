@@ -15,11 +15,22 @@
  */
 import { html, nothing, type TemplateResult } from 'lit';
 import {
+  dispatchSourceCommand,
   getDataErrorState,
   isSourceCoveredByBanner,
   requestSourceRetry,
   type DataErrorState,
 } from './data-bridge.js';
+import {
+  READING_FIGURES,
+  STALE_BADGE_STYLE,
+  STALE_LABEL,
+  formatReadingMoment,
+  readingDateTime,
+  readingHead,
+  type ReadingSubject,
+  type StaleReading,
+} from './stale-reading.js';
 import {
   SOURCE_PAGE_LABEL,
   describeSourceCause,
@@ -289,6 +300,177 @@ export function renderFiltersUnavailable(id: string, unavailable: FiltersUnavail
       <span class="fr-icon-information-line fr-icon--sm" aria-hidden="true"></span>
       ${unavailable.text}
     </p>
+  `;
+}
+
+// ---------------------------------------------------------------------------
+// Dernier relevé (#1288, proposition B)
+// ---------------------------------------------------------------------------
+
+/** Libellé du bouton pendant qu'un nouvel essai est en vol (bandeau et blocs). */
+export const RETRYING_LABEL = 'Nouvel essai en cours…';
+
+/**
+ * Ce qu'un bloc dit du relevé qu'il affiche (#1288) — la même lecture pour la
+ * mention complète et pour la ligne d'une tuile de KPI.
+ */
+export interface StaleNoticeView {
+  reading: StaleReading;
+  /** Horloge de la lecture : « aujourd’hui » se juge par rapport à elle. */
+  now: number;
+  /** Lecture de la panne, quand une erreur est connue (absente : bloc monté pendant un essai). */
+  error: SourceErrorView | null;
+  /** Un bandeau `dsfr-data-source-status` dit déjà cette panne. */
+  covered: boolean;
+  /** « Réessayer » dans le bloc : aucun bandeau ne le porte. */
+  showRetry: boolean;
+  /** Un nouvel essai est en vol : le relevé reste, le bouton attend. */
+  retrying: boolean;
+  /** Phrase ajoutée à la mention : hors connexion, puis `error-message`. */
+  extra: string;
+}
+
+/** Lit ce qu'un bloc dit de son relevé — voir `StaleNoticeView`. */
+export function resolveStaleNotice(
+  reading: StaleReading,
+  error: Error | null,
+  sourceId: string | undefined,
+  loading: boolean,
+  now: number = Date.now()
+): StaleNoticeView {
+  const view = error ? resolveSourceErrorKept(error, sourceId) : null;
+  const covered = isSourceCoveredByBanner(view?.originId ?? reading.originId);
+  const extras: string[] = [];
+  // La cause est passagère par construction (`judgeStaleReading`) ; seule
+  // « hors connexion » se dit, parce que l'usager peut y remédier.
+  if (reading.cause === 'hors-connexion') extras.push('Vous semblez hors connexion.');
+  if (view?.userMessage) extras.push(view.userMessage);
+  return {
+    reading,
+    now,
+    error: view,
+    covered,
+    showRetry: !covered,
+    retrying: loading,
+    extra: extras.join(' '),
+  };
+}
+
+/** `<time>` du relevé : « aujourd’hui à 14 h 32 », insécable. */
+export function renderReadingTime(loadedAt: number, text: string): TemplateResult {
+  return html`<time
+    class="dsfr-data-status__stale-time"
+    datetime=${readingDateTime(loadedAt)}
+    style="white-space: nowrap; font-weight: 700; color: var(--text-title-grey, #161616);"
+    >${text}</time
+  >`;
+}
+
+/**
+ * « Réessayer » d'un bloc qui montre un relevé (#1288). Adressé à l'ORIGINE
+ * portée par le relevé — pendant un essai le registre d'erreur est vide, et
+ * `requestSourceRetry` retomberait sur l'étape lue. Le bouton reste en place
+ * pendant l'essai : il garde le focus, et dit ce qui se passe.
+ */
+export function renderStaleRetryButton(
+  notice: StaleNoticeView,
+  variant: 'secondary' | 'tertiary' = 'secondary',
+  extraClass = ''
+): TemplateResult {
+  const { reading, retrying } = notice;
+  return html`<button
+    type="button"
+    class="fr-btn fr-btn--${variant} fr-btn--sm dsfr-data-status__retry${
+      extraClass ? ` ${extraClass}` : ''
+    }"
+    style=${RETRY_BUTTON_STYLE}
+    aria-disabled=${retrying ? 'true' : 'false'}
+    @click=${() => {
+      if (!retrying) dispatchSourceCommand(reading.originId, { reload: true });
+    }}
+  >
+    ${retrying ? RETRYING_LABEL : RETRY_LABEL}
+  </button>`;
+}
+
+/** Lignes de « Détails techniques » d'un relevé : celles de la panne, puis sa date. */
+export function renderStaleDetailItems(notice: StaleNoticeView): TemplateResult {
+  const { reading, error } = notice;
+  return html`
+    ${error ? renderSourceErrorDetailItems(error) : html`<li>Source : ${reading.originId}</li>`}
+    <li>Dernier chargement réussi : ${formatErrorTime(reading.loadedAt)}</li>
+  `;
+}
+
+/** Étiquette « Non actualisé » — du texte, jamais la seule couleur (RGAA 3.1). */
+export function renderStaleBadge(): TemplateResult {
+  return html`<span class="dsfr-data-status__stale-badge" style=${STALE_BADGE_STYLE}
+    >${STALE_LABEL}</span
+  >`;
+}
+
+const STALE_NOTICE_STYLE =
+  'display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem;' +
+  'margin: 0 0 0.5rem; padding: 0.25rem 0.5rem; box-sizing: border-box;' +
+  'font-size: 0.8125rem; line-height: 1.5; font-weight: 400; text-align: left;' +
+  'color: var(--text-default-grey, #3a3a3a);' +
+  'background: var(--background-alt-grey, #f6f6f6);' +
+  'border-left: 3px dashed var(--text-mention-grey, #666);';
+
+/**
+ * Mention d'un bloc qui montre un RELEVÉ (#1288) : étiquette « Non
+ * actualisé », puis « Chiffres relevés aujourd’hui à 14 h 32. », posée
+ * au-dessus des chiffres qu'elle date.
+ *
+ * - c'est du TEXTE, dans le bloc : deux sources comparées dont une seule est
+ *   périmée ne se distinguent pas par un bandeau en tête de page ;
+ * - `role="status"` quand aucun bandeau ne couvre la source — la panne est
+ *   annoncée une fois. Le texte ne change pas d'un essai raté à l'autre : il
+ *   n'est pas réannoncé ;
+ * - sans bandeau : « Réessayer » (qui dit « Nouvel essai en cours… » pendant
+ *   l'essai) et « Détails techniques ». Avec un bandeau, il porte les deux.
+ */
+export function renderStaleNotice(
+  componentClass: string,
+  notice: StaleNoticeView,
+  subject: ReadingSubject = READING_FIGURES
+): TemplateResult {
+  const { reading, now, covered, showRetry, extra } = notice;
+  return html`
+    <div
+      class="${componentClass}__stale dsfr-data-status--stale"
+      role=${covered ? nothing : 'status'}
+      data-cause=${reading.cause}
+      style=${STALE_NOTICE_STYLE}
+    >
+      ${renderStaleBadge()}
+      <p
+        class="dsfr-data-status__stale-text"
+        style="margin: 0; flex: 1 1 12rem; font-size: inherit;"
+      >
+        ${readingHead(subject)}
+        ${renderReadingTime(reading.loadedAt, formatReadingMoment(reading.loadedAt, now))}.${
+          extra ? html` ${extra}` : nothing
+        }
+      </p>
+      ${showRetry ? renderStaleRetryButton(notice) : nothing}
+      ${
+        covered
+          ? nothing
+          : html`<details
+              class="dsfr-data-status__details"
+              style="flex: 1 1 100%; font-size: 0.75rem; color: var(--text-mention-grey, #666);"
+            >
+              <summary>Détails techniques</summary>
+              <ul
+                class="dsfr-data-status__details-list"
+                style="margin: 0.25rem 0 0; padding-left: 1rem;"
+              >
+                ${renderStaleDetailItems(notice)}
+              </ul>
+            </details>`
+      }
+    </div>
   `;
 }
 
