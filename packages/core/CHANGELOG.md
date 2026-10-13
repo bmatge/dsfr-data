@@ -1,5 +1,100 @@
 # dsfr-data
 
+## 0.49.0
+
+### Minor Changes
+
+- [#1287](https://github.com/bmatge/dsfr-data/pull/1287) [`e7b3f6b`](https://github.com/bmatge/dsfr-data/commit/e7b3f6b0713216b0f8337905d1766d86d8e3e5e2) Thanks [@bmatge](https://github.com/bmatge)! - Les lignes d'une source en panne restent en mémoire, **périmées et datées** : plus aucun lecteur ne les reçoit comme des lignes à jour ([#1272](https://github.com/bmatge/dsfr-data/issues/1272)). Rien ne change à l'écran : les blocs gardent leur message de panne de la 0.48.
+  
+  **Ce qui était faux.** Quand une source échouait après avoir déjà livré, ses lignes restaient dans le cache comme si de rien n'était. Les afficheurs disaient la panne depuis la 0.48, mais tout le reste lisait l'ancien jeu sans le savoir : `DsfrData.getDataCache(id)` et `element.getData()` le rendaient encore ; une `dsfr-data-query` montée après la panne le relisait et l'émettait ; une jointure ou un empilement dont l'AUTRE entrée se rechargeait recalculait sur l'ancien côté ; un `dsfr-data-normalize` dont un attribut changeait aussi ; une source qui recevait une commande sans effet ré-émettait son ancien jeu. Dans chacun de ces cas, l'aval quittait son état d'erreur et réaffichait le chiffre d'avant la panne.
+  
+  **La règle, désormais.** À l'échec, les lignes sortent du cache courant et sont rangées à part, avec la date de leur chargement et la cause de la panne. Le marquage tient pendant le nouvel essai et se lève au premier chargement réussi ; une source remise en attente d'un filtre (`require-where`) ou retirée de la page n'en garde aucune. Un transformateur dont une entrée est en panne relaie l'erreur et ne recalcule rien.
+  
+  **Changements de contrat pour un intégrateur** (à lire si un script de la page lit les données) :
+  
+  - `element.getData()` rend `null` sur une source en panne (au lieu des lignes d'avant la panne), et `[]` sur une requête, une jointure, un empilement, un pivot, un dépivot ou une recherche dont la source est en panne.
+  - `DsfrData.getDataCache(id)` rend `undefined` pour une étape en panne. Un bundle d'une version antérieure chargé sur la même page, ou un script qui lit `window.__dsfrDataCache`, ne voit plus ces lignes non plus.
+  - Pour lire quand même les dernières lignes reçues : **`element.getLastKnownData()`** ou **`DsfrData.getLastKnownData(id)`**, qui rendent `{ data, loadedAt, stale? }`. `loadedAt` est la date du dernier chargement réussi ; `stale` (`{ since, cause, originId }`) est présent pendant la panne, absent sinon. Les lignes et leur date sont rendues ensemble.
+  - **`element.isStale()`** et **`DsfrData.isDataStale(id)`** : vrai de la panne jusqu'au prochain chargement réussi, nouvel essai en cours compris.
+  - L'événement `dsfr-data-loaded` gagne `detail.loadedAt` ; `dsfr-data-error` gagne `detail.lastLoadedAt`, présent seulement quand la source avait déjà livré. Rien d'autre ne change dans ces détails.
+  - Une source en panne ne ré-émet plus son ancien jeu en réponse à une commande sans effet.
+  - Un afficheur monté pendant un nouvel essai est en chargement, au lieu d'afficher l'ancien chiffre sans indication.
+  
+  **Corrigé au même endroit.**
+  
+  - L'`aria-label` d'un `dsfr-data-kpi` en chargement ne porte plus le dernier chiffre reçu : « Population: chargement en cours » au lieu de « Population: 15 909 531 ».
+  - La source et les adaptateurs abandonnent le corps d'une réponse d'erreur (404, 503…) au lieu de le laisser non lu : la requête n'est plus tenue ouverte par le navigateur. Mesuré : un test qui attend le calme du réseau après une panne passait de 90 s (délai dépassé) à 1 s.
+  - « Réessayer » sur un bloc alimenté par `scopes` (`dsfr-data-display`, `dsfr-data-repeat`) relance la source qui a échoué, et non un identifiant fabriqué que personne ne sert.
+  - Volet Diagnostic : une étape en panne dit les lignes qu'elle garde, périmées, avec l'heure de leur chargement ; une étape qui a émis après l'échec de son amont est signalée comme « calculée sur des lignes périmées » (composant tiers, ou page observée avec une version antérieure). Sur une page observée après coup, une étape en panne n'est plus reconstituée « chargée ».
+  
+  **Non fait, volontairement.** Aucun composant n'affiche les dernières données connues : c'est la proposition 3 de [#1203](https://github.com/bmatge/dsfr-data/issues/1203), qui fait l'objet d'une issue à part ([#1288](https://github.com/bmatge/dsfr-data/issues/1288)). `dsfr-data-map-layer` et `dsfr-data-a11y` (tableau équivalent, export CSV) n'ont pas de rendu de panne : ils gardent à l'écran les dernières lignes reçues, comme avant — leur cas est décrit dans cette même issue.
+
+### Patch Changes
+
+- [#1280](https://github.com/bmatge/dsfr-data/pull/1280) [`3ba40fd`](https://github.com/bmatge/dsfr-data/commit/3ba40fd90d1ce5c677583711bf68b21f716d087a) Thanks [@bmatge](https://github.com/bmatge)! - Bornes d'axe de `dsfr-data-chart` ([#1273](https://github.com/bmatge/dsfr-data/issues/1273)) : pour chaque couple attribut × type, `x-min`, `x-max`, `y-min` et `y-max` agissent ou sont signalés — plus jamais ignorés en silence, plus jamais posés à contresens. Aucun attribut nouveau.
+  
+  **Ce qui était faux.** Les quatre attributs étaient relayés tels quels à DSFR Chart, qui les pose en bornes « suggérées » sur l'échelle du même nom. Mesuré dans un navigateur : sur un axe d'étiquettes, la borne devenait une **catégorie fantôme** (« 5 » et « 40 » ajoutés aux étiquettes) ; un `bar-line` ne lisait ni `y-min` ni `y-max` ; et une borne suggérée était arrondie à la graduation voisine (`y-min="5"` rendait un axe partant de 0).
+  
+  **La règle, désormais.**
+  
+  - `y-min` / `y-max` bornent l'axe des **valeurs**, où qu'il soit dessiné : axe vertical de `line`, `scatter` et `bar`, axe horizontal de barres horizontales (`type="bar" horizontal`), axe des barres (à gauche) d'un `bar-line`, échelle radiale d'un `radar` (inchangée).
+  - `x-min` / `x-max` bornent l'axe **horizontal** quand il porte des nombres : `scatter` et `line` à étiquettes numériques (années, mesures), et barres horizontales, où c'est l'axe des valeurs (`x-*` y l'emporte sur `y-*` si les deux sont écrits).
+  - Une borne retenue est posée **exactement** : `y-min="5"` sur une courbe donne un axe qui part de 5, `y-max="37"` un axe qui s'arrête à 37.
+  - Une borne **ne masque jamais une donnée** (hors radar) : un minimum au-dessus de la plus petite valeur, un maximum en dessous de la plus grande (du plus grand cumul pour des barres empilées) sont ignorés, avec un avertissement console qui nomme la valeur.
+  - **Des barres partent de zéro** (`bar`, `bar-line`) : un minimum positif y est ignoré et signalé — tronquer l'axe fausserait la comparaison des longueurs. Seul un minimum négatif ou nul agit.
+  - Sur un axe d'étiquettes (`x-*` sur `bar` vertical, `bar-line`, `line` ou `scatter` à étiquettes texte), sur `radar` (`x-*`) et sur les types sans axe (`pie`, `gauge`, cartes), l'attribut est sans effet : il n'est plus relayé, et un avertissement console unique le dit en nommant l'attribut, le type et, quand il existe, l'attribut qui agit à sa place.
+  
+  **Ce qui change pour une page existante.**
+  
+  - Barres horizontales avec `y-min` / `y-max` : les deux catégories fantômes disparaissent de l'axe des étiquettes, et la borne s'applique à l'axe des valeurs (un `y-max="100"` y donne enfin un axe de 0 à 100). C'est une correction.
+  - `bar-line` avec `y-min` / `y-max` : la borne, jusqu'ici sans effet, s'applique à l'axe des barres. L'axe de la ligne suit toujours ses cibles (`targets`), y compris quand `y-max` est posé.
+  - `bar`, `bar-line`, `line` ou `scatter` à étiquettes texte avec `x-min` / `x-max` : les catégories fantômes disparaissent ; un avertissement console apparaît.
+  - Courbe, nuage ou barres dont la borne tombait hors graduation : l'axe passe de la graduation arrondie à la borne écrite (`y-min="5"` : de 0 à 5 ; `y-min="-7"` : de -20 ou -10 à -7 ; `y-max="37"` : de 40 à 37). Une borne déjà ronde (`y-min="0" y-max="100"`) ne bouge pas.
+  - Une borne qui était ignorée parce qu'elle aurait masqué une donnée (`y-min="20"` sous une série qui descend à 12, `y-max="25"` sous une série qui monte à 33), ou parce que des barres partent de zéro (`y-min="5"` sur `bar`), reste ignorée : le graphique ne change pas, un avertissement console apparaît.
+  - `pie`, `gauge`, cartes et `radar` (`x-*`) portant une de ces bornes : rien ne change à l'écran, un avertissement console apparaît.
+  
+  Aussi : un repère (`reference-lines`) ou une cible (`targets`) se place sur l'échelle bornée ; une borne non numérique (`y-min="abc"`) est signalée ; le guide des skills corrige l'attribution inversée de `unit-tooltip` (ligne) et `unit-tooltip-bar` (barres) sur un `bar-line`.
+
+- [#1281](https://github.com/bmatge/dsfr-data/pull/1281) [`43ad049`](https://github.com/bmatge/dsfr-data/commit/43ad049bfe8107500410f1d9883080a22117328e) Thanks [@bmatge](https://github.com/bmatge)! - Pagination par décalage : plus de ligne en double ni de ligne perdue en silence sur Opendatasoft, et le tri d'un tableau paginé au serveur devient stable sur Tabular ([#1274](https://github.com/bmatge/dsfr-data/issues/1274), [#1233](https://github.com/bmatge/dsfr-data/issues/1233)).
+  
+  **Ce qui est corrigé**
+  
+  - **Opendatasoft, plus de 100 lignes.** L'adaptateur paginait par `limit` / `offset` sans `order_by`, et l'API ne garantit alors aucun ordre d'une page à l'autre : des lignes revenaient deux fois, d'autres jamais, pour un compte juste (jeu `dgfip-taux-de-change`, Haïti : 321 lignes reçues, 297 distinctes ; un tableau annonçait 162 taux là où il y en a 154). Le défaut est intermittent, donc invisible à une recette ponctuelle. Dès qu'un chargement dépasse une page, la source relit le jeu sur un **ordre total** : le tri demandé, inchangé et en tête, complété de toutes les colonnes triables du jeu (texte, nombre, date, booléen), lues une fois dans ses métadonnées. Vaut pour un chargement complet, pour un chargement coupé par `limit` ou `max-records`, et pour chaque page d'une source en `server-side`. Des groupes triés (`group-by` + `order-by`) sont départagés par les autres clés du regroupement.
+  - **Tabular en `server-side`.** Un tri sur une clé non unique y restait instable d'une page à l'autre. Il reçoit la clé de départage déjà posée sur les chargements tronqués (l'identifiant de ligne, dans la valeur du tri). Cela complète la résolution du constat PG-033 du banc d'essai.
+  
+  **Ce qui change pour une page existante**
+  
+  - **L'ordre des lignes, sur Opendatasoft, au-delà d'une page et sans `order-by`.** Elles arrivaient dans l'ordre de l'API, arbitraire ; elles arrivent triées sur les colonnes du jeu, dans l'ordre de ses champs. Sont concernés : un tableau ou une liste sans tri, un cumul (`running_sum`, `diff`) calculé sans `order-by`, les lignes retenues par un plafond (les premières de cet ordre, et non plus des lignes quelconques), l'ordre des pages d'une source en `server-side` non triée. Pour un ordre précis, poser `order-by`. Avec un `order-by`, seul l'ordre des ex-æquo change.
+  - **Deux requêtes de plus** par chargement Opendatasoft de plus d'une page : la première page, qui sert de sonde et est relue, et les métadonnées du jeu (une fois par jeu). En `server-side`, une requête de plus par jeu.
+  - **Un temps de réponse plus long sur un très gros jeu sans filtre** : le tri de départage coûte quelques secondes à la première page d'un jeu de plus d'un million de lignes (mesuré : 5,5 s à froid, 0,7 s ensuite, contre 0,2 s sans tri). Rien de mesurable sur un jeu filtré.
+  - **Rien ne change** pour un chargement d'une seule page (100 lignes ou moins : ni tri ajouté, ni requête de plus), pour `fetch-mode="export"`, pour une requête regroupée sans tri, et sur Tabular sans `order-by`.
+  
+  **Si l'API refuse la clé de départage**, ou si les colonnes du jeu ne peuvent pas être lues : la source charge comme avant, un avertissement console le dit une fois, et le volet Diagnostic affiche « pagination sans ordre garanti » (réserve `unstable-pagination`, Opendatasoft) ou « tri serveur instable » (réserve `unstable-sort`, Tabular). Poser alors un `order-by` sur une colonne unique, ou charger en une requête avec `fetch-mode="export"`.
+  
+  **Ce qui reste**
+  
+  - Sur Opendatasoft, deux lignes égales sur toutes les colonnes triables et distinctes seulement par une géométrie ou un fichier ne sont pas départagées.
+  - Sur Tabular, un chargement ou une pagination serveur **sans tri** s'appuie toujours sur l'ordre par défaut de l'API (celui de l'identifiant de ligne), mesuré stable mais non documenté.
+  - Grist en `server-side`, INSEE Melodi et le mode URL `paginate` paginent eux aussi sans ordre total imposé par la bibliothèque : non mesuré, suivi dans [#1279](https://github.com/bmatge/dsfr-data/issues/1279).
+
+- [#1284](https://github.com/bmatge/dsfr-data/pull/1284) [`8097608`](https://github.com/bmatge/dsfr-data/commit/80976084a08e7b79a89b4595cd472e3ef2af8069) Thanks [@bmatge](https://github.com/bmatge)! - Tableaux équivalents : un petit ratio ne s'affiche plus « 0 » ([#1282](https://github.com/bmatge/dsfr-data/issues/1282), suite de [#1260](https://github.com/bmatge/dsfr-data/issues/1260)).
+  
+  Le tableau de la DataBox de `dsfr-data-chart`, celui de `dsfr-data-a11y` et les cellules de
+  `dsfr-data-list` arrondissaient tout nombre à deux décimales : un ratio de 0,00123 s'y lisait « 0 »
+  (et −0,00123, « -0 ») alors que le graphique traçait bien la valeur. La version accessible du
+  graphique annonçait zéro pour une valeur qui ne l'est pas.
+  
+  Désormais, sans attribut `decimals`, une valeur **non nulle inférieure à 0,01 en valeur absolue**
+  garde ses deux premiers chiffres significatifs, écrits en entier : 0,00123 → « 0,0012 »,
+  −0,00123 → « -0,0012 », 0,005 → « 0,005 », 1e-12 → « 0,000000000001 » (jamais de notation
+  scientifique). Zéro s'écrit « 0 », y compris `-0`.
+  
+  **Seules les valeurs inférieures à 0,01 en valeur absolue changent d'affichage.** À partir de 0,01,
+  rien ne bouge : « 0,01 », « 2,27 », « 1 234 567,89 ». Ne changent pas non plus : les valeurs passées
+  au graphique, les chaînes (codes INSEE, SIREN), l'attribut `decimals` (posé, il est tenu tel quel :
+  `decimals="2"` rend toujours « 0,00 »), et les fichiers exportés — le CSV de `dsfr-data-a11y` et les
+  exports de `dsfr-data-list` portaient déjà la valeur brute (`0.00123`), pas l'arrondi d'affichage.
+
 ## 0.48.0
 
 ### Minor Changes
