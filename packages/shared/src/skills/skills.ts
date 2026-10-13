@@ -64,7 +64,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | params | String | \`""\` | non | Parametres de requete en JSON. Mode URL : query string (GET) ou corps (POST). Mode adaptateur (#726) : les paires sont ajoutees a l'URL construite par l'adaptateur — c'est ce qui permet a une page a \`timezone\` d'utiliser \`fetch-mode="export"\`, ex. \`params='{"timezone":"Europe/Paris"}'\` sur un jeu ODS a dates. Les cles que l'adaptateur construit lui-meme sont reservees, chacun declarant les siennes (#1137 — ODS : \`select\`, \`where\`, \`group_by\`, \`order_by\`, \`limit\`, \`offset\`, \`facet\` ; Tabular : \`page\`, \`page_size\`, \`columns\`, \`or\`, \`champ__sort\`…) : refusees avec une erreur de configuration. Transmis par OpenDataSoft seulement. |
 | transform | String | \`""\` | non | Chemin JSONPath vers les données : \`"results"\`, \`"data.items"\`, \`"records"\` |
 | refresh | Number | \`0\` | non | Rafraichissement auto en secondes (0 = desactive) |
-| paginate | Boolean | \`false\` | non | Active la pagination serveur (injecte page/page_size dans l'URL, stocke la meta) |
+| paginate | Boolean | \`false\` | non | Active la pagination serveur (injecte page/page_size dans l'URL, stocke la meta). L'ordre des lignes est celui de l'API : la source ne peut rien en garantir — poser dans l'URL (ou \`params\`) le tri de l'API sur une colonne UNIQUE, sinon une ligne peut revenir sur deux pages et une autre n'etre jamais servie (#1279) |
 | page-size | Number | \`20\` | non | Taille de page pour la pagination serveur (nombre de records par page) |
 | cache-ttl | Number | \`3600\` | non | TTL du cache externe en secondes (0 = desactive). Actif uniquement si la page hote enregistre window.DSFR_DATA_CACHE_PROVIDER (#307) — no-op en embed anonyme. Repli hors ligne cote navigateur : AUCUN rapport avec le relais (\`relay-url\`), dont la duree de cache se regle sur le relais. |
 | api-type | String | \`"generic"\` | non | Type de provider (opendatasoft, tabular, grist, insee, generic, ou un adaptateur ajoute par \`registerAdapter\`). Active le mode adapter. |
@@ -169,6 +169,16 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > page part sur cet ordre ; sur un jeu de plus d'un million de lignes sans \`where\`, la premiere page peut prendre
 > quelques secondes. Si l'API refuse ce tri : la source charge comme avant, et le volet Diagnostic signale une
 > pagination sans ordre garanti.
+> Grist en \`server-side\` (#1279) : l'API \`/records\` ne sait pas sauter de lignes (\`offset\` y est ignore sans
+> erreur). La source demande donc la page N par \`limit = N x page-size\` et n'en garde que la derniere tranche :
+> chaque page est juste, et la page N coute N pages de transfert — garder un \`page-size\` raisonnable, ou retirer
+> \`server-side\` (Grist rend toute la table en une requete). Un \`order-by\` pagine est complete par l'identifiant
+> de ligne (\`id\`) : les ex-aequo ne changent pas de page. Avec un \`where\` a operateur avance, un \`group-by\` ou
+> un \`aggregate\`, la requete passe par l'endpoint SQL, pagine par LIMIT / OFFSET sur le meme ordre total.
+> INSEE Melodi, plus de 1 000 observations (#1279) : l'API pagine par numero de page et n'offre AUCUN tri. L'ordre
+> mesure est stable, rien ne le garantit, et la source ne peut pas l'imposer. Elle verifie donc apres coup qu'aucune
+> observation n'est revenue d'une page a l'autre ; si c'est le cas, le volet Diagnostic affiche « lignes revenues
+> d'une page a l'autre » — resserrer alors le \`where\` pour tenir en une page, ou recharger.
 > Tabular, \`where\` avec \`in\`/\`notin\` et une valeur a parenthese ou a virgule (#1233) : la clause part au serveur,
 > la valeur ENTRE GUILLEMETS (nue, l'API l'ecarterait sans erreur) — une requete filtree, sur la source comme sur une
 > dsfr-data-query, en chargement complet comme en \`server-side\`. Si l'API refuse cette forme : en chargement complet
@@ -3938,10 +3948,15 @@ déduits les correctifs de diagnostic (#641, #646, #653, #659, #727, #729, #730,
   un chiffre.
 - **Compte juste, lignes fausses** (pagination par décalage, #1274, #1233) : un jeu de plus d'une
   page dont un sous-total, un cumul ou un historique varie d'un chargement à l'autre alors que
-  le total reste bon. La source le corrige seule sur OpenDataSoft et Tabular (ordre total) ;
+  le total reste bon. La source le corrige seule sur OpenDataSoft, Tabular et Grist (ordre total) ;
   si le volet Diagnostic affiche « pagination sans ordre garanti » ou « tri serveur instable »,
   l'API a refusé la clé de départage : poser un \`order-by\` sur une colonne unique, ou charger
-  en une requête (\`fetch-mode="export"\`).
+  en une requête (\`fetch-mode="export"\`). Sur INSEE Melodi, qui n'a pas de tri, la source ne
+  peut que le constater : « lignes revenues d'une page à l'autre » (#1279) — resserrer le
+  \`where\`. En mode URL \`paginate\`, rien ne le détecte : le tri total est à écrire dans l'URL.
+- **Tableau Grist paginé qui montre toujours les mêmes lignes** (#1279) :
+  \`api-type="grist"\` avec \`server-side\` affichait la première page à toutes les pages —
+  l'API ignore \`offset\`. Corrigé ; sur une instance servie en retard, retirer \`server-side\`.
 - **Instance servie en retard** : un attribut inconnu de la version CHARGÉE est signalé (#727),
   mais une instance publique peut servir une version antérieure — \`curl …/dist/skills-meta.json\`
   donne sa \`libVersion\`.
