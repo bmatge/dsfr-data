@@ -909,6 +909,25 @@ describe('pipeline/reserve-serveur — les réserves de #1242 et de la suite de 
     expect(formatTrace(fautive)).toContain('sur la seule page reçue');
   });
 
+  it('repeated-rows : des lignes revenues d’une page à l’autre sont dites (#1279)', () => {
+    const fautive = trace({
+      nodes: [SOURCE, CARTE],
+      states: {
+        src: charge(3, { meta: { page: 1, pageSize: 0, caveats: ['repeated-rows'] } }),
+      },
+    });
+    const trouves = deLaRegle(evaluerConstats(fautive, CTX), 'pipeline/reserve-serveur');
+    expect(trouves).toHaveLength(1);
+    expect(trouves[0]).toMatchObject({
+      id: 'pipeline/reserve-serveur@src',
+      gravite: 'avertissement',
+      preuve: 'repeated-rows',
+    });
+    expect(trouves[0].titre).toContain('lignes revenues d’une page à l’autre');
+    expect(trouves[0].action).toContain('Resserrer le where');
+    expect(formatTrace(fautive)).toContain("revenues d'une page à l'autre");
+  });
+
   it('in-quoted-refused : le refus des guillemets est dit, avec le where en cause', () => {
     const fautive = trace({
       nodes: [{ ...SOURCE, attrs: { where: 'indicateur:in:Homicides|Usage (AFD)' } }, CARTE],

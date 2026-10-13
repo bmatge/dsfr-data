@@ -287,6 +287,114 @@ describe('InseeAdapter', () => {
 // Fetch-based tests
 // =============================================================================
 
+/**
+ * Melodi pagine sans tri possible (#1279) : l'adaptateur ne peut pas imposer
+ * d'ordre, il CONSTATE une observation revenue d'une page à l'autre. Le faux
+ * serveur sert 2 500 observations en trois pages ; `decalage` fait glisser
+ * l'ordre entre la première page et les suivantes, comme une API dont l'ordre
+ * bouge pendant le chargement : des observations reviennent, autant manquent,
+ * et `paging.count` reste juste.
+ */
+describe('InseeAdapter — observations revenues d’une page à l’autre (#1279)', () => {
+  const adapter = new InseeAdapter();
+  const TOTAL = 2500;
+
+  function servir(decalage: number): void {
+    mockFetch.mockImplementation((url: string) => {
+      const parsed = new URL(url, 'https://api.insee.fr');
+      const taille = Number(parsed.searchParams.get('maxResult'));
+      const page = Number(parsed.searchParams.get('page') || 1);
+      const debut = Math.max(0, (page - 1) * taille - (page > 1 ? decalage : 0));
+      const n = Math.max(0, Math.min(taille, TOTAL - (page - 1) * taille));
+      return Promise.resolve(
+        inseeResponse(
+          Array.from({ length: n }, (_, i) =>
+            obs({ GEO: `G${debut + i}`, FREQ: 'A' }, { OBS_VALUE_NIVEAU: { value: debut + i } })
+          ),
+          { count: TOTAL, isLast: page * taille >= TOTAL }
+        )
+      );
+    });
+  }
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('ordre stable : aucune réserve, aucun avertissement', async () => {
+    servir(0);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
+    expect(result.data).toHaveLength(TOTAL);
+    expect(new Set((result.data as Array<{ GEO: string }>).map((l) => l.GEO)).size).toBe(TOTAL);
+    expect(result.caveats).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('ordre qui glisse : le compte reste juste, la réserve le dit', async () => {
+    servir(7);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
+    // 2 500 lignes reçues pour 2 493 distinctes : sept revenues, sept jamais servies
+    expect(result.data).toHaveLength(TOTAL);
+    expect(result.totalCount).toBe(TOTAL);
+    expect(new Set((result.data as Array<{ GEO: string }>).map((l) => l.GEO)).size).toBe(TOTAL - 7);
+    expect(result.caveats).toEqual(['repeated-rows']);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('7 observation(s)');
+    warn.mockRestore();
+  });
+
+  it('une seule page : jamais de contrôle, même sur un jeu qui se répète', async () => {
+    mockFetch.mockResolvedValueOnce(
+      inseeResponse(
+        [
+          obs({ GEO: 'G1' }, { OBS_VALUE_NIVEAU: { value: 1 } }),
+          obs({ GEO: 'G1' }, { OBS_VALUE_NIVEAU: { value: 1 } }),
+        ],
+        { count: 2, isLast: true }
+      )
+    );
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
+    expect(result.data).toHaveLength(2);
+    expect(result.caveats).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('une clé répétée DANS une page n’est pas un défaut de pagination', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      const page = Number(new URL(url, 'https://api.insee.fr').searchParams.get('page') || 1);
+      const lignes = Array.from({ length: page === 1 ? 1000 : 10 }, (_, i) =>
+        // La page 1 porte deux fois la même clé (G0) ; rien ne revient en page 2
+        obs({ GEO: `G${page === 1 ? Math.max(i - 1, 0) : 2000 + i}` }, { V_NIVEAU: { value: i } })
+      );
+      return Promise.resolve(inseeResponse(lignes, { count: 1010, isLast: page === 2 }));
+    });
+    const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
+    expect(result.data).toHaveLength(1010);
+    expect(result.caveats).toBeUndefined();
+  });
+
+  it('des observations sans dimensions : contrôle abandonné, pas d’alerte', async () => {
+    mockFetch.mockImplementation((url: string) => {
+      const page = Number(new URL(url, 'https://api.insee.fr').searchParams.get('page') || 1);
+      const lignes = Array.from({ length: page === 1 ? 1000 : 5 }, (_, i) => ({
+        measures: { V_NIVEAU: { value: i } },
+      }));
+      return Promise.resolve(inseeResponse(lignes, { count: 1005, isLast: page === 2 }));
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = await adapter.fetchAll(makeParams(), new AbortController().signal);
+    expect(result.data).toHaveLength(1005);
+    expect(result.caveats).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
 describe('InseeAdapter — fetchAll pagine par pages de 1000 (#286)', () => {
   const adapter = new InseeAdapter();
 
