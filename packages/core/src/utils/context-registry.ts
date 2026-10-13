@@ -10,10 +10,18 @@
  * ré-exporte ces symboles typés sur la classe pour ses voisins du bundle
  * core (facettes, recherche, context-filter).
  */
-import type { ContextFilterLike } from '@dsfr-data/shared/lib';
+import type { ContextFilterLike, ContextSearch } from '@dsfr-data/shared/lib';
 
 /** Nom de l'événement document émis à la connexion d'un contexte (#678) */
 export const CONTEXT_CONNECTED_EVENT = 'dsfr-data-context-connected';
+
+/**
+ * Qui calcule une recherche portée par le contexte, pour UNE source cible
+ * (ADR-159 lot 3) : `server` le moteur de son API, `client` la source
+ * elle-même dans le navigateur, `ignored` personne (source sans adaptateur,
+ * qui refuse les commandes de filtre, #288).
+ */
+export type ContextSearchRoute = 'server' | 'client' | 'ignored';
 
 /** Ce qu'un filtre attend d'un dsfr-data-context (vue structurelle, #681) */
 export interface ContextHost extends HTMLElement {
@@ -24,6 +32,10 @@ export interface ContextHost extends HTMLElement {
   _registerFilter(filter: ContextFilterLike): string;
   _unregisterFilter(filter: ContextFilterLike): void;
   _applyFilter(filter: ContextFilterLike, colonWhere: string): void;
+  /** Diffuse une RECHERCHE (ADR-159 lot 3) : chaque cible la traduit — `null` la retire */
+  _applySearch(filter: ContextFilterLike, search: ContextSearch | null): void;
+  /** Qui calcule la recherche de ce filtre pour cette source — `null` : pas une cible */
+  _searchRouteFor(filter: ContextFilterLike, sourceId: string): ContextSearchRoute | null;
   /** Paramètre d'URL du champ, tel qu'écrit : au filtre de le décoder (#1243) */
   _urlRawFor(field: string): string | null;
   /** Le même, lu comme une liste de valeurs décodées */

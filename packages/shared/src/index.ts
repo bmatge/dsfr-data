@@ -121,7 +121,7 @@ export {
   validateColonFilter,
   COLON_FILTER_OPERATORS,
 } from './query/filter-translator.js';
-export type { ContextFilterLike } from './query/context-filter.js';
+export type { ContextFilterLike, ContextSearch } from './query/context-filter.js';
 
 // API / Proxy
 export {

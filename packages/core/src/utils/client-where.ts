@@ -17,6 +17,11 @@
  * délégué (le serveur regrouperait des lignes non filtrées) : lignes brutes
  * filtrées et `needsClientProcessing`, la `dsfr-data-query` en aval regroupe.
  *
+ * Même chemin pour une RECHERCHE que la source calcule elle-même (ADR-159,
+ * lot 3) : le terme qu'un visiteur a saisi dans une `dsfr-data-search` en mode
+ * `context`, quand l'API de la source n'a aucun moteur de recherche. La
+ * comparaison est alors celle, tolérante, de `utils/search-match.ts`.
+ *
  * Coût : le jeu que laisse passer le reste du filtre, au lieu des seules
  * lignes gardées, dans la limite de `max-records` — aucun autre plafond. Si
  * `max-records` coupe la lecture, le filtre ne porte que sur les lignes lues :
@@ -24,6 +29,8 @@
  */
 
 import { applyLocalFilter, splitColonFields } from '@dsfr-data/shared/lib';
+import type { ContextSearch } from '@dsfr-data/shared/lib';
+import { applySearches, describeSearch } from './search-match.js';
 import type { AdapterParams, ApiAdapter, FetchResult } from '../adapters/api-adapter.js';
 import { parseOrderBy } from './where.js';
 import { sortRows } from './sort.js';
@@ -75,20 +82,36 @@ function warnOnce(key: string, message: string): void {
 }
 
 /**
- * `fetchAll` de l'adaptateur, puis `clientWhere` (grammaire colon) sur les
- * lignes reçues — voir l'en-tête du module. `params.where` ne porte que la
- * part du filtre que l'API sait calculer.
+ * Ce que la source calcule dans le navigateur, dit en clair pour un message :
+ * la clause colon, les recherches, ou les deux.
+ */
+export function describeClientFilter(clientWhere: string, searches: ContextSearch[] = []): string {
+  const parts: string[] = [];
+  if (clientWhere) parts.push(`la clause "${clientWhere}"`);
+  for (const search of searches) parts.push(`la recherche ${describeSearch(search)}`);
+  return parts.join(' et ');
+}
+
+/**
+ * `fetchAll` de l'adaptateur, puis `clientWhere` (grammaire colon) et
+ * `searches` (recherches du contexte) sur les lignes reçues — voir l'en-tête
+ * du module. `params.where` ne porte que la part du filtre que l'API sait
+ * calculer.
  */
 export async function fetchAllWithClientWhere(
   adapter: ApiAdapter,
   params: AdapterParams,
   clientWhere: string,
   signal: AbortSignal,
-  label = 'dsfr-data-source'
+  label = 'dsfr-data-source',
+  searches: ContextSearch[] = []
 ): Promise<FetchResult> {
   const grouped =
     !!(params.groupBy?.trim() || params.aggregate?.trim()) || selectComputes(params.select);
-  const added = grouped ? [] : missingSelectFields(params.select, colonWhereFields(clientWhere));
+  const lus = [...colonWhereFields(clientWhere), ...searches.flatMap((s) => s.fields)];
+  const added = grouped ? [] : missingSelectFields(params.select, [...new Set(lus)]);
+  const quoi = describeClientFilter(clientWhere, searches);
+  const calcule = quoi.includes(' et ') ? 'sont calculées' : 'est calculée';
 
   const complete = await adapter.fetchAll(
     {
@@ -104,7 +127,9 @@ export async function fetchAllWithClientWhere(
   );
 
   const lues = Array.isArray(complete.data) ? (complete.data as Record<string, unknown>[]) : [];
-  let data = applyLocalFilter(lues, clientWhere, (row, field) => getByPath(row, field));
+  const read = (row: Record<string, unknown>, field: string) => getByPath(row, field);
+  let data = clientWhere ? applyLocalFilter(lues, clientWhere, read) : lues;
+  data = applySearches(data, searches, read);
   if (added.length > 0) {
     data = data.map((row) => {
       const kept = { ...row };
@@ -119,9 +144,9 @@ export async function fetchAllWithClientWhere(
     (typeof complete.totalCount === 'number' && complete.totalCount > lues.length);
   if (partial) {
     warnOnce(
-      `partial:${label}:${clientWhere}`,
-      `${label}: la clause "${clientWhere}" est calculée dans le navigateur (l'API ` +
-        `${adapter.type} ne sait pas la calculer), sur les ${lues.length} premières lignes ` +
+      `partial:${label}:${quoi}`,
+      `${label}: ${quoi} ${calcule} dans le navigateur (l'API ` +
+        `${adapter.type} ne sait pas le faire), sur les ${lues.length} premières lignes ` +
         `seulement — le plafond max-records a coupé la lecture : le résultat est partiel. ` +
         `Relevez max-records de dsfr-data-source pour filtrer tout le jeu.`
     );
@@ -129,9 +154,9 @@ export async function fetchAllWithClientWhere(
 
   if (grouped) {
     warnOnce(
-      `grouped:${label}:${clientWhere}`,
-      `${label}: group-by / aggregate non délégués avec la clause "${clientWhere}", calculée ` +
-        `côté client — le serveur regrouperait des lignes non filtrées. Lignes brutes filtrées ` +
+      `grouped:${label}:${quoi}`,
+      `${label}: group-by / aggregate non délégués — ${quoi} ${calcule} ` +
+        `côté client, le serveur regrouperait des lignes non filtrées. Lignes brutes filtrées ` +
         `renvoyées, regroupement calculé côté client par la dsfr-data-query en aval.`
     );
     return {

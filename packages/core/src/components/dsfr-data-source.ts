@@ -15,7 +15,7 @@ import {
   flattenProviderRecords,
   GENERIC_CONFIG,
 } from '@dsfr-data/shared/lib';
-import type { ProviderConfig } from '@dsfr-data/shared/lib';
+import type { ContextSearch, ProviderConfig } from '@dsfr-data/shared/lib';
 
 /**
  * Convention de l'attribut `paginate` du mode URL (#1136) : paramètres de
@@ -90,7 +90,11 @@ import type { DataIdleEvent } from '../utils/data-bridge.js';
 import { visibleConsumers } from '../utils/visible-consumers.js';
 import { safeSourcePage } from '../utils/source-errors.js';
 import { joinWhere, describeClientWhere } from '../utils/where.js';
-import { fetchAllWithClientWhere, selectComputes } from '../utils/client-where.js';
+import {
+  describeClientFilter,
+  fetchAllWithClientWhere,
+  selectComputes,
+} from '../utils/client-where.js';
 import { httpError } from '../utils/http-error.js';
 
 /**
@@ -750,6 +754,14 @@ export class DsfrDataSource extends LitElement {
    * une query porte et qui n'est pas confié à l'API (`splitWhere`).
    */
   private _clientWhereOverlays = new Map<string, string>();
+
+  /**
+   * Recherches calculées DANS LE NAVIGATEUR, par émetteur (ADR-159 lot 3) :
+   * le terme d'une `dsfr-data-search` en mode `context`, quand l'API de cette
+   * source n'a aucun moteur de recherche. Une recherche confiée au serveur
+   * est, elle, dans `_whereOverlays`.
+   */
+  private _clientSearchOverlays = new Map<string, ContextSearch>();
   /** Dynamic orderBy overlay from dsfr-data-list sort */
   private _orderByOverlay = '';
   /** Dynamic groupBy overlay from dsfr-data-query délégation */
@@ -922,6 +934,17 @@ export class DsfrDataSource extends LitElement {
       if (value) parts.push(value);
     }
     return parts.join(', ');
+  }
+
+  /**
+   * Recherches que la source calcule DANS LE NAVIGATEUR (ADR-159 lot 3), sur
+   * les lignes chargées, avec la comparaison tolérante de `dsfr-data-search`
+   * (casse et accents ignorés) : celles qu'un `dsfr-data-context` lui confie
+   * quand son API n'a aucun moteur de recherche. Vide = aucune, ou toutes
+   * confiées à l'API (elles sont alors dans `getEffectiveWhere()`).
+   */
+  public getClientSearches(): ContextSearch[] {
+    return [...this._clientSearchOverlays.values()];
   }
 
   /**
@@ -1145,6 +1168,16 @@ export class DsfrDataSource extends LitElement {
           this._currentPage = 1;
           needsFetch = true;
         }
+        // Recherche du même émetteur, à calculer ici (ADR-159 lot 3). Même
+        // règle : une commande `where` sans `clientSearch` la libère.
+        const searchPrevious = this._clientSearchOverlays.get(key);
+        const searchNext = cmd.clientSearch?.term ? cmd.clientSearch : undefined;
+        if (JSON.stringify(searchNext) !== JSON.stringify(searchPrevious)) {
+          if (searchNext) this._clientSearchOverlays.set(key, searchNext);
+          else this._clientSearchOverlays.delete(key);
+          this._currentPage = 1;
+          needsFetch = true;
+        }
       }
 
       if (cmd.orderBy !== undefined && cmd.orderBy !== this._orderByOverlay) {
@@ -1200,7 +1233,7 @@ export class DsfrDataSource extends LitElement {
     for (const value of this._clientWhereOverlays.values()) {
       if (value) return true;
     }
-    return false;
+    return this._clientSearchOverlays.size > 0;
   }
 
   /**
@@ -1538,16 +1571,21 @@ export class DsfrDataSource extends LitElement {
       } else {
         // Clauses qui ne sont pas confiées à l'API (#1285) : la source les
         // calcule, sur les lignes que le reste du filtre garde.
+        // Même chemin pour une recherche du contexte que l'API n'a pas de
+        // moteur pour servir (ADR-159 lot 3).
         const clientWhere = this.getClientWhere();
-        result = clientWhere
-          ? await fetchAllWithClientWhere(
-              adapter,
-              params,
-              clientWhere,
-              this._abortController.signal,
-              `dsfr-data-source[${this.id}]`
-            )
-          : await adapter.fetchAll(params, this._abortController.signal);
+        const searches = this.getClientSearches();
+        result =
+          clientWhere || searches.length > 0
+            ? await fetchAllWithClientWhere(
+                adapter,
+                params,
+                clientWhere,
+                this._abortController.signal,
+                `dsfr-data-source[${this.id}]`,
+                searches
+              )
+            : await adapter.fetchAll(params, this._abortController.signal);
         this._publishFetchAllMeta(result);
       }
 
@@ -1660,10 +1698,21 @@ export class DsfrDataSource extends LitElement {
    */
   private _clientWhereConfigError(adapter: ApiAdapter): string | null {
     const clientWhere = this.getClientWhere();
-    if (!clientWhere) return null;
+    const searches = this.getClientSearches();
+    if (!clientWhere && searches.length === 0) return null;
     // Pourquoi, et ce que l'API sait faire à la place : dit par l'adaptateur.
-    const { cause, alternatives } = describeClientWhere(adapter, clientWhere);
-    const quoi = `la clause "${clientWhere}" est calculée dans le navigateur, sur les lignes chargées — ${cause}`;
+    // Une recherche du contexte arrive ici quand l'API n'a aucun moteur de
+    // recherche pour elle (ADR-159 lot 3).
+    const { cause, alternatives } = clientWhere
+      ? describeClientWhere(adapter, clientWhere)
+      : {
+          cause: `l'API ${adapter.type} n'a pas de moteur de recherche pour elle`,
+          alternatives: '',
+        };
+    const sujet = describeClientFilter(clientWhere, searches);
+    const quoi =
+      `${sujet} ${sujet.includes(' et ') ? 'sont calculées' : 'est calculée'} dans le ` +
+      `navigateur, sur les lignes chargées — ${cause}`;
 
     if (this.serverSide) {
       return (
@@ -1681,7 +1730,8 @@ export class DsfrDataSource extends LitElement {
     if (computed.length > 0) {
       return (
         `${quoi} — or ${computed.join(' ')} ${computed.length > 1 ? 'sont calculés' : 'est calculé'} ` +
-        `par le serveur, sur des lignes que cette clause n'a pas filtrées : le résultat serait ` +
+        `par le serveur, sur des lignes que ${clientWhere ? 'cette clause' : 'cette recherche'} ` +
+        `n'a pas filtrées : le résultat serait ` +
         `faux. Retirez ${computed.length > 1 ? 'ces attributs' : 'cet attribut'} de ` +
         `dsfr-data-source "${this.id}" et portez le calcul par une dsfr-data-query en aval ` +
         `(group-by, aggregate), qui regroupe les lignes filtrées${alternatives}.`
@@ -2079,6 +2129,7 @@ export class DsfrDataSource extends LitElement {
       resource: this.resource,
       where: this.getEffectiveWhere(),
       clientWhere: this.getClientWhere(),
+      clientSearches: this.getClientSearches(),
       select: this.select,
       groupBy: this.groupBy,
       aggregate: this.aggregate,

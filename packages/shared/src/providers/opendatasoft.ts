@@ -50,6 +50,14 @@ export const ODS_CONFIG: ProviderConfig = {
   query: {
     aggregationSyntax: 'odsql-select',
     searchTemplate: 'search("{q}")',
+    // Recherche portée par le contexte (ADR-159, lot 3) : le moteur du portail,
+    // borné aux champs nommés — par début de mot, sans casse ni accents
+    // (mesuré le 2026-10-13 : `search(categorie_produit, "aliment")` rend
+    // 15 636 lignes, `search("aliment")` 15 866). Champs TEXTE seulement :
+    // un champ numérique fait répondre HTTP 400.
+    contextSearchTemplate: 'search({fields}, "{q}")',
+    contextSearchFieldsJoin: ', ',
+    contextSearchTextOnly: true,
   },
 
   facets: {

@@ -61,6 +61,9 @@ export const TABULAR_CONFIG: ProviderConfig = {
     // Recherche serveur multi-colonnes (#1026) : `{fields}` devient les champs de
     // dsfr-data-search separes par `|`, traduits en `or=(a__contains.q,b__contains.q)`
     searchTemplate: '{fields}:contains:{q}',
+    // Recherche portée par le contexte (ADR-159, lot 3) : la même clause —
+    // `ilike`, une sous-chaîne, casse ignorée, accents respectés.
+    contextSearchTemplate: '{fields}:contains:{q}',
     operatorMapping: {
       eq: 'exact',
       neq: 'differs',

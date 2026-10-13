@@ -962,6 +962,7 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
   protected onTransformerCommand(cmd: {
     where?: string;
     clientWhere?: string;
+    clientSearch?: { term: string } | null;
     whereKey?: string;
   }): void {
     if (cmd.where === undefined) return;
@@ -969,7 +970,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     const previous = this._receivedWhere.get(key) ?? '';
     // Les deux parts d'UN filtre (#1285) : celle que l'API calcule, et celle
     // que la source calcule elle-même. L'une ou l'autre suffit à faire un filtre.
-    const received = [cmd.where, cmd.clientWhere].filter(Boolean).join(', ');
+    // Une recherche que la source calcule elle-même (ADR-159 lot 3) en est un aussi.
+    const received = [
+      cmd.where,
+      cmd.clientWhere,
+      cmd.clientSearch?.term ? `recherche:${cmd.clientSearch.term}` : '',
+    ]
+      .filter(Boolean)
+      .join(', ');
     if (received === previous) return;
 
     const wasFiltered = this._hasFilter();
