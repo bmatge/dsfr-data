@@ -720,7 +720,7 @@ alerte par bloc). Quatre pièces, toutes dans `packages/core/src` :
   `PaginationController` distingue l'échec d'un CHANGEMENT DE PAGE (`_pendingPage` → `failedPage`,
   page et URL ramenées à la page affichée) de tout autre échec : dans le premier cas la liste et les
   fiches gardent la page et posent `renderPageLoadError`, dans le second elles lâchent `_data` et
-  rendent `renderSourceError`. `dsfr-data-facets` et `dsfr-data-search` lisent `getError()` du mixin
+  rendent `renderSourceError`. Pendant ce changement de page (`pageLoading` : `_pendingPage` posé, en mode serveur, #1305), le sablier ne remplace QUE les lignes (`renderPageLoading`, posé sur les lignes de la page précédente masquées en `visibility: hidden`) : compte, pagination et bouton focalisé restent, la page est annoncée par la région live de l'hôte. `dsfr-data-facets` et `dsfr-data-search` lisent `getError()` du mixin
   (`resolveFiltersUnavailable`) : contrôles `aria-disabled`, gestes arrêtés en phase de capture,
   compteurs masqués, sélection intacte. Textes : `unavailablePhrase` et `inlineCauseTitle`
   (`source-errors.ts`) composent avec les titres du barème, sans en écrire de nouveaux.

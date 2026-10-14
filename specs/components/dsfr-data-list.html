@@ -352,6 +352,13 @@
               vient de <code>meta.total</code>. La recherche, le tri et les filtres ne s'appliquent qu'aux données
               de la page courante. Pour filtrer sur tout le dataset, utilisez les paramètres API via <code>params</code>.
             </p>
+            <p class="fr-callout__text">
+              Pendant le chargement d'une page, seules les lignes laissent la place à « Chargement de la page 4… » :
+              le compte de résultats et la pagination restent en place, à la même hauteur, et le bouton cliqué
+              garde le focus — un usager au clavier enchaîne les pages sans revenir en haut de la liste. La page
+              demandée est annoncée par la région live de la liste. Les fiches (<code>dsfr-data-display</code>)
+              suivent le même contrat.
+            </p>
           </div>
         </section>
 

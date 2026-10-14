@@ -11172,6 +11172,25 @@
                 }
               ],
               "description": "Corps de la liste : etat de la source (chargement, erreur, attente d'un\nfiltre) ou le compte, le tableau et la pagination.\n\nUn changement de page refuse en pagination serveur n'efface pas la page\ndeja rendue : elle reste, sous la phrase qui dit quelle page n'a pas pu\netre chargee (#1288). Toute autre erreur de source rend le message de\npanne, sans aucune ligne."
+            },
+            {
+              "kind": "method",
+              "name": "_turningPage",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "hasStale",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "La liste tourne-t-elle une page serveur (#1305) ? Il faut un chargement\ndemandé PAR la pagination (`pageLoading`) et une page déjà à l'écran.\nUn relevé affiché (`stale-if-error`) garde son propre rendu."
             }
           ],
           "events": [

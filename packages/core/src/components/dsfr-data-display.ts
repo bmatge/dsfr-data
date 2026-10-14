@@ -12,6 +12,7 @@ import {
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   renderSourceLoading,
+  renderPageLoading,
   renderSourceError,
   renderPageLoadError,
   renderStaleNotice,
@@ -684,10 +685,15 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
     // Changement de page refusé en pagination serveur (#1288) : la page
     // précédente reste, sous la phrase qui le dit. Toute autre erreur de
     // source rend le message de panne, sans aucun élément.
-    const failedPage = this._sourceError ? this._pager.failedPage : null;
     // Dernier relevé (#1288) : les fiches restent, sous la mention qui les
     // date — nouvel essai compris.
     const stale = this._staleNotice();
+    // Changement de page serveur en vol (#1305) : même contrat que la liste —
+    // le sablier ne prend que la place des fiches, compte et pagination
+    // restent, le bouton cliqué garde le focus.
+    const turning =
+      !stale && this._sourceLoading && this._pager.pageLoading && this._data.length > 0;
+    const failedPage = this._sourceError && !turning ? this._pager.failedPage : null;
 
     return html`
       <div
@@ -699,9 +705,12 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
           ${this._liveAnnouncement}
         </div>
         ${
-          !stale && this._sourceLoading
+          !stale && this._sourceLoading && !turning
             ? renderSourceLoading('dsfr-data-display')
-            : !stale && this._sourceError && (failedPage === null || this._data.length === 0)
+            : !stale &&
+                !turning &&
+                this._sourceError &&
+                (failedPage === null || this._data.length === 0)
               ? renderSourceError('dsfr-data-display', this._sourceError, this.source)
               : !stale && this._sourceIdle
                 ? renderSourceIdle('dsfr-data-display', this.idleMessage)
@@ -735,7 +744,16 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
                           : nothing
                       }
                       ${stale ? renderStaleNotice('dsfr-data-display', stale) : nothing}
-                      ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
+                      <div
+                        class="dsfr-data-display__rows ${
+                          turning ? 'dsfr-data-display__rows--loading' : ''
+                        }"
+                        aria-busy="${turning ? 'true' : nothing}"
+                      >
+                        ${turning ? renderPageLoading('dsfr-data-display', this._currentPage) : nothing}
+                        ${this._renderGrid(paginatedData)}
+                      </div>
+                      ${this._renderPagination(totalPages)}
                     `
         }
       </div>
@@ -753,6 +771,26 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
         }
         .dsfr-data-display__error {
           color: var(--text-default-error, #ce0500);
+        }
+        /* Changement de page serveur (#1305) : les fiches de la page
+           précédente gardent leur place, masquées, sous le sablier. */
+        .dsfr-data-display__rows {
+          position: relative;
+        }
+        .dsfr-data-display__rows--loading > :not(.dsfr-data-display__page-loading) {
+          visibility: hidden;
+        }
+        .dsfr-data-display__page-loading {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          color: var(--text-mention-grey, #666);
+          font-size: 0.875rem;
+          pointer-events: none;
         }
         .dsfr-data-display__empty {
           text-align: center;
