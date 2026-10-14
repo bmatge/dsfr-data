@@ -108,6 +108,17 @@ const ELUS_JOKERS_URL =
   `&columns=Libell%C3%A9%20de%20la%20collectivit%C3%A9%20%C3%A0%20statut%20particulier,` +
   `Libell%C3%A9%20de%20la%20cat%C3%A9gorie%20socio-professionnelle&page_size=200`;
 
+/**
+ * Tabular — les élus de l'Ain et des deux départements corses (#1312) : 718
+ * lignes au 2026-10-14, « Libellé de la collectivité à statut particulier »
+ * NULLE sur les 359 de l'Ain, « Corse » sur les 359 autres.
+ */
+const COLLECTIVITE = 'Libellé de la collectivité à statut particulier';
+const ELUS_NEGATIONS_URL =
+  `https://tabular-api.data.gouv.fr/api/resources/${ELUS_RESSOURCE}/data/` +
+  `?Code%20du%20d%C3%A9partement__in=01,2A,2B` +
+  `&columns=Libell%C3%A9%20de%20la%20collectivit%C3%A9%20%C3%A0%20statut%20particulier&page_size=200`;
+
 /** Le OU entre les deux colonnes, pour l'oracle (Tabular : `ilike`, sans repliement d'accents). */
 const MARTIN_NOM_OU_PRENOM = {
   op: 'or' as const,
@@ -1026,6 +1037,101 @@ const CHECKS: Check[] = [
         among: `/api/resources/${ELUS_RESSOURCE}/data/`,
         // Le journal de la page consigne les URL DÉCODÉES
         contains: 'socio-professionnelle__contains=\\_',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-elus-negations-absents-vivant',
+    mode: 'live',
+    origin:
+      'data.gouv / Répertoire national des élus — #1312, contre la vraie API. Mesuré le 2026-10-14 : « Libellé de la collectivité à statut particulier » est nulle hors de Corse ; sur l’Ain et les deux départements corses (718 élus), 359 nulles et 359 « Corse ». `__differs` est un `isdistinct` qui GARDE les nulles (`__differs=zzz` → 718), `__notin` les ÉCARTE (`__notin=Corse` → 0), et `champ:isnull` sans valeur n’était pas transmis (718). Le navigateur, lui, écarte les nulles sous `neq` et les garde sous `notin` : « ≠ zzz », « hors Corse » et « absente » valent chacun 359. `neq` part en `__differs` + `__isnotnull`, `notin` est calculé dans le navigateur, `isnull` part en `__isnull=`. L’oracle relève les lignes brutes et filtre seul.',
+    feed: {
+      kind: 'raw',
+      source: { url: ELUS_NEGATIONS_URL, rowsPath: 'data', nextPath: 'links.next' },
+    },
+    markup: `
+  <dsfr-data-source id="s-elus-neq" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|2A|2B, ${COLLECTIVITE}:neq:zzz"></dsfr-data-source>
+  <dsfr-data-kpi id="k-elus-neq" source="s-elus-neq" value="count" format="nombre" label="Différent de zzz"></dsfr-data-kpi>
+  <dsfr-data-source id="s-elus-notin" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|2A|2B, ${COLLECTIVITE}:notin:Corse"></dsfr-data-source>
+  <dsfr-data-kpi id="k-elus-notin" source="s-elus-notin" value="count" format="nombre" label="Hors Corse"></dsfr-data-kpi>
+  <dsfr-data-source id="s-elus-isnull" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|2A|2B, ${COLLECTIVITE}:isnull"></dsfr-data-source>
+  <dsfr-data-kpi id="k-elus-isnull" source="s-elus-isnull" value="count" format="nombre" label="Absente"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-elus-neq',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: COLLECTIVITE, op: 'neq', value: 'zzz' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-elus-notin',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: COLLECTIVITE, op: 'notin', values: ['Corse'] }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-elus-isnull',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: COLLECTIVITE, op: 'isnull-strict' }] }],
+      },
+      {
+        kind: 'urls',
+        id: 'elus-notin-jamais-confie',
+        among: `/api/resources/${ELUS_RESSOURCE}/data/`,
+        contains: '__notin',
+        verdict: 'none',
+      },
+      {
+        kind: 'urls',
+        id: 'elus-neq-isnotnull',
+        among: `/api/resources/${ELUS_RESSOURCE}/data/`,
+        contains: 'particulier__isnotnull=',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'grist-notin-forme-sql-vivant',
+    mode: 'live',
+    origin:
+      "Grist (grist.numerique.gouv.fr, document public) — #1312, contre la vraie API. `notin` part désormais en `(champ IS NULL OR champ NOT IN (…))`, qui garde les valeurs absentes comme le navigateur (`NOT IN` seul les écarte : 89 lignes sur 101 quand 12 sont nulles, mesuré le 2026-10-14 par une colonne dérivée en SQL). Ce document n'a pas de valeur nulle : le contrôle garde que la forme parenthésée est lue par le vrai Grist et rend les lignes de l'oracle — 99 départements hors l'Ain et l'Aisne — et que `neq` (`!=`, inchangé) aussi. Le sort des nulles est tenu par le déterministe.",
+    feed: { kind: 'raw', source: GRIST_SOURCE },
+    markup: `
+  <dsfr-data-source id="s-grist-notin" api-type="grist" base-url="${GRIST_RECORDS}"
+    where="nom_dept:notin:Ain|Aisne"></dsfr-data-source>
+  <dsfr-data-kpi id="k-grist-notin" source="s-grist-notin" value="count" format="nombre" label="Hors Ain et Aisne"></dsfr-data-kpi>
+  <dsfr-data-source id="s-grist-neq" api-type="grist" base-url="${GRIST_RECORDS}"
+    where="nom_dept:neq:Ain"></dsfr-data-source>
+  <dsfr-data-kpi id="k-grist-neq" source="s-grist-neq" value="count" format="nombre" label="Sauf l'Ain"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-grist-notin',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'nom_dept', op: 'notin', values: ['Ain', 'Aisne'] }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-grist-neq',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'nom_dept', op: 'neq', value: 'Ain' }] }],
+      },
+      {
+        kind: 'urls',
+        id: 'grist-negations-par-sql-vivant',
+        among: 'pU5HXX7VJC6jdgU6oBJRxn',
+        contains: '/sql',
         verdict: 'some',
       },
     ],

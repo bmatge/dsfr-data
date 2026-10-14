@@ -1099,7 +1099,7 @@ const TABULAR_PERTES: Check[] = [
     mode: 'deterministic',
     constats: ['PG-034'],
     origin:
-      "#1233, PG-034 du banc, suite de #1202 — le même `in` à parenthèse posé sur la SOURCE, sans query en aval pour le reprendre : `__in` partait au serveur avec un simple avertissement console, 101 lignes au lieu de 202 (rejoué le 2026-10-03 en 0.44.0) ; la 0.45.0 le calculait côté client, au prix du jeu entier. La clause part désormais ENTRE GUILLEMETS (arbitrage du 2026-10-04, mesuré sur l'API : 202 lignes en une requête, 1 717 pour `notin`), et seule la valeur qui en a besoin est citée. `notin` suit la même règle. Une clause ordinaire du même `where` reste déléguée, inchangée.",
+      "#1233, PG-034 du banc, suite de #1202 — le même `in` à parenthèse posé sur la SOURCE, sans query en aval pour le reprendre : `__in` partait au serveur avec un simple avertissement console, 101 lignes au lieu de 202 (rejoué le 2026-10-03 en 0.44.0) ; la 0.45.0 le calculait côté client, au prix du jeu entier. La clause part désormais ENTRE GUILLEMETS (arbitrage du 2026-10-04, mesuré sur l'API : 202 lignes en une requête, 1 717 pour `notin`), et seule la valeur qui en a besoin est citée. `notin` suivait la même règle jusqu'à #1312 : le `not.in` de l'API écarte les valeurs absentes, que le navigateur garde, et la clause est désormais calculée dans le navigateur — même somme, aucun `__notin` ne part. Une clause ordinaire du même `where` reste déléguée, inchangée.",
     feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
     markup: `
   <dsfr-data-source id="s-in-source" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
@@ -1154,12 +1154,13 @@ const TABULAR_PERTES: Check[] = [
         contains: 'categorie__in=Homicides,"Usage de stupéfiants (AFD)"',
         verdict: 'some',
       },
+      // `notin` : calculé dans le navigateur depuis #1312 (`not.in` écarte les absents)
       {
         kind: 'urls',
-        id: 'notin-de-la-source-entre-guillemets',
+        id: 'notin-de-la-source-au-navigateur',
         among: DATA_EX_AEQUO,
-        contains: 'categorie__notin="Vols (avec violence)",Cambriolages',
-        verdict: 'some',
+        contains: 'categorie__notin',
+        verdict: 'none',
       },
       {
         kind: 'urls',
@@ -1190,7 +1191,7 @@ const TABULAR_PERTES: Check[] = [
     mode: 'deterministic',
     constats: ['PG-034'],
     origin:
-      "#1233, PG-034 du banc — le même `in` à parenthèse sur une source en PAGINATION SERVEUR (pages de 40), là où aucun calcul côté client ne peut le reprendre : la clause partait nue, la valeur à parenthèse était écartée par l'API (113 lignes annoncées au lieu de 226), avec un avertissement console et la réserve `in-values-dropped`. Elle part entre guillemets : le total annoncé et la page sont ceux des DEUX catégories, et la bibliothèque n'a rien à dire. `notin` de même.",
+      "#1233, PG-034 du banc — le même `in` à parenthèse sur une source en PAGINATION SERVEUR (pages de 40), là où aucun calcul côté client ne peut le reprendre : la clause partait nue, la valeur à parenthèse était écartée par l'API (113 lignes annoncées au lieu de 226), avec un avertissement console et la réserve `in-values-dropped`. Elle part entre guillemets : le total annoncé et la page sont ceux des DEUX catégories, et la bibliothèque n'a rien à dire. `notin` partait de même jusqu'à #1312 ; il est désormais calculé dans le navigateur (le `not.in` de l'API écarte les valeurs absentes), donc incompatible avec une page serveur : la source passe en erreur de configuration, qui le dit.",
     feed: { kind: 'fixture', datasets: { main: EX_AEQUO } },
     markup: `
   <dsfr-data-source id="s-in-page" api-type="tabular" resource="${RESSOURCE_TABULAR_EX_AEQUO}"
@@ -1241,21 +1242,10 @@ const TABULAR_PERTES: Check[] = [
         ],
       },
       {
-        kind: 'kpi',
-        id: 'k-notin-page-total',
-        agg: 'count',
-        pipeline: [
-          {
-            op: 'filter',
-            filters: [
-              {
-                field: 'categorie',
-                op: 'notin',
-                values: ['Vols (avec violence)', 'Cambriolages'],
-              },
-            ],
-          },
-        ],
+        kind: 'diagnostic',
+        id: 's-notin-page',
+        expect: 'config-error',
+        contains: 'notin y écarterait les lignes dont la valeur est absente',
       },
       {
         kind: 'urls',
@@ -1266,10 +1256,10 @@ const TABULAR_PERTES: Check[] = [
       },
       {
         kind: 'urls',
-        id: 'notin-de-la-page-entre-guillemets',
+        id: 'notin-de-la-page-jamais-confie',
         among: DATA_EX_AEQUO,
-        contains: 'categorie__notin="Vols (avec violence)",Cambriolages',
-        verdict: 'some',
+        contains: 'categorie__notin',
+        verdict: 'none',
       },
       // Plus rien n'est écarté : ni avertissement, ni réserve à dire.
       { kind: 'diagnostic', id: 's-in-page', expect: 'silence', contains: 'PG-034' },
