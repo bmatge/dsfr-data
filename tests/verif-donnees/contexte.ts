@@ -987,35 +987,61 @@ const CHECKS: Check[] = [
     id: 'recherche-contexte',
     mode: 'deterministic',
     origin:
-      '#678, ADR-104 — une recherche enregistrée auprès d’un contexte devient un filtre `contains` diffusé à toutes ses cibles, et son tag apparaît avec les autres.',
+      '#678, ADR-104, amendée par ADR-159 (lot 3, #1285) — une recherche enregistrée auprès d’un contexte est portée COMME UNE RECHERCHE, et chaque cible la traduit. Une cible Opendatasoft la confie au moteur du portail (`search(libelle, "to")`), qui cherche par DÉBUT DE MOT : « to » trouve « Lycée de Toulouse Centre » et pas « Collège Victor Hugo », où il est au milieu d’un mot. Une sous-chaîne en rendrait deux — c’est ce chiffre-là qui distingue la recherche du filtre `contains` qu’elle émettait avant. Aucun `like` ne part.',
     feed: { kind: 'fixture', datasets: JEUX },
     markup: `${sourceOds('s-rx')}
   <dsfr-data-context id="ctx" sources="s-rx"></dsfr-data-context>
   <dsfr-data-search id="r-ctx" source="s-rx" context="ctx" fields="libelle" debounce="0"
     min-length="0" label="Rechercher un établissement"></dsfr-data-search>
   ${kpiCount('k-n', 's-rx')}${kpiSomme('k-pop', 's-rx')}`,
-    actions: [{ kind: 'fill', selector: '#r-ctx input', value: 'blagnac' }],
-    expects: attendCompteEtSomme([
-      { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'blagnac' }] },
-    ]),
+    actions: [{ kind: 'fill', selector: '#r-ctx input', value: 'to' }],
+    expects: [
+      ...attendCompteEtSomme([
+        { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'to' }] },
+      ]),
+      {
+        kind: 'urls',
+        id: 'recherche-contexte-par-le-moteur',
+        among: `/datasets/${DATASET_CONTEXTE}/`,
+        contains: 'search(libelle, "to")',
+        verdict: 'last',
+      },
+      {
+        kind: 'urls',
+        id: 'recherche-contexte-sans-like',
+        among: `/datasets/${DATASET_CONTEXTE}/`,
+        contains: 'like',
+        verdict: 'none',
+      },
+    ],
   },
 
   {
     id: 'recherche-contexte-saisie-partielle',
     mode: 'deterministic',
     origin:
-      '#1285, ADR-159 — le cas que le défaut cassait : une saisie PARTIELLE dans une recherche en mode `context`. La recherche y émet un filtre `contains` (ADR-104) ; vers une cible Opendatasoft il partait en `libelle like "%lagna%"`, que le portail lit comme le mot entier « lagna » : zéro ligne. Il n’est plus confié au portail : la source le calcule dans le navigateur, sur les lignes chargées, et « lagna » retient « École de Blagnac ». Le contrôle voisin `recherche-contexte` n’était juste que par accident, « blagnac » étant un mot entier. Aucun `like` ne part.',
+      '#1285, ADR-159 — le cas que le défaut cassait : une saisie PARTIELLE et SANS ACCENT dans une recherche en mode `context`, vers une cible Opendatasoft. « bezi » doit trouver « Lycée de Béziers ». Avant #1285 la recherche partait en `libelle like "%bezi%"`, que le portail lit comme le mot entier « bezi » : zéro ligne. Au lot 1 elle était calculée dans le navigateur comme un filtre `contains`, qui respecte les accents : zéro ligne encore. Portée comme une recherche (lot 3), elle est confiée au moteur du portail, qui ignore casse et accents et prend le terme pour un début de mot. Le compteur de la recherche annonce le même nombre que le KPI.',
     feed: { kind: 'fixture', datasets: JEUX },
     markup: `${sourceOds('s-rp')}
   <dsfr-data-context id="ctx" sources="s-rp"></dsfr-data-context>
   <dsfr-data-search id="r-par" source="s-rp" context="ctx" fields="libelle" debounce="0"
-    min-length="0" label="Rechercher un établissement"></dsfr-data-search>
+    min-length="0" count label="Rechercher un établissement"></dsfr-data-search>
   ${kpiCount('k-n', 's-rp')}${kpiSomme('k-pop', 's-rp')}`,
-    actions: [{ kind: 'fill', selector: '#r-par input', value: 'lagna' }],
+    actions: [{ kind: 'fill', selector: '#r-par input', value: 'bezi' }],
     expects: [
       ...attendCompteEtSomme([
-        { op: 'filter', filters: [{ field: 'libelle', op: 'contains', value: 'lagna' }] },
+        { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'bezi' }] },
       ]),
+      {
+        kind: 'text',
+        id: 'r-par',
+        selector: '.dsfr-data-search-count',
+        numeric: true,
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'bezi' }] },
+        ],
+      },
       {
         kind: 'urls',
         id: 'recherche-contexte-jamais-en-like',
@@ -1024,6 +1050,272 @@ const CHECKS: Check[] = [
         verdict: 'none',
       },
     ],
+  },
+
+  {
+    id: 'recherche-contexte-ods-facettes-serveur',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 lot 3 — le premier montage que le lot 1 laissait cassé : une recherche en mode `context` à côté de `dsfr-data-facets server-facets`, sur Opendatasoft. La recherche émettait un `contains`, que la source calculait dans le navigateur ; les facettes, dont les compteurs viennent de l’API, passaient en erreur de configuration dès la première saisie. La recherche part désormais au moteur du portail, DANS le `where` de la source : l’appel `/facets` la porte, et les compteurs comptent le même ensemble que les lignes. « ecol » retient les dix écoles ; la facette en annonce 4, 3, 2 et 1.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-rf')}
+  <dsfr-data-context id="ctx" sources="s-rf"></dsfr-data-context>
+  <dsfr-data-search id="r-rf" source="s-rf" context="ctx" fields="libelle" debounce="0"
+    min-length="0" label="Rechercher un établissement"></dsfr-data-search>
+  <dsfr-data-facets id="f-rf" source="s-rf" server-facets fields="region"
+    labels="region:Région"></dsfr-data-facets>
+  <dsfr-data-facets id="f-rf-ctx" source="s-rf" context="ctx" server-facets fields="categorie"
+    labels="categorie:Catégorie" no-reset></dsfr-data-facets>
+  ${kpiCount('k-n', 'f-rf')}${kpiSomme('k-pop', 'f-rf')}`,
+    actions: [{ kind: 'fill', selector: '#r-rf input', value: 'ecol' }],
+    expects: [
+      {
+        kind: 'facets',
+        id: 'f-rf',
+        group: 'Région',
+        valueColumn: 'region',
+        countColumn: 'n',
+        pipeline: [
+          { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'ecol' }] },
+          { op: 'group-by', by: 'region', columns: { n: { agg: 'count' } } },
+          { op: 'order-by', column: 'n', dir: 'desc' },
+        ],
+      },
+      {
+        // Les facettes enregistrées auprès du MÊME contexte (le montage le
+        // plus courant) : leur appel exclut leurs propres clauses, pas la
+        // recherche.
+        kind: 'facets',
+        id: 'f-rf-ctx',
+        group: 'Catégorie',
+        valueColumn: 'categorie',
+        countColumn: 'n',
+        pipeline: [
+          { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'ecol' }] },
+          { op: 'group-by', by: 'categorie', columns: { n: { agg: 'count' } } },
+          { op: 'order-by', column: 'n', dir: 'desc' },
+        ],
+      },
+      ...attendCompteEtSomme([
+        { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'ecol' }] },
+      ]),
+      { kind: 'diagnostic', id: 'f-rf', expect: 'silence', contains: 'server-facets' },
+      {
+        kind: 'urls',
+        id: 'facettes-serveur-portent-la-recherche',
+        among: '/facets',
+        contains: 'search(libelle, "ecol")',
+        verdict: 'last',
+      },
+    ],
+  },
+
+  {
+    id: 'recherche-contexte-ods-pagination-serveur',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 lot 3 — le second montage que le lot 1 laissait cassé : une recherche en mode `context` vers une cible Opendatasoft en `server-side`. La source ne reçoit qu’une page ; le `contains` que la recherche émettait, calculé dans le navigateur, la faisait passer en erreur de configuration dès la première saisie. Confiée au moteur du portail, la recherche est appliquée AVANT la pagination : la page porte cinq des dix écoles, et le total publié — celui que lisent la pagination, `meta:total` et le compteur de la recherche — vaut dix.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `
+  <dsfr-data-source id="s-rg" api-type="opendatasoft" base-url="${HOTE_ODS_CONTEXTE}"
+    dataset-id="${DATASET_CONTEXTE}" server-side page-size="5"></dsfr-data-source>
+  <dsfr-data-context id="ctx" sources="s-rg"></dsfr-data-context>
+  <dsfr-data-search id="r-rg" source="s-rg" context="ctx" fields="libelle" debounce="0"
+    min-length="0" count label="Rechercher un établissement"></dsfr-data-search>
+  ${kpiCount('k-page', 's-rg', 'Lignes de la page')}
+  <dsfr-data-kpi id="k-total" source="s-rg" value="meta:total" format="nombre" label="Total"></dsfr-data-kpi>`,
+    actions: [{ kind: 'fill', selector: '#r-rg input', value: 'ecol' }],
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-total',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'ecol' }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-page',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'ecol' }] },
+          { op: 'page', size: 5, number: 1 },
+        ],
+      },
+      {
+        kind: 'text',
+        id: 'r-rg',
+        selector: '.dsfr-data-search-count',
+        numeric: true,
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'ecol' }] },
+        ],
+      },
+      { kind: 'diagnostic', id: 's-rg', expect: 'silence', contains: 'server-side' },
+    ],
+  },
+
+  {
+    id: 'recherche-contexte-ods-bornee-au-champ',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, #1285 — la recherche du contexte cherche DANS LE CHAMP que `fields` nomme, pas dans tout le jeu. « co » dans `libelle` : les sept « Collège … ». Trois lectures donneraient trois chiffres, et c’est ce qui rend ce contrôle parlant : sept par début de mot dans le champ ; onze si le moteur du portail cherchait dans tous les champs (`search("co")`, le gabarit de `server-search` : il ramasserait les établissements de « Provence-Alpes-Côte d’Azur ») ; dix-sept par sous-chaîne (« École » contient « co »).',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-rb')}
+  <dsfr-data-context id="ctx" sources="s-rb"></dsfr-data-context>
+  <dsfr-data-search id="r-rb" source="s-rb" context="ctx" fields="libelle" debounce="0"
+    min-length="0" label="Rechercher un établissement"></dsfr-data-search>
+  ${kpiCount('k-n', 's-rb')}${kpiSomme('k-pop', 's-rb')}`,
+    actions: [{ kind: 'fill', selector: '#r-rb input', value: 'co' }],
+    expects: attendCompteEtSomme([
+      { op: 'filter', filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'co' }] },
+    ]),
+  },
+
+  {
+    id: 'recherche-contexte-ods-pas-de-refiltrage',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, #1285 — ce que lit l’AVAL de la recherche. Quand le portail a cherché, `dsfr-data-search` laisse passer les lignes de sa source : les refiltrer par sous-chaîne retirerait des lignes que le moteur a retenues, car il cherche par MOTS, sans ordre ni adjacence. « centre lyc » trouve « Lycée de Toulouse Centre » ; aucune ligne ne CONTIENT la chaîne « centre lyc ». Le KPI branché sur la recherche et celui branché sur la source disent le même chiffre, et le compteur de la recherche aussi.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-rn')}
+  <dsfr-data-context id="ctx" sources="s-rn"></dsfr-data-context>
+  <dsfr-data-search id="r-rn" source="s-rn" context="ctx" fields="libelle" debounce="0"
+    min-length="0" count label="Rechercher un établissement"></dsfr-data-search>
+  ${kpiCount('k-n', 'r-rn')}${kpiSomme('k-pop', 'r-rn')}
+  ${kpiCount('k-source', 's-rn', 'Lignes de la source')}`,
+    actions: [{ kind: 'fill', selector: '#r-rn input', value: 'centre lyc' }],
+    expects: [
+      ...attendCompteEtSomme([
+        {
+          op: 'filter',
+          filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'centre lyc' }],
+        },
+      ]),
+      {
+        kind: 'kpi',
+        id: 'k-source',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'centre lyc' }],
+          },
+        ],
+      },
+      {
+        kind: 'text',
+        id: 'r-rn',
+        selector: '.dsfr-data-search-count',
+        numeric: true,
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ op: 'word-prefix', fields: ['libelle'], value: 'centre lyc' }],
+          },
+        ],
+      },
+    ],
+  },
+
+  {
+    id: 'recherche-contexte-ods-champ-numerique',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, #1285 — le moteur de recherche d’un portail Opendatasoft ne lit que des champs TEXTE : `search(gtin, "69")` répond HTTP 400, « Fields in search function must be fields of type text » (mesuré le 2026-10-13). Une recherche posée sur un champ numérique ne lui est donc pas confiée quand les lignes déjà chargées montrent un nombre : la source la calcule dans le navigateur, comme un texte — « 2 » retient les neuf établissements dont la population s’écrit avec un 2 — et un avertissement le dit. Le faux portail refuse la clause comme le vrai : confiée au moteur, la recherche n’afficherait rien.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-rc')}
+  <dsfr-data-context id="ctx" sources="s-rc"></dsfr-data-context>
+  <dsfr-data-search id="r-rc" source="s-rc" context="ctx" fields="population" debounce="0"
+    min-length="0" label="Rechercher une population"></dsfr-data-search>
+  ${kpiCount('k-n', 's-rc')}${kpiSomme('k-pop', 's-rc')}`,
+    actions: [{ kind: 'fill', selector: '#r-rc input', value: '2' }],
+    expects: [
+      ...attendCompteEtSomme([
+        { op: 'filter', filters: [{ field: 'population', op: 'contains', value: '2' }] },
+      ]),
+      { kind: 'diagnostic', id: 'ctx', expect: 'warning', contains: "n'est pas du texte" },
+      {
+        kind: 'urls',
+        id: 'recherche-numerique-jamais-au-moteur',
+        among: `/datasets/${DATASET_CONTEXTE}/`,
+        contains: 'search(',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'recherche-contexte-tag-url-et-valeur',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, #1285 — la recherche n’est plus un filtre `contains`, mais tout ce qui la LISAIT comme un filtre du contexte continue de la voir : le tag « Recherche : terme » de `dsfr-data-context-tags`, la valeur interpolée par `dsfr-data-context-value`, et le paramètre d’URL au nom du champ. Deux navigations : on saisit, la synchro écrit, on recharge — le terme relu de l’URL filtre de nouveau la cible (les huit établissements d’Occitanie), et le tag comme la phrase le disent. Le terme attendu n’est pas écrit à la main : c’est la région la plus représentée du jeu.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-ru')}
+  <dsfr-data-context id="ctx" sources="s-ru" url-sync></dsfr-data-context>
+  <dsfr-data-search id="r-ru" source="s-ru" context="ctx" fields="region" debounce="0"
+    min-length="0" label="Rechercher"></dsfr-data-search>
+  <dsfr-data-context-tags id="t-ru" for="ctx" clear-all></dsfr-data-context-tags>
+  <h2><dsfr-data-context-value id="v-ru" for="ctx"
+    template="Recherche de {{region}}" fallback="Tous les établissements">
+  </dsfr-data-context-value></h2>
+  ${kpiCount('k-n', 's-ru')}${kpiSomme('k-pop', 's-ru')}`,
+    actions: [
+      { kind: 'fill', selector: '#r-ru input', value: 'Occitanie' },
+      { kind: 'click', selector: '#r-ru button' },
+      { kind: 'goto' },
+    ],
+    expects: [
+      {
+        kind: 'text',
+        id: 't-ru',
+        selector: '.fr-tag',
+        prefix: 'Recherche : ',
+        column: 'region',
+        pipeline: [
+          { op: 'group-by', by: 'region', columns: { n: { agg: 'count' } } },
+          { op: 'order-by', column: 'n', dir: 'desc' },
+          { op: 'limit', n: 1 },
+        ],
+      },
+      {
+        kind: 'text',
+        id: 'v-ru',
+        prefix: 'Recherche de ',
+        column: 'region',
+        pipeline: [
+          { op: 'group-by', by: 'region', columns: { n: { agg: 'count' } } },
+          { op: 'order-by', column: 'n', dir: 'desc' },
+          { op: 'limit', n: 1 },
+        ],
+      },
+      ...attendCompteEtSomme([
+        { op: 'filter', filters: [{ op: 'word-prefix', fields: ['region'], value: 'Occitanie' }] },
+      ]),
+    ],
+  },
+
+  {
+    id: 'recherche-contexte-retrait-par-le-tag',
+    mode: 'deterministic',
+    origin:
+      'ADR-159 lot 3, #1285 — retirer la recherche par la croix de son tag, comme on retire un filtre : le champ se vide, la cible retrouve ses vingt-cinq lignes, et la phrase de `dsfr-data-context-value` revient à son texte de repli. Une recherche que le tag ne saurait plus retirer resterait appliquée sans que rien ne le montre.',
+    feed: { kind: 'fixture', datasets: JEUX },
+    markup: `${sourceOds('s-rr')}
+  <dsfr-data-context id="ctx" sources="s-rr"></dsfr-data-context>
+  <dsfr-data-search id="r-rr" source="s-rr" context="ctx" fields="region" debounce="0"
+    min-length="0" label="Rechercher"></dsfr-data-search>
+  <dsfr-data-context-tags id="t-rr" for="ctx"></dsfr-data-context-tags>
+  ${kpiCount('k-n', 's-rr')}${kpiSomme('k-pop', 's-rr')}`,
+    actions: [
+      { kind: 'fill', selector: '#r-rr input', value: 'Occitanie' },
+      { kind: 'click', selector: '#r-rr button' },
+      { kind: 'click', selector: '#t-rr .fr-tag' },
+    ],
+    expects: attendCompteEtSomme([]),
   },
 
   {

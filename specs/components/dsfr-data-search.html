@@ -104,7 +104,7 @@
                 <tr><td><code>debounce</code></td><td>Number</td><td><code>300</code></td><td>Délai en ms avant déclenchement du filtre après la dernière frappe</td></tr>
                 <tr><td><code>min-length</code></td><td>Number</td><td><code>0</code></td><td>Nombre minimum de caractères avant déclenchement</td></tr>
                 <tr><td><code>highlight</code></td><td>Boolean</td><td><code>false</code></td><td>Ajoute un champ _highlight à chaque record avec les termes trouvés marqués en &lt;mark&gt;</td></tr>
-                <tr><td><code>operator</code></td><td>SearchOperator</td><td><code>contains</code></td><td>Mode de recherche : contains, starts, words</td></tr>
+                <tr><td><code>operator</code></td><td>SearchOperator</td><td><code>contains</code></td><td>Mode de recherche quand elle est calculée dans le navigateur, casse et accents ignorés : <code>contains</code> (le terme est une sous-chaîne), <code>starts</code> (un mot commence par le terme), <code>words</code> (tous les mots du terme sont présents). Une recherche confiée à un serveur (<code>server-search</code>, ou cible de <code>context</code> dont l'API a de quoi chercher) suit la comparaison de ce serveur.</td></tr>
                 <tr><td><code>sr-label</code></td><td>Boolean</td><td><code>false</code></td><td>Si true, le label est en sr-only (visuellement masque, accessible)</td></tr>
                 <tr><td><code>count</code></td><td>Boolean</td><td><code>false</code></td><td>Affiche un compteur de résultats sous le champ (compte serveur <code>meta.total</code> en <code>server-search</code>), séparateur de milliers français (#728). Ce compteur reste visible dès qu'une donnée a circulé ; seule sa nature de région live dépend de la chaîne aval (#654). Tant que l'amont attend un filtre (<code>require-where</code>), il cède la place au message d'attente : annoncer « 0 résultats » avant toute requête laisserait croire à une page vide.</td></tr>
                 <tr><td><code>count-label</code></td><td>String</td><td><code>""</code></td><td>Nom compté par le compteur de <code>count</code>, à la place de « résultat » : <code>count-label="établissement"</code> affiche « 12 345 établissements ». Une forme seule prend un « s » au pluriel ; pour un pluriel irrégulier, donner les deux formes séparées par une barre verticale : <code>count-label="cheval|chevaux"</code>, <code>count-label="prix|prix"</code>.</td></tr>
@@ -112,7 +112,7 @@
                 <tr><td><code>url-sync</code></td><td>Boolean</td><td><code>false</code></td><td>Synchronise l'URL quand l'utilisateur tape (replaceState)</td></tr>
                 <tr><td><code>server-search</code></td><td>Boolean</td><td><code>false</code></td><td>Active le mode recherche serveur. Au lieu de filtrer localement, envoie une commande { where } au source upstream (dsfr-data-query server-side) qui re-fetche les données avec le filtre search.</td></tr>
                 <tr><td><code>search-template</code></td><td>String</td><td><code>""</code></td><td>Template pour la recherche serveur. {q} est remplacé par le terme de recherche, {fields} par les champs de <code>fields</code> séparés par <code>|</code> (#1026) — la grammaire colon des champs multiples, un OU entre eux. Si vide et server-search activé, lu depuis l'adaptateur de la source amont (gabarit par défaut de chaque adaptateur déclarant <code>serverSearch</code> : recherche plein texte native, ou <code>{fields}:contains:{q}</code> traduit en OU entre colonnes — la casse et les accents suivent l'API ; table des capacités d'ARCHITECTURE). Ex. personnalisés : '{q} IN nom', 'nom|commune:contains:{q}'. Une clause que l'adaptateur ne sait pas transmettre (caractère que son API ne sait pas porter), ou une source sans adaptateur, retombe sur une recherche locale, signalée en console.</td></tr>
-                <tr><td><code>context</code></td><td>String</td><td><code>""</code></td><td>Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche devient un filtre <code>contains</code> du contexte sur le champ UNIQUE de <code>fields</code> (un filtre de contexte porte un seul champ ; le OU entre champs, <code>a|b:contains:q</code> #1026, reste propre à <code>server-search</code>). Le contexte diffuse à ses cibles et porte l'URL (<code>url-sync</code> et <code>url-search-param</code> sont ignorés — le paramètre est nommé d'après le champ, ou via <code>url-param-map</code> du contexte). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome. Vers une cible Opendatasoft (#1285), ce filtre <code>contains</code> est calculé dans le navigateur par la source, sur les lignes chargées (dans la limite de <code>max-records</code>) : une saisie partielle (« aliment ») y trouve enfin « alimentation ». Une cible en <code>server-side</code> passe en erreur de configuration — y préférer <code>server-search</code>.</td></tr>
+                <tr><td><code>context</code></td><td>String</td><td><code>""</code></td><td>Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la recherche est confiée au contexte, qui la diffuse à ses cibles et porte l'URL (<code>url-sync</code> et <code>url-search-param</code> sont ignorés — le paramètre est nommé d'après le champ, ou via <code>url-param-map</code> du contexte). <code>fields</code> doit nommer UN seul champ (le OU entre champs, <code>a|b:contains:q</code> #1026, reste propre à <code>server-search</code>). Le contexte peut être déclaré après la recherche dans la page. Vide = comportement autonome. La recherche n'est pas un filtre <code>contains</code> (ADR-159) : CHAQUE CIBLE LA TRADUIT, selon ce que son API sait faire. - Opendatasoft : le moteur de recherche du portail, borné au champ (<code>search(champ, "terme")</code>) — par DÉBUT DE MOT, casse et accents ignorés : « aliment » trouve « alimentation », « mentation » non. Le champ doit être du texte. - Tabular, Grist : une sous-chaîne (<code>champ:contains:terme</code>), casse ignorée, accents respectés. - INSEE Melodi, adaptateur tiers : la source calcule la recherche dans le navigateur, sur les lignes chargées (dans la limite de <code>max-records</code>), avec <code>operator</code>, casse et accents ignorés. Confiée à l'API, la recherche entre dans le <code>where</code> de la source : une cible en <code>server-side</code> et des facettes <code>server-facets</code> voisines comptent le même ensemble. Ce composant laisse alors passer les lignes de sa source sans les refiltrer, et son compteur (<code>count</code>) annonce le total du serveur. Calculée dans le navigateur, elle exige que la source charge le jeu : une cible en <code>server-side</code> passe en erreur de configuration.</td></tr>
                 <tr><td><code>idle-message</code></td><td>String</td><td><code>IDLE_MESSAGE_DEFAULT</code></td><td>Message rendu quand l'amont attend un filtre (<code>require-where</code>, #690). Distinct de « aucune donnée » : aucune requête n'a été faite. Vide, le libellé par défaut est utilisé.</td></tr>
               <!-- /ATTRS -->
             </tbody>
@@ -132,6 +132,56 @@
           différents selon le chemin. Un terme que l'API ne sait pas transmettre (<code>,</code>
           <code>.</code> <code>(</code> <code>)</code> <code>"</code> <code>&amp;</code> sur Tabular) retombe sur
           une recherche dans le navigateur, sur les seules lignes chargées, et un avertissement le dit.
+        </p>
+
+        <h3 class="fr-mt-3w">Recherche portée par le contexte (ADR-159)</h3>
+        <p>
+          Avec <code>context="id"</code>, la recherche est confiée au <code>dsfr-data-context</code>, qui la
+          diffuse à ses sources cibles, porte l'URL et le tag « Recherche : terme ». Ce n'est
+          <strong>pas un filtre <code>contains</code></strong> : un filtre est une règle exacte écrite par
+          l'intégrateur, une recherche est ce que tape un visiteur. Le contexte porte le terme, le champ unique
+          de <code>fields</code> et <code>operator</code>, et <strong>chaque source cible traduit</strong> la
+          recherche selon ce que son API sait faire.
+        </p>
+        <div class="fr-table fr-table--no-caption">
+          <table>
+            <caption>Qui cherche, selon la source cible</caption>
+            <thead>
+              <tr><th>Source cible</th><th>Qui cherche</th><th>Comparaison</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Opendatasoft</td>
+                <td>le moteur du portail, borné au champ : <code>search(champ, "terme")</code></td>
+                <td>par début de mot, casse et accents ignorés : « aliment » trouve « alimentation », « mentation » non. Le champ doit être du texte.</td>
+              </tr>
+              <tr>
+                <td>Tabular, Grist</td>
+                <td>l'API : <code>champ:contains:terme</code></td>
+                <td>sous-chaîne, casse ignorée, accents respectés</td>
+              </tr>
+              <tr>
+                <td>INSEE Melodi, adaptateur tiers</td>
+                <td>la source, dans le navigateur</td>
+                <td>sur les lignes chargées (sous <code>max-records</code>), avec <code>operator</code>, casse et accents ignorés</td>
+              </tr>
+              <tr>
+                <td>source en mode URL</td>
+                <td>personne : la commande est refusée, et signalée en console</td>
+                <td>brancher la recherche sur cette source, sans <code>context</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Confiée à l'API, la recherche entre dans le <code>where</code> de la source : une cible en
+          <code>server-side</code> pagine les seules lignes trouvées, et des
+          <code>dsfr-data-facets server-facets</code> voisines comptent le même ensemble. Le composant laisse
+          alors passer les lignes de sa source sans les refiltrer, et son compteur (<code>count</code>) annonce
+          le total du serveur. Calculée dans le navigateur, elle exige que la source charge le jeu : une cible en
+          <code>server-side</code>, ou des <code>server-facets</code> voisines, passent en erreur de
+          configuration. Le résultat n'est donc pas identique d'un fournisseur à l'autre ; c'est ce tableau qui
+          le dit.
         </p>
 
         <h3 class="fr-mt-3w">Source en panne</h3>

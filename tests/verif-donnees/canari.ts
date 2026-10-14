@@ -909,13 +909,15 @@ ${sourceOds('s-cible', DATASET_FACETTES)}
     mode: 'deterministic',
     constats: ['BUG-031'],
     origin:
-      'Canari — #1243, famille de BUG-031 : la RECHERCHE en mode `context`. Le terme part dans l’URL du contexte ; relu, il était découpé sur les virgules, chaque morceau nettoyé, puis recollé : « Paris, France » revenait en « Paris,France ». `lieu` porte les deux écritures — trois lignes avec le blanc, une sans — : le terme relu trouvait UNE ligne au lieu de trois, un chiffre faux et plausible. Deux navigations : on saisit, la synchro écrit, on recharge.',
+      'Canari — #1243, famille de BUG-031 : la RECHERCHE en mode `context`. Le terme part dans l’URL du contexte ; relu, il était découpé sur les virgules, chaque morceau nettoyé, puis recollé : « Paris, France » revenait en « Paris,France ». `lieu` porte les deux écritures — trois lignes avec le blanc, une sans — : le terme relu trouvait UNE ligne au lieu de trois, un chiffre faux et plausible. Deux navigations : on saisit, la synchro écrit, on recharge. Depuis le lot 3 de l’ADR-159 (#1285) la cible Opendatasoft confie la recherche au moteur du portail, qui cherche par MOTS : les deux écritures du terme y valent pareil (quatre lignes), et ce chiffre-là ne verrait plus le piège. Le canari le lit donc là où il mord encore : sur les lignes que la recherche filtre ELLE-MÊME, dans le navigateur, par sous-chaîne — sa propre source n’est pas une cible du contexte. Trois lignes ; une seule si le terme relu a perdu son blanc. Le compte de la cible reste tenu à côté.',
     feed: { kind: 'fixture', datasets: { main: CANARI_FACETTES } },
-    markup: `${sourceOds('s-lieu', DATASET_FACETTES, 'fetch-mode="export" max-records="100"')}
+    markup: `${SRC_FACETTES}
+${sourceOds('s-lieu', DATASET_FACETTES, 'fetch-mode="export" max-records="100"')}
   <dsfr-data-context id="ctx" sources="s-lieu" url-sync></dsfr-data-context>
-  <dsfr-data-search id="r-lieu" source="s-lieu" context="ctx" fields="lieu" debounce="0"
+  <dsfr-data-search id="r-lieu" source="s-fac" context="ctx" fields="lieu" debounce="0"
     min-length="0" label="Rechercher un lieu"></dsfr-data-search>
-  ${kpi('k-lieu', 's-lieu', 'count')}`,
+  ${kpi('k-lieu', 'r-lieu', 'count')}
+  ${kpi('k-lieu-cible', 's-lieu', 'count')}`,
     actions: [
       { kind: 'fill', selector: '#r-lieu input', value: 'Paris, France' },
       // Le bouton applique le terme SANS attendre la temporisation de frappe :
@@ -929,7 +931,21 @@ ${sourceOds('s-cible', DATASET_FACETTES)}
         id: 'k-lieu',
         agg: 'count',
         pipeline: [
-          { op: 'filter', filters: [{ field: 'lieu', op: 'contains', value: 'Paris, France' }] },
+          {
+            op: 'filter',
+            filters: [{ field: 'lieu', op: 'contains', value: 'Paris, France', fold: true }],
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-lieu-cible',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ op: 'word-prefix', fields: ['lieu'], value: 'Paris, France' }],
+          },
         ],
       },
     ],

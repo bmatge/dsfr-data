@@ -3,7 +3,7 @@
  * Permet aux composants dsfr-data-* de partager des données via un système d'événements
  */
 
-import type { JoinStats, PivotStats } from '@dsfr-data/shared/lib';
+import type { ContextSearch, JoinStats, PivotStats } from '@dsfr-data/shared/lib';
 import { classifySourceError, safeSourcePage, type SourceErrorCause } from './source-errors.js';
 import type { FetchCaveat } from '../adapters/api-adapter.js';
 
@@ -133,6 +133,15 @@ export interface SourceCommandEvent {
    * complément (`splitWhere`). Vide ou absente = rien à calculer côté client.
    */
   clientWhere?: string;
+  /**
+   * RECHERCHE de cet émetteur que la source calcule elle-même, dans le
+   * navigateur, sur les lignes chargées (ADR-159 lot 3) : le terme saisi par
+   * le visiteur, quand l'API de la source n'a rien pour chercher. Même
+   * `whereKey` que `where` ; émise par `dsfr-data-context`, jamais avec une
+   * clause `where` (une recherche est confiée au serveur OU calculée ici).
+   * Absente ou `null` sur une commande `where` = aucune recherche à calculer.
+   */
+  clientSearch?: ContextSearch | null;
   whereKey?: string; // identifie la source du where (permet merge multi-sources)
   orderBy?: string; // tri serveur ("field:direction")
   groupBy?: string; // group-by serveur (delegue par dsfr-data-query)

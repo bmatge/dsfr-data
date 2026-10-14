@@ -45,6 +45,12 @@ export const GRIST_CONFIG: ProviderConfig = {
   query: {
     aggregationSyntax: 'sql',
     searchTemplate: null,
+    // Recherche portée par le contexte (ADR-159, lot 3) : Grist n'a pas de
+    // recherche plein texte (`server-search` reste sans gabarit), mais son SQL
+    // sait chercher une sous-chaîne dans une colonne nommée (`LIKE`) — la
+    // clause que la recherche du contexte lui envoyait déjà. Casse ignorée
+    // pour l'ASCII seulement, accents respectés.
+    contextSearchTemplate: '{fields}:contains:{q}',
   },
 
   facets: {

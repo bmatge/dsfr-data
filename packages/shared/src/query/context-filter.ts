@@ -11,6 +11,25 @@
  * sur le meme whereKey). Le contexte n'inspecte jamais l'UI du filtre : il ne
  * connait que ce contrat.
  */
+/**
+ * Une RECHERCHE portée par le contexte (ADR-159, lot 3, #1285) : ce qu'un
+ * visiteur a tapé, et où chercher. Ce n'est pas un filtre — chaque source
+ * cible la traduit à sa façon : par le moteur de recherche de son API quand
+ * elle en a un, sinon dans le navigateur, avec `operator`.
+ */
+export interface ContextSearch {
+  /** Terme saisi, tel quel (ni échappé ni replié). */
+  term: string;
+  /** Champs où chercher. */
+  fields: string[];
+  /**
+   * Comparaison quand la recherche est calculée dans le navigateur (casse et
+   * accents ignorés) : `contains` sous-chaîne, `starts` début d'un mot,
+   * `words` tous les mots du terme. Un moteur de serveur applique la sienne.
+   */
+  operator: 'contains' | 'starts' | 'words';
+}
+
 export interface ContextFilterLike {
   /** Colonne filtree — cle du whereKey stable et nom du parametre d'URL */
   readonly field: string;
@@ -28,8 +47,18 @@ export interface ContextFilterLike {
   /** Un filtre retire du DOM n'est plus actif (recap des tags) */
   readonly isConnected: boolean;
 
-  /** Clause colon courante — chaine vide si le filtre est inactif */
+  /**
+   * Clause colon courante — chaine vide si le filtre est inactif, ou s'il
+   * porte une recherche (`buildSearch`) et non une clause.
+   */
   buildColonWhere(): string;
+
+  /**
+   * Recherche courante (ADR-159, lot 3) — `null` si aucune. Optionnel : seul
+   * le filtre d'une `dsfr-data-search` en porte une. Un filtre est ACTIF
+   * (tags, `context-value`, URL) dès qu'il a une clause OU une recherche.
+   */
+  buildSearch?(): ContextSearch | null;
 
   /** Libelle naturel (tags) */
   displayLabel(): string;

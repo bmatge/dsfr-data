@@ -127,3 +127,57 @@ export function likePortail(valeur: unknown, motif: string): boolean {
     mots.some((m) => (debut ? m.startsWith(mot) : m === mot))
   );
 }
+
+/**
+ * `search(champ, …, "terme")` et `search("terme")` d'un portail, TELS QUE
+ * MESURÉS (#1285, ADR-159 lot 3 — une soixantaine de requêtes en lecture seule, le 2026-10-13
+ * sur `rappelconso-v2-gtin-trie`, data.economie.gouv.fr, 18 563 lignes).
+ *
+ * C'est le moteur à qui la bibliothèque confie la recherche du contexte. Il
+ * cherche par DÉBUT DE MOT, sans casse ni accents, dans les champs nommés —
+ * ou dans tous les champs texte quand aucun n'est nommé :
+ *
+ * | Clause | Lignes |
+ * |---|---|
+ * | `search("aliment")` | 15 866 |
+ * | `search(categorie_produit, "aliment")` | 15 636 |
+ * | `search(sous_categorie_produit, "viand")` | 3 357 |
+ * | `search(sous_categorie_produit, "iand")` (milieu de mot) | 0 |
+ * | `search(categorie_produit, "hygiene")` = `"hygiène"` | 367 |
+ * | `search(sous_categorie_produit, "LAIT")` = `"lait"` | 3 179 |
+ * | `search(sous_categorie_produit, "lait prod")` | 3 179 |
+ * | `search(sous_categorie_produit, "")` | 0 |
+ * | `search(gtin, "69")` (champ entier) | HTTP 400 : « Fields in search function must be fields of type text » |
+ *
+ * CE QUI N'EST PAS REPRODUIT, et dont les contrôles se tiennent à l'écart :
+ * le moteur racinise (« alimentations » trouve « alimentation », « laix »
+ * trouve « lait »), écarte des mots vides en tête (« et produits » =
+ * « produits ») et traite le DERNIER terme autrement que les précédents
+ * (« lait prod » : 3 179, « prod lait » : 0). Ici, chaque terme est un début
+ * de mot et les termes sont reliés par un ET — juste pour un terme unique, et
+ * pour plusieurs termes dont seul le dernier est tronqué.
+ *
+ * `champs` vide : tous les champs texte de la ligne. Un champ nommé qui ne
+ * porte pas de texte lève, comme le portail refuse (HTTP 400).
+ */
+export function searchPortail(
+  ligne: Record<string, unknown>,
+  champs: string[],
+  terme: string
+): boolean {
+  const termes = motsPortail(terme);
+  if (termes.length === 0) return false;
+  const lus = champs.length > 0 ? champs : Object.keys(ligne);
+  const mots: string[] = [];
+  for (const champ of lus) {
+    const valeur = ligne[champ];
+    if (champs.length > 0 && typeof valeur === 'number') {
+      throw new Error(
+        `search(${champ}, …) : « Fields in search function must be fields of type text » — ` +
+          `le portail refuse un champ qui n'est pas du texte (HTTP 400)`
+      );
+    }
+    mots.push(...motsValeur(valeur));
+  }
+  return termes.every((t) => mots.some((m) => m.startsWith(t)));
+}

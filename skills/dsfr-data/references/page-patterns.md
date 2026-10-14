@@ -69,8 +69,8 @@ champ de vision.
 <div class="fr-container fr-my-6v">
   <div class="fr-grid-row fr-mb-4v">
     <div class="fr-col-12 fr-col-lg-8">
-      <dsfr-data-search source="src" context="ctx" fields="nom, commune"
-        placeholder="Un mot, une commune, un code postal…"></dsfr-data-search>
+      <dsfr-data-search source="src" context="ctx" fields="nom"
+        placeholder="Rechercher un établissement…"></dsfr-data-search>
     </div>
   </div>
   <dsfr-data-context-tags for="ctx" class="fr-mb-4v"></dsfr-data-context-tags>

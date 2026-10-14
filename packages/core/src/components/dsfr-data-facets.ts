@@ -5,7 +5,8 @@ import { dispatchSourceCommand } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import type { ApiAdapter, FacetDescriptor } from '../adapters/api-adapter.js';
 import type { SourceElement } from '../utils/source-element.js';
-import type { ContextFilterLike } from '@dsfr-data/shared/lib';
+import type { ContextFilterLike, ContextSearch } from '@dsfr-data/shared/lib';
+import { describeClientFilter } from '../utils/client-where.js';
 import { escapeColonValue } from '../utils/where.js';
 import { logFetchWarning } from '../utils/fetch-diagnostics.js';
 import { warnSuspectSeparator } from '../utils/attr-separators.js';
@@ -1339,15 +1340,25 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
    * aucune facette n'est rendue, et le message dit quoi écrire à la place.
    * On remonte la chaîne jusqu'à la source qui charge. Levée dès que la
    * clause disparaît. Retourne `true` quand le fetch doit être abandonné.
+   *
+   * Même règle pour une RECHERCHE du contexte que la source calcule
+   * elle-même (ADR-159 lot 3) — le cas d'une API sans moteur de recherche.
+   * Une recherche confiée à l'API n'est pas concernée : elle est dans le
+   * `where` de la source, et l'appel de facettes la porte.
    */
   private _refuseClientWhere(): boolean {
     let el: Element | null = this.source ? document.getElementById(this.source) : null;
     let clientWhere = '';
+    let searches: ContextSearch[] = [];
     let sourceId = '';
     for (let hop = 0; hop < 10 && el; hop++) {
-      const carrier = el as Element & { getClientWhere?: () => string };
+      const carrier = el as Element & {
+        getClientWhere?: () => string;
+        getClientSearches?: () => ContextSearch[];
+      };
       if (typeof carrier.getClientWhere === 'function') {
         clientWhere = carrier.getClientWhere();
+        searches = carrier.getClientSearches?.() ?? [];
         sourceId = el.id;
         break;
       }
@@ -1355,7 +1366,7 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       el = next ? document.getElementById(next) : null;
     }
 
-    if (!clientWhere) {
+    if (!clientWhere && searches.length === 0) {
       if (this._clientWhereError !== null) {
         if (this.getAttribute('data-dsfr-config-error') === this._clientWhereError) {
           clearConfigError(this);
@@ -1366,12 +1377,16 @@ export class DsfrDataFacets extends ContextBindingMixin(TransformerMixin(LitElem
       return false;
     }
 
-    const message =
-      `server-facets — la clause "${clientWhere}" est calculée dans le navigateur par ` +
-      `dsfr-data-source "${sourceId}" (contains cherche une sous-chaîne, que son API ne sait pas ` +
-      `calculer) : les compteurs des facettes, calculés par l'API, n'en tiendraient pas compte ` +
-      `et seraient faux. Retirez server-facets pour compter sur les lignes chargées, ou ` +
-      `remplacez la clause par une égalité (eq, in), que l'API calcule`;
+    const message = clientWhere
+      ? `server-facets — la clause "${clientWhere}" est calculée dans le navigateur par ` +
+        `dsfr-data-source "${sourceId}" (contains cherche une sous-chaîne, que son API ne sait pas ` +
+        `calculer) : les compteurs des facettes, calculés par l'API, n'en tiendraient pas compte ` +
+        `et seraient faux. Retirez server-facets pour compter sur les lignes chargées, ou ` +
+        `remplacez la clause par une égalité (eq, in), que l'API calcule`
+      : `server-facets — ${describeClientFilter('', searches)} est calculée dans le navigateur ` +
+        `par dsfr-data-source "${sourceId}" (son API n'a pas de moteur de recherche) : les ` +
+        `compteurs des facettes, calculés par l'API, n'en tiendraient pas compte et seraient ` +
+        `faux. Retirez server-facets pour compter sur les lignes chargées`;
     if (this._clientWhereError !== message) {
       this._clientWhereError = message;
       reportConfigError(this, `dsfr-data-facets[${this.id}]`, message);

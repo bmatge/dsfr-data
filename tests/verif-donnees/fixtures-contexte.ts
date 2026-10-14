@@ -26,7 +26,7 @@
  * un HTTP 400 (#805).
  */
 import type { Row } from '../../tools/oracle/manifest.js';
-import { likePortail } from '../builder-e2e/ods-like.js';
+import { likePortail, searchPortail } from '../builder-e2e/ods-like.js';
 import etablissements from './jeux/contexte-etablissements.json' with { type: 'json' };
 import budgets from './jeux/contexte-budgets.json' with { type: 'json' };
 import heterogenes from './jeux/contexte-heterogenes.json' with { type: 'json' };
@@ -148,16 +148,9 @@ function decouperAnd(where: string): string[] {
   return parts.map((p) => p.trim()).filter(Boolean);
 }
 
-/** Sans accents, sans casse — ce que fait une recherche plein texte. */
-function replier(v: unknown): string {
-  return String(v ?? '')
-    .normalize('NFD')
-    .replace(/\p{Mn}/gu, '')
-    .toLowerCase();
-}
-
 const IDENT = '(`[^`]+`|[\\w.]+)';
-const SEARCH = /^search\(\s*"((?:[^"\\]|\\.)*)"\s*\)$/i;
+// `search("terme")` ou `search(champ, autre, "terme")` (#1285, lot 3).
+const SEARCH = /^search\(\s*((?:(?:`[^`]+`|[\w.]+)\s*,\s*)*)"((?:[^"\\]|\\.)*)"\s*\)$/i;
 const LIKE = new RegExp(`^${IDENT}\\s+like\\s+"((?:[^"\\\\]|\\\\.)*)"$`, 'i');
 const DANS = new RegExp(`^${IDENT}\\s+in\\s*\\((.*)\\)$`, 'i');
 const COMPARAISON = new RegExp(
@@ -228,8 +221,11 @@ export function filtrerOdsqlContexte(lignes: Row[], where: string): Row[] {
     clauses.every((clause) => {
       const recherche = SEARCH.exec(clause);
       if (recherche) {
-        const terme = replier(litteral(recherche[1]));
-        return Object.values(ligne).some((v) => replier(v).includes(terme));
+        const champs = recherche[1]
+          .split(',')
+          .map((c) => denuder(c))
+          .filter(Boolean);
+        return searchPortail(ligne, champs, litteral(recherche[2]));
       }
       const mots = LIKE.exec(clause);
       if (mots) return likePortail(ligne[denuder(mots[1])], litteral(mots[2]));

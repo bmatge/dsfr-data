@@ -168,7 +168,8 @@ export function describeClientWhere(
   const search =
     substring && adapter.capabilities?.serverSearch
       ? `, ou, pour une recherche saisie par le visiteur, passez par dsfr-data-search ` +
-        `server-search (recherche plein texte de l'API, par début de mot)`
+        `server-search ou dsfr-data-search context (recherche de l'API, par début de mot, ` +
+        `qui reste compatible avec server-side)`
       : '';
   return { cause, alternatives: search };
 }

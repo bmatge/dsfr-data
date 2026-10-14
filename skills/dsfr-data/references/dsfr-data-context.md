@@ -40,7 +40,8 @@ construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adap
 Tout composant qui filtre peut etre un filtre du contexte via `context="id"` :
 <dsfr-data-context-filter context="ctx"> (place n'importe ou, plus seulement enfant),
 <dsfr-data-facets context="ctx"> (un filtre par champ, select peuple + cascade sans option
-en dur), <dsfr-data-search context="ctx"> (filtre contains sur un champ) et
+en dur), <dsfr-data-search context="ctx"> (une RECHERCHE sur un champ, que chaque source
+cible traduit — moteur de son API ou calcul dans le navigateur, ADR-159) et
 <dsfr-data-map-layer refine-on-click="champ" context="ctx"> (filtre eq au clic sur la carte, #681). Le contexte
 diffuse, porte l'URL (un parametre par champ, url-sync unique) et alimente context-tags.
 Dans l'URL, les valeurs d'un filtre a plusieurs valeurs (`in`, facette) sont jointes par des
@@ -69,7 +70,7 @@ connexion. whereKey stable indexe sur `uid + champ` (insertion tardive sans deca
 
 | Méthode | Retour | Description |
 |---|---|---|
-| `activeFilters()` | `ContextFilterLike[]` | Filtres actifs du contexte (#232) — pour les composants d'affichage (tags). Un filtre est actif si sa clause courante est non vide. Tout type de filtre confondu (#678) : filter, facettes, recherche. |
+| `activeFilters()` | `ContextFilterLike[]` | Filtres actifs du contexte (#232) — pour les composants d'affichage (tags). Un filtre est actif si sa clause courante est non vide, ou s'il porte une recherche (ADR-159 lot 3 : la recherche n'a plus de clause). Tout type de filtre confondu (#678) : filter, facettes, recherche. |
 | `clearAll()` | `number` | Retire tous les filtres actifs d'un coup (#679, « Tout effacer » de dsfr-data-context-tags). Chaque filtre est vidé par son propre `clear()` (même chemin qu'un geste utilisateur : son UI se vide), mais l'URL n'est écrite et `dsfr-data-context-change` émis qu'UNE fois. Retourne le nombre de filtres retirés. |
 | `getUrlParamNames()` | `string[]` | Paramètres d'URL que ce contexte PORTE (#773) : un par champ filtré, sous son nom `url-param-map`. Vide sans `url-sync`. Lu par une facette autonome voisine pour signaler qu'elle lirait le même paramètre — deux lecteurs pour un paramètre, et la sélection de l'un écrase celle de l'autre. |
 
