@@ -1,5 +1,54 @@
 # dsfr-data
 
+## 0.51.0
+
+### Minor Changes
+
+- [#1298](https://github.com/bmatge/dsfr-data/pull/1298) [`64089f2`](https://github.com/bmatge/dsfr-data/commit/64089f259ba5a76c14788a2f8034cba9c6d18ea4) Thanks [@bmatge](https://github.com/bmatge)! - **Une recherche n'est plus un filtre `contains` : en mode `context`, `dsfr-data-search` confie une recherche au contexte, et chaque source la traduit ([#1285](https://github.com/bmatge/dsfr-data/issues/1285), ADR-159, lot 3).**
+  
+  Filtrer et chercher sont deux besoins. Le filtre `contains` est une règle exacte (sous-chaîne, accents respectés), que la bibliothèque définit. La recherche est ce qu'un visiteur tape : on en attend de la tolérance, et quand l'API d'une source sait chercher, c'est elle qui cherche. Jusqu'ici `dsfr-data-search context="…"` émettait un filtre `champ:contains:terme` ; elle porte désormais le terme, le champ unique de `fields` et `operator`, que **chaque source cible traduit** :
+  
+  | Source cible | Qui cherche | Comparaison |
+  |---|---|---|
+  | Opendatasoft | le moteur du portail, borné au champ : `search(champ, "terme")` | par début de mot, casse et accents ignorés — « aliment » trouve « alimentation », « mentation » non |
+  | Tabular, Grist | l'API : `champ:contains:terme`, la clause d'avant | sous-chaîne, casse ignorée, accents respectés |
+  | INSEE Melodi, adaptateur tiers | la source, dans le navigateur | sur les lignes chargées, avec `operator`, casse et accents ignorés |
+  
+  Mesuré le 2026-10-13 sur `rappelconso-v2-gtin-trie` (data.economie.gouv.fr, 18 563 lignes) : `search(categorie_produit, "aliment")` rend 15 636 lignes, `search("aliment")` 15 866, `search(sous_categorie_produit, "iand")` (milieu de mot) 0, `search(categorie_produit, "hygiene")` et `"hygiène"` 367 l'un et l'autre.
+  
+  Ce qui change pour une page existante :
+  
+  - **Opendatasoft** — la recherche est confiée au portail au lieu d'être calculée dans le navigateur comme un `contains`. Elle entre dans le `where` de la source : **une cible en `server-side` et des `dsfr-data-facets server-facets` voisines fonctionnent** (elles passaient en erreur de configuration depuis le lot 1), et pagination, compteurs de facettes et lignes comptent le même ensemble. La recherche trouve par début de mot et ignore les accents ; elle ne trouve plus une sous-chaîne prise au milieu d'un mot. Le champ cherché doit être du texte : sur un champ numérique (le portail répondrait HTTP 400), la recherche est calculée dans le navigateur et un avertissement le dit.
+  - **Tabular, Grist** — la même clause part à l'API, les mêmes lignes reviennent.
+  - **INSEE Melodi** — le terme n'était appliqué nulle part (l'API n'a pas de filtre de texte) ; la source le calcule maintenant dans le navigateur. En `server-side`, c'est une erreur de configuration qui dit quoi écrire.
+  - **Source en mode URL** — inchangé : la commande est refusée et signalée en console.
+  - Quand l'API de sa source sert la recherche, `dsfr-data-search` ne refiltre plus les lignes qu'elle reçoit (un portail cherche par mots : la sous-chaîne locale retirerait des lignes qu'il a retenues) ; elle les laisse passer avec leur meta, et son compteur `count` annonce le total du serveur. Conséquence sur Tabular et Grist : `operator="starts"` n'affine plus, dans la chaîne de la recherche, des lignes que l'API a déjà retenues par sous-chaîne.
+  
+  Ce qui ne change pas : l'URL (`url-sync` du contexte, un paramètre au nom du champ), le tag « Recherche : terme » de `dsfr-data-context-tags`, `{{champ}}` de `dsfr-data-context-value`, le retrait par le tag ou par « Tout effacer » ; l'attribut `server-search` et son gabarit (`search("{q}")` sur Opendatasoft, tous les champs) ; la recherche autonome, sans `context`. Aucun attribut ni opérateur nouveau.
+  
+  Pour qui écrit un adaptateur ou lit le contexte : `ProviderConfig.query.contextSearchTemplate` déclare ce que l'API fait d'une recherche dans des champs nommés ; `ContextFilterLike` gagne la méthode optionnelle `buildSearch()` (le filtre d'une recherche a une clause colon vide), et `dsfr-data-source-command` le champ `clientSearch`.
+  
+  L'issue [#1285](https://github.com/bmatge/dsfr-data/issues/1285) ne cite aucun identifiant du registre du banc d'essai.
+
+### Patch Changes
+
+- [#1296](https://github.com/bmatge/dsfr-data/pull/1296) [`2167046`](https://github.com/bmatge/dsfr-data/commit/2167046ee21bf0d4ad321120d69969a43025c364) Thanks [@bmatge](https://github.com/bmatge)! - **`contains` et `notcontains` ne sont plus confiés à un portail Opendatasoft : ils retiennent enfin toutes les lignes qui portent la sous-chaîne ([#1285](https://github.com/bmatge/dsfr-data/issues/1285), ADR-159, lot 1).**
+  
+  Le défaut. Un filtre `champ:contains:aliment` posé sur une source `api-type="opendatasoft"` partait au portail en `champ like "%aliment%"`. Or le `like` d'Opendatasoft compare des **mots**, et `%` n'y est pas un joker : mesuré le 2026-10-12 sur `rappelconso-v2-gtin-trie` (data.economie.gouv.fr), cette clause rend **0 ligne là où 14 366 valent « alimentation »**, HTTP 200, sans un message (`like "alimentation"` → 14 366, `like "alim*"` → 15 632, `like "*tation"` → 0). Le même filtre trouvait ses lignes sur un fichier CSV et zéro sur un portail. Le résultat n'était juste que si la valeur cherchée était un mot entier.
+  
+  Ce qui change, sur Opendatasoft seulement :
+  
+  - `contains` / `notcontains` — dans le `where` ou le `filter` d'une `dsfr-data-query`, dans un `dsfr-data-context-filter operator="contains"`, dans une recherche `dsfr-data-search context="…"` — sont **calculés dans le navigateur**, par la source, sur les lignes chargées. Sous-chaîne, casse ignorée, accents respectés : le même résultat que sur toute autre source. Les autres clauses du même filtre (`eq`, `in`, comparaisons…) partent au portail comme avant.
+  - **Le coût** : la source télécharge toutes les lignes que laissent passer les autres clauses, au lieu des seules lignes retenues, dans la limite de `max-records` (1 000 par défaut ; au-delà, la troncature est signalée comme d'habitude). Pour un grand jeu : `fetch-mode="export"` et `max-records` à la taille du jeu, ou une égalité de plus dans le filtre. Le `group-by` de la même requête n'est plus délégué : il est calculé dans le navigateur, sur les lignes filtrées.
+  - **Erreur de configuration lisible** (`data-dsfr-config-error` + console) là où ce calcul n'a pas le jeu entier, au lieu d'un résultat partiel : source en `server-side` ; `group-by`, `aggregate` ou `select` calculé posés sur la source ; `dsfr-data-facets server-facets` à côté (ses compteurs ignoreraient la clause). Le message nomme la clause et dit quoi écrire : retirer `server-side` / `server-facets`, une égalité quand la valeur est connue, ou `dsfr-data-search server-search` pour une saisie du visiteur.
+  - Le `where` écrit en ODSQL sur une `dsfr-data-source` n'est pas touché : il part tel quel.
+  
+  Exports : le Builder, le Studio et le Tableau de bord n’écrivent plus de `like "%…%"`. Avec un filtre « contient » sur Opendatasoft, le code généré charge le jeu (`fetch-mode="export"`) et filtre dans une `dsfr-data-query` ; un tableau n'y est plus paginé au serveur, un KPI n'y est plus agrégé par le serveur. Aucun plafond de lignes n'est écrit dans le code généré : c'est `max-records` qui s'applique.
+  
+  Hors de ce lot : Tabular et Grist gardent `contains` délégué (lot 2), `dsfr-data-search` en mode `context` émet toujours un filtre `contains` (lot 3). Aucun nouvel opérateur.
+  
+  L'issue [#1285](https://github.com/bmatge/dsfr-data/issues/1285) ne cite aucun identifiant du registre du banc d'essai (constat trouvé en reprenant les exemples du guide).
+
 ## 0.50.0
 
 ### Minor Changes
