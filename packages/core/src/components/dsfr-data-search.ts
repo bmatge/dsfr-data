@@ -1,9 +1,10 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { escapeHtml, formatNumber, stripAccents } from '@dsfr-data/shared/lib';
-import type { ContextFilterLike } from '@dsfr-data/shared/lib';
+import { escapeHtml, formatNumber } from '@dsfr-data/shared/lib';
+import type { ContextFilterLike, ContextSearch } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
-import { escapeColonValue, escapeSearchTerm } from '../utils/where.js';
+import { buildSearchClause } from '../utils/search-clause.js';
+import { matchesSearch, normalizeSearchText, type SearchOperator } from '../utils/search-match.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import {
@@ -20,8 +21,6 @@ import { currentUrl, replaceUrl } from '../utils/page-url.js';
 import { escapeUrlValue, readUrlScalar } from '../utils/url-values.js';
 import { countNoun } from '../utils/count-label.js';
 
-type SearchOperator = 'contains' | 'starts' | 'words';
-
 /**
  * Afficheurs aval qui portent leur propre region live de compte de résultats.
  * Quand l'un d'eux consomme la sortie de ce composant (en direct ou via des
@@ -34,13 +33,18 @@ const DOWNSTREAM_LIVE_COUNT_TAGS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * La recherche vue par le contexte (#678, ADR-104) : UN filtre `contains`
- * sur le champ unique de `fields`. Le contexte diffuse a ses cibles (au
- * dialecte de chacune : `like "%q%"` en ODSQL), porte l'URL et le tag.
+ * La recherche vue par le contexte (#678, ADR-104 amendée par ADR-159, lot 3).
+ *
+ * Elle n'est plus un filtre `contains` : elle porte une RECHERCHE — le terme,
+ * le champ unique de `fields`, l'opérateur — que le contexte confie à chaque
+ * source cible, laquelle la traduit (moteur de son API, ou calcul dans le
+ * navigateur). Sa clause colon est donc toujours vide ; pour l'URL, le tag et
+ * `context-value`, rien ne change.
  */
 class SearchContextFilter implements ContextFilterLike {
   readonly applyTo = '*';
-  readonly operator = 'contains';
+  /** Sert seulement à signaler deux recherches posées sur le même champ. */
+  readonly operator = 'search';
 
   constructor(private readonly host: DsfrDataSearch) {}
 
@@ -52,10 +56,15 @@ class SearchContextFilter implements ContextFilterLike {
     return this.host.isConnected;
   }
 
+  /** Une recherche n'est pas une clause (ADR-159) : voir `buildSearch`. */
   buildColonWhere(): string {
+    return '';
+  }
+
+  buildSearch(): ContextSearch | null {
     const term = this.host._effectiveTerm();
-    if (!term || !this.field) return '';
-    return `${this.field}:contains:${escapeColonValue(term)}`;
+    if (!term || !this.field) return null;
+    return { term, fields: [this.field], operator: this.host.operator || 'contains' };
   }
 
   /** Tag « Recherche : terme » (#679) — le libellé par défaut du champ est un verbe */
@@ -101,10 +110,12 @@ class SearchContextFilter implements ContextFilterLike {
  *   operator="words" count>
  * </dsfr-data-search>
  *
- * En mode `context="id"` (#678, ADR-104), la recherche devient un filtre
- * `contains` de <dsfr-data-context> sur le champ unique de `fields` : le
- * contexte diffuse a toutes ses sources cibles, porte l'URL (paramètre nomme
- * d'après le champ) et le tag. Elle n'emet plus de commande directe.
+ * En mode `context="id"` (#678, ADR-104, ADR-159), la recherche est confiée
+ * à <dsfr-data-context>, qui la diffuse à toutes ses sources cibles, porte
+ * l'URL (paramètre nommé d'après le champ unique de `fields`) et le tag. Ce
+ * n'est PAS un filtre `contains` : chaque cible traduit la recherche — par le
+ * moteur de son API quand elle en a un, sinon dans le navigateur. Elle n'émet
+ * plus de commande directe.
  *
  * Source en panne (#1288) : le champ est DÉSACTIVÉ (lecture seule,
  * `aria-disabled`, toujours atteignable au clavier), sous la phrase « Filtres
@@ -152,7 +163,14 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   @property({ type: Boolean })
   highlight = false;
 
-  /** Mode de recherche : contains, starts, words */
+  /**
+   * Mode de recherche quand elle est calculée dans le navigateur, casse et
+   * accents ignorés : `contains` (le terme est une sous-chaîne), `starts` (un
+   * mot commence par le terme), `words` (tous les mots du terme sont
+   * présents). Une recherche confiée à un serveur (`server-search`, ou cible
+   * de `context` dont l'API a de quoi chercher) suit la comparaison de ce
+   * serveur.
+   */
   @property({ type: String })
   operator: SearchOperator = 'contains';
 
@@ -225,12 +243,31 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
 
   /**
    * Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la
-   * recherche devient un filtre `contains` du contexte sur le champ UNIQUE
-   * de `fields` (un filtre de contexte porte un seul champ ; le OU entre
-   * champs, `a|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`
-   * et `url-search-param` sont ignorés — le paramètre est nommé d'après le
-   * champ, ou via `url-param-map` du contexte). Le contexte peut être
-   * déclaré après la recherche dans la page. Vide = comportement autonome.
+   * recherche est confiée au contexte, qui la diffuse à ses cibles et porte
+   * l'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est
+   * nommé d'après le champ, ou via `url-param-map` du contexte). `fields` doit
+   * nommer UN seul champ (le OU entre champs, `a|b:contains:q` #1026, reste
+   * propre à `server-search`). Le contexte peut être déclaré après la
+   * recherche dans la page. Vide = comportement autonome.
+   *
+   * La recherche n'est pas un filtre `contains` (ADR-159) : CHAQUE CIBLE LA
+   * TRADUIT, selon ce que son API sait faire.
+   * - Opendatasoft : le moteur de recherche du portail, borné au champ
+   *   (`search(champ, "terme")`) — par DÉBUT DE MOT, casse et accents
+   *   ignorés : « aliment » trouve « alimentation », « mentation » non. Le
+   *   champ doit être du texte.
+   * - Tabular, Grist : une sous-chaîne (`champ:contains:terme`), casse
+   *   ignorée, accents respectés.
+   * - INSEE Melodi, adaptateur tiers : la source calcule la recherche dans le
+   *   navigateur, sur les lignes chargées (dans la limite de `max-records`),
+   *   avec `operator`, casse et accents ignorés.
+   *
+   * Confiée à l'API, la recherche entre dans le `where` de la source : une
+   * cible en `server-side` et des facettes `server-facets` voisines comptent
+   * le même ensemble. Ce composant laisse alors passer les lignes de sa source
+   * sans les refiltrer, et son compteur (`count`) annonce le total du serveur.
+   * Calculée dans le navigateur, elle exige que la source charge le jeu : une
+   * cible en `server-side` passe en erreur de configuration.
    */
   @property({ type: String })
   context = '';
@@ -267,8 +304,18 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   /** Motifs de repli deja signales (un avertissement par motif). */
   private readonly _serverRefusedWarned = new Set<string>();
 
-  /** Dernière clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange */
-  private _lastPushedWhere: string | null = null;
+  /** Dernière recherche confiée au contexte — une donnée qui arrive ne re-diffuse pas un terme inchangé */
+  private _lastPushedSearch: string | null = null;
+
+  /**
+   * En mode `context`, les lignes reçues sont-elles DÉJÀ celles que le terme
+   * désigne (ADR-159 lot 3) ? Vrai quand la source amont est une cible du
+   * contexte dont l'API sert la recherche : la refiltrer ici, avec une autre
+   * règle, retirerait des lignes que le serveur a retenues (un portail
+   * cherche par mots, pas par sous-chaîne). Les lignes passent telles quelles,
+   * avec la meta de l'amont — comme en `server-search`.
+   */
+  private _servedByContext = false;
 
   /** Synchro d'URL par la recherche elle-meme — desactivee en mode `context` */
   private get _ownUrlSync(): boolean {
@@ -340,7 +387,7 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   protected validateContextBinding(): string | null {
     return this._contextField()
       ? null
-      : 'en mode context, "fields" doit nommer un seul champ (filtre contains du contexte)';
+      : 'en mode context, "fields" doit nommer un seul champ (celui que la recherche du contexte interroge)';
   }
 
   /**
@@ -368,20 +415,41 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
       context._unregisterFilter(this._contextFilter);
     }
     this._contextFilter = null;
-    this._lastPushedWhere = null;
+    this._lastPushedSearch = null;
+    this._servedByContext = false;
   }
 
   /**
-   * Confie le terme courant au contexte, qui diffuse (#678). Deduplique :
-   * _applyFilter est aussi appele a chaque arrivee de données, et une source
-   * cible re-emet après chaque commande — sans ce garde, boucle.
+   * Confie la recherche courante au contexte, qui diffuse (#678, ADR-159).
+   * Dédupliqué : _applyFilter est aussi appelé à chaque arrivée de données, et
+   * une source cible ré-émet après chaque commande — sans ce garde, boucle.
+   * Retourne `true` quand le contexte a été sollicité.
    */
-  private _pushContextFilter(): void {
-    if (!this._context || !this._contextFilter) return;
-    const where = this._contextFilter.buildColonWhere();
-    if (where === (this._lastPushedWhere ?? '')) return;
-    this._lastPushedWhere = where;
-    this._context._applyFilter(this._contextFilter, where);
+  private _pushContextFilter(): boolean {
+    if (!this._context || !this._contextFilter) return false;
+    const search = this._contextFilter.buildSearch();
+    const key = search ? JSON.stringify(search) : '';
+    if (key === (this._lastPushedSearch ?? '')) return false;
+    this._lastPushedSearch = key;
+    this._context._applySearch(this._contextFilter, search);
+    return true;
+  }
+
+  /**
+   * La source amont — en direct, ou au bout d'une chaîne de transformateurs
+   * (`source="…"`) — est-elle une cible du contexte dont l'API sert la
+   * recherche ? Voir `_servedByContext`.
+   */
+  private _upstreamSearchedByServer(): boolean {
+    if (!this._context || !this._contextFilter) return false;
+    let el: Element | null = this.source ? document.getElementById(this.source) : null;
+    for (let hop = 0; hop < 10 && el; hop++) {
+      const route = el.id ? this._context._searchRouteFor(this._contextFilter, el.id) : null;
+      if (route) return route === 'server';
+      const next = el.getAttribute('source');
+      el = next ? document.getElementById(next) : null;
+    }
+    return false;
   }
 
   protected onTransformerReprocess(): void {
@@ -480,11 +548,12 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
 
   /**
    * Meta amont propagee telle quelle en server-search (lignes pre-filtrees
-   * par le serveur, total valide). En filtre client le nombre de lignes
-   * change : pas de meta (#282).
+   * par le serveur, total valide) — et en mode `context` quand l'API de la
+   * source sert la recherche (ADR-159 lot 3). En filtre client le nombre de
+   * lignes change : pas de meta (#282).
    */
   protected transformMeta(meta: import('../utils/data-bridge.js').PaginationMeta) {
-    return this.serverSearch && !this._serverRefused ? meta : null;
+    return (this.serverSearch && !this._serverRefused) || this._servedByContext ? meta : null;
   }
 
   private _onData(data: unknown) {
@@ -543,11 +612,15 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
 
   _applyFilter() {
     // Mode context (#678) : le contexte diffuse — la recherche ne commande
-    // plus sa source. En server-search elle laisse passer les donnees ; en
-    // local elle continue de filtrer son aval (inchange)
+    // plus sa source. En server-search elle laisse passer les donnees ; quand
+    // l'API de sa source sert la recherche (ADR-159 lot 3) aussi ; sinon elle
+    // continue de filtrer son aval (inchange)
     if (this._contextMode) {
-      this._pushContextFilter();
-      if (this.serverSearch) {
+      const pushed = this._pushContextFilter();
+      this._servedByContext = this._upstreamSearchedByServer();
+      if (this.serverSearch || (this._servedByContext && pushed)) {
+        // Les lignes du nouveau terme arrivent de la source : rien a emettre
+        // d'ici la, surtout pas les lignes de l'ancien terme sous le nouveau.
         this._emitSearchChange(this._resultCount);
         return;
       }
@@ -564,7 +637,9 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
   private _filterLocally() {
     const term = this._term;
 
-    if (!term || term.length < this.minLength) {
+    // Lignes deja cherchees par l'API de la source (mode `context`, ADR-159
+    // lot 3) : elles passent telles quelles.
+    if (!term || term.length < this.minLength || this._servedByContext) {
       this._filteredData = [...this._allData];
     } else {
       const fields = this._getFields();
@@ -580,7 +655,11 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
       this._filteredData = this._filteredData.map((r) => this._addHighlight(r, term));
     }
 
-    this._resultCount = this._filteredData.length;
+    // Servies par l'API : le compte est le total du serveur, comme en
+    // `server-search` (la source peut n'avoir livre qu'une page).
+    this._resultCount = this._servedByContext
+      ? (getDataMeta(this.source)?.total ?? this._filteredData.length)
+      : this._filteredData.length;
     this._dispatch();
   }
 
@@ -607,20 +686,12 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
         refusal =
           `la source "${this.source}" n'a pas d'adaptateur (api-type) : ` +
           `aucun filtre ne peut partir au serveur`;
-      } else if (this.searchTemplate.includes('{fields}') && fields.length === 0) {
-        refusal =
-          `le gabarit "${this.searchTemplate}" cherche dans {fields}, mais l'attribut ` +
-          `"fields" est vide — nommez les colonnes a interroger`;
       } else {
-        const escaped = escapeSearchTerm(adapter, term);
-        where = this.searchTemplate
-          .replace(/\{fields\}/g, fields.join('|'))
-          .replace(/\{q\}/g, escaped);
-        if (adapter.supportsServerWhere?.(where) === false) {
-          refusal =
-            `la clause "${where}" ne peut pas partir au serveur (${adapter.type}) — ` +
-            `l'adaptateur ne sait pas transmettre ce terme ou ces champs tels quels`;
-        }
+        // Gabarit, echappement, champs, puis « l'API sait-elle la porter ? » :
+        // le meme chemin que la recherche du contexte (`buildSearchClause`)
+        const clause = buildSearchClause(adapter, this.searchTemplate, term, fields);
+        where = clause.where;
+        refusal = clause.refusal;
       }
     }
 
@@ -672,39 +743,18 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     );
   }
 
+  /** Comparaison tolerante, partagee avec la source (`utils/search-match.ts`). */
   _matchRecord(
     record: Record<string, unknown>,
     normTerm: string,
     fields: string[],
     operator: SearchOperator
   ): boolean {
-    const searchFields =
-      fields.length > 0 ? fields : Object.keys(record).filter((k) => !k.startsWith('_'));
-
-    switch (operator) {
-      case 'starts':
-        return searchFields.some((f) => {
-          const words = this._normalize(String(record[f] ?? '')).split(/\s+/);
-          return words.some((w) => w.startsWith(normTerm));
-        });
-
-      case 'words': {
-        const queryWords = normTerm.split(/\s+/).filter(Boolean);
-        return queryWords.every((qw) =>
-          searchFields.some((f) => this._normalize(String(record[f] ?? '')).includes(qw))
-        );
-      }
-
-      case 'contains':
-      default:
-        return searchFields.some((f) =>
-          this._normalize(String(record[f] ?? '')).includes(normTerm)
-        );
-    }
+    return matchesSearch(record, normTerm, fields, operator);
   }
 
   _normalize(str: string): string {
-    return stripAccents(String(str)).toLowerCase().trim();
+    return normalizeSearchText(str);
   }
 
   _getFields(): string[] {
@@ -782,7 +832,8 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
       this._syncUrl();
     }
 
-    this._emitSearchChange(this._filteredData.length);
+    // Le compte annoncé : celui du serveur quand c'est lui qui a cherché.
+    this._emitSearchChange(this._resultCount);
   }
 
   /**

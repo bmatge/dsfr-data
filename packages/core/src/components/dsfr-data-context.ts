@@ -1,18 +1,28 @@
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { ContextFilterLike } from '@dsfr-data/shared/lib';
+import type { ContextFilterLike, ContextSearch } from '@dsfr-data/shared/lib';
 import { dispatchSourceCommand, getDataCache } from '../utils/data-bridge.js';
-import { translateWhere, type WhereDialectCarrier } from '../utils/where.js';
+import { splitWhere, translateWhere } from '../utils/where.js';
+import {
+  buildSearchClause,
+  contextSearchTemplateOf,
+  type SearchClauseAdapter,
+} from '../utils/search-clause.js';
+import { getByPath } from '../utils/json-path.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
-import { CONTEXT_CONNECTED_EVENT, findContextHostById } from '../utils/context-registry.js';
+import {
+  CONTEXT_CONNECTED_EVENT,
+  findContextHostById,
+  type ContextSearchRoute,
+} from '../utils/context-registry.js';
 import { currentUrl, replaceUrl } from '../utils/page-url.js';
 import { splitUrlValues } from '../utils/url-values.js';
 import { scheduleContextUrlParamConflictScan } from '../utils/context-url-conflicts.js';
 import { checkNumericFieldMismatch } from '../utils/numeric-field-mismatch.js';
 
 interface SourceWithAdapter extends HTMLElement {
-  getAdapter?: () => WhereDialectCarrier | null;
+  getAdapter?: () => SearchClauseAdapter | null;
 }
 
 let contextSeq = 0;
@@ -53,6 +63,17 @@ export function findContextById(id: string): DsfrDataContext | null {
  * et <dsfr-data-search context="id">, qui vivent hors du contexte dans la
  * mise en page. Le whereKey est indexé sur `uid + champ` : stable à
  * l'insertion tardive d'un filtre, quel que soit l'ordre du DOM.
+ *
+ * Une RECHERCHE n'est pas un filtre (ADR-159, lot 3) : le terme d'une
+ * <dsfr-data-search context="id"> est porté comme une recherche, et chaque
+ * source cible la traduit. Quand son API a de quoi chercher, la recherche lui
+ * est confiée — moteur plein texte d'un portail Opendatasoft (par début de
+ * mot, casse et accents ignorés), sous-chaîne de Tabular et de Grist (casse
+ * ignorée, accents respectés) — et elle entre dans le `where` de la source :
+ * pagination serveur et facettes serveur comptent le même ensemble. Sinon
+ * (INSEE Melodi, adaptateur tiers) la source la calcule dans le navigateur,
+ * sur les lignes chargées, casse et accents ignorés. Dans l'URL et dans les
+ * tags, rien ne change : un paramètre au nom du champ, un tag « Recherche ».
  *
  * ```html
  * <dsfr-data-context id="ctx" sources="src-a src-b" url-sync>
@@ -120,6 +141,16 @@ export class DsfrDataContext extends LitElement {
    * clés des autres (l'ancien index d'ordre DOM le faisait).
    */
   private _whereKeys = new Map<ContextFilterLike, string>();
+
+  /**
+   * Qui calcule la recherche de chaque filtre, par source cible (ADR-159
+   * lot 3) — tenu à jour à chaque diffusion, lu par la recherche pour savoir
+   * si les lignes qu'elle reçoit sont déjà celles que le terme désigne.
+   */
+  private _searchRoutes = new Map<ContextFilterLike, Map<string, ContextSearchRoute>>();
+
+  /** Recherches retombées dans le navigateur déjà signalées (un message par motif). */
+  private _searchFallbackWarned = new Set<string>();
 
   /**
    * Lot en cours (`clearAll`, #679) : les commandes partent filtre par
@@ -225,6 +256,7 @@ export class DsfrDataContext extends LitElement {
     this._clearFilter(filter);
     this._filters = this._filters.filter((f) => f !== filter);
     this._whereKeys.delete(filter);
+    this._searchRoutes.delete(filter);
   }
 
   /**
@@ -243,7 +275,7 @@ export class DsfrDataContext extends LitElement {
     const reached = targets.filter((id) => !missing.includes(id));
     this._reportMissingField(filter, missing, reached.length === 0 && missing.length > 0);
     for (const sourceId of reached) {
-      const where = colonWhere ? this._translateFor(sourceId, colonWhere) : '';
+      const { where, clientWhere } = this._translateFor(sourceId, colonWhere);
       // Comparaison texte sur un champ que CETTE source publie en nombre
       // (#924) : la clause part inchangee, le piege est seulement dit. Sur
       // un filtre delegue a une source dont les lignes ne portent pas le
@@ -252,7 +284,14 @@ export class DsfrDataContext extends LitElement {
       // reste AVANT la commande : les lignes observees sont celles d'avant
       // ce filtre.
       if (colonWhere) void checkNumericFieldMismatch(sourceId, colonWhere);
-      dispatchSourceCommand(sourceId, { where, whereKey, origin: this.id });
+      dispatchSourceCommand(sourceId, {
+        where,
+        // Seulement quand il y en a une (#1285) : une commande sans part
+        // cliente la libère côté source.
+        ...(clientWhere ? { clientWhere } : {}),
+        whereKey,
+        origin: this.id,
+      });
     }
     // Une cible exclue garde le where precedent de ce filtre s'il y en avait
     // un : on le libere, pour qu'elle ne reste pas filtree sur une valeur
@@ -261,6 +300,128 @@ export class DsfrDataContext extends LitElement {
       dispatchSourceCommand(sourceId, { where: '', whereKey, origin: this.id });
     }
     if (!this._batching) this._notifyChange();
+  }
+
+  /**
+   * Diffusion d'une RECHERCHE (ADR-159, lot 3) : le terme qu'un visiteur a
+   * saisi, que chaque source cible traduit à sa façon — voir `_routeSearch`.
+   * Même whereKey, mêmes cibles, même règle du champ absent (#805) que
+   * `_applyFilter` ; `null` retire la recherche de toutes les cibles.
+   */
+  _applySearch(filter: ContextFilterLike, search: ContextSearch | null): void {
+    const whereKey = this._registerFilter(filter);
+    const targets = this._targetsFor(filter);
+    const missing = search ? targets.filter((id) => this._fieldMissingOn(id, filter.field)) : [];
+    const reached = targets.filter((id) => !missing.includes(id));
+    this._reportMissingField(filter, missing, reached.length === 0 && missing.length > 0);
+    const routes = new Map<string, ContextSearchRoute>();
+    for (const sourceId of reached) {
+      if (!search) {
+        dispatchSourceCommand(sourceId, { where: '', whereKey, origin: this.id });
+        continue;
+      }
+      const routed = this._routeSearch(sourceId, search);
+      routes.set(sourceId, routed.route);
+      dispatchSourceCommand(sourceId, {
+        where: routed.where,
+        ...(routed.route === 'server' ? {} : { clientSearch: search }),
+        whereKey,
+        origin: this.id,
+      });
+    }
+    for (const sourceId of missing) {
+      dispatchSourceCommand(sourceId, { where: '', whereKey, origin: this.id });
+    }
+    this._searchRoutes.set(filter, routes);
+    if (!this._batching) this._notifyChange();
+  }
+
+  /**
+   * Une recherche, pour UNE source : confiée à son API, ou à calculer dans le
+   * navigateur.
+   *
+   * - `server` : le fournisseur de la source déclare de quoi chercher
+   *   (`query.contextSearchTemplate`) — la clause part dans le dialecte de son
+   *   API, par le même chemin que `server-search` (`buildSearchClause`), et
+   *   entre dans le `where` de la source.
+   * - `client` : aucun moteur, ou une clause que l'API ne sait pas porter
+   *   (`supportsServerWhere`), ou un champ qui n'est pas du texte face à un
+   *   moteur qui n'en lit pas d'autre — la source calcule la recherche
+   *   elle-même, sur les lignes chargées (`clientSearch`).
+   * - `ignored` : source sans adaptateur (mode URL). Elle refuse les
+   *   commandes de filtre (#288) et le dit ; la commande part quand même,
+   *   pour que ce refus soit dit.
+   */
+  private _routeSearch(
+    sourceId: string,
+    search: ContextSearch
+  ): { route: ContextSearchRoute; where: string } {
+    const sourceEl = document.getElementById(sourceId) as SourceWithAdapter | null;
+    const adapter = sourceEl?.getAdapter?.() ?? null;
+    if (!adapter) return { route: 'ignored', where: '' };
+    const engine = contextSearchTemplateOf(adapter);
+    if (!engine) return { route: 'client', where: '' };
+
+    let refusal: string;
+    if (engine.textOnly && this._observedNotText(sourceId, search.fields)) {
+      refusal =
+        `le champ "${search.fields.join(', ')}" n'est pas du texte, et le moteur de recherche ` +
+        `de l'API ${adapter.type ?? ''} ne lit que du texte`;
+    } else {
+      const clause = buildSearchClause(
+        adapter,
+        engine.template,
+        search.term,
+        search.fields,
+        engine.fieldsJoin
+      );
+      if (clause.refusal === null) return { route: 'server', where: clause.where };
+      refusal = clause.refusal;
+    }
+    const key = `${sourceId}:${refusal}`;
+    if (!this._searchFallbackWarned.has(key) && this._searchFallbackWarned.size < 200) {
+      this._searchFallbackWarned.add(key);
+      console.warn(
+        `dsfr-data-context[${this.id}]: recherche vers "${sourceId}" — ${refusal}. Recherche ` +
+          `calculée dans le navigateur par la source, sur les lignes chargées.`
+      );
+    }
+    return { route: 'client', where: '' };
+  }
+
+  /**
+   * Les lignes DÉJÀ émises par la source montrent-elles un champ qui n'est
+   * pas du texte (nombre, booléen) ? Même source de vérité que le garde-fou
+   * « champ absent » (#805). Sans ligne, ou sans valeur renseignée, on ne
+   * sait pas : `false`, la recherche part et l'API répondra.
+   */
+  private _observedNotText(sourceId: string, fields: string[]): boolean {
+    const data = getDataCache(sourceId);
+    const rows = Array.isArray(data) ? (data as Record<string, unknown>[]) : [];
+    return fields.some((field) => {
+      for (const row of rows) {
+        const value = row && typeof row === 'object' ? getByPath(row, field) : undefined;
+        if (value === null || value === undefined) continue;
+        return typeof value === 'number' || typeof value === 'boolean';
+      }
+      return false;
+    });
+  }
+
+  /**
+   * Qui calcule la recherche de ce filtre pour cette source (ADR-159 lot 3) ?
+   * `null` : la source n'est pas une cible du filtre. Sans recherche active,
+   * rend la route qu'elle PRENDRAIT : une recherche qui laisse passer les
+   * lignes d'une source servie par son API le fait avec ou sans terme.
+   */
+  _searchRouteFor(filter: ContextFilterLike, sourceId: string): ContextSearchRoute | null {
+    const known = this._searchRoutes.get(filter)?.get(sourceId);
+    if (known) return known;
+    if (!this._targetsFor(filter).includes(sourceId)) return null;
+    const sourceEl = document.getElementById(sourceId) as SourceWithAdapter | null;
+    const adapter = sourceEl?.getAdapter?.() ?? null;
+    if (!adapter) return 'ignored';
+    return contextSearchTemplateOf(adapter) ? 'server' : 'client';
   }
 
   /**
@@ -379,11 +540,14 @@ export class DsfrDataContext extends LitElement {
 
   /**
    * Filtres actifs du contexte (#232) — pour les composants d'affichage
-   * (tags). Un filtre est actif si sa clause courante est non vide. Tout
-   * type de filtre confondu (#678) : filter, facettes, recherche.
+   * (tags). Un filtre est actif si sa clause courante est non vide, ou s'il
+   * porte une recherche (ADR-159 lot 3 : la recherche n'a plus de clause).
+   * Tout type de filtre confondu (#678) : filter, facettes, recherche.
    */
   activeFilters(): ContextFilterLike[] {
-    return this._filters.filter((f) => f.isConnected && f.buildColonWhere() !== '');
+    return this._filters.filter(
+      (f) => f.isConnected && (f.buildColonWhere() !== '' || !!f.buildSearch?.())
+    );
   }
 
   // --- Sérialisation URL (#231, pattern facets — leçon #312 incluse) ---
@@ -487,12 +651,25 @@ export class DsfrDataContext extends LitElement {
   }
 
   /**
-   * Traduit la clause colon vers le dialecte de l'adapter de la source —
-   * même chemin que la délégation serveur de dsfr-data-query (#275).
+   * Prépare la clause colon pour une source — même chemin que la délégation
+   * serveur de dsfr-data-query (#275).
+   *
+   * La clause est d'abord PARTAGÉE (#1285, ADR-159) : `where` est ce qui est
+   * confié à l'API de la source, traduit dans son dialecte ; `clientWhere`
+   * (grammaire colon) est ce dont la comparaison n'a pas la même structure
+   * sur l'API — `contains` / `notcontains` sur un portail Opendatasoft, dont
+   * le `like` compare des mots — et que la source calcule elle-même, dans le
+   * navigateur, sur les lignes chargées.
    */
-  private _translateFor(sourceId: string, colonWhere: string): string {
+  private _translateFor(
+    sourceId: string,
+    colonWhere: string
+  ): { where: string; clientWhere: string } {
+    if (!colonWhere) return { where: '', clientWhere: '' };
     const sourceEl = document.getElementById(sourceId) as SourceWithAdapter | null;
-    return translateWhere(sourceEl?.getAdapter?.(), colonWhere);
+    const adapter = sourceEl?.getAdapter?.();
+    const { server, client } = splitWhere(adapter, colonWhere);
+    return { where: translateWhere(adapter, server), clientWhere: client };
   }
 
   render() {

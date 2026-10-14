@@ -490,6 +490,43 @@ describe('export-html — strategie de chargement (ADR-109, #717)', () => {
     },
   });
 
+  it('#1285 — un tableau filtre par contains ne pagine PAS cote serveur sur Opendatasoft', () => {
+    // La clause est calculee dans le navigateur, sur le jeu charge : derriere
+    // `server-side`, la bibliotheque la refuserait (erreur de configuration).
+    const filtre = (where: string): Widget => {
+      const w = listeWidget();
+      if (w.type === 'chart' && 'chart' in w.config) {
+        (w.config.chart as { where?: string }).where = where;
+      }
+      return w;
+    };
+    const contient = generateDashboardHTML(
+      dashboardWith([filtre('region:contains:erritoire')], [ODS])
+    );
+    expect(contient).not.toContain('server-side');
+    expect(contient).not.toContain('like');
+    expect(contient).toContain('where="region:contains:erritoire"');
+    // Une egalite, elle, garde la pagination serveur.
+    const egal = generateDashboardHTML(dashboardWith([filtre('region:eq:Bretagne')], [ODS]));
+    expect(egal).toContain('server-side page-size="25"');
+    // Et Tabular n'est pas concerne (lot 2 de l'ADR-159).
+    const tabular = generateDashboardHTML(
+      dashboardWith(
+        [filtre('region:contains:erritoire')],
+        [
+          {
+            id: 'ods',
+            name: 'Jeu Tabular',
+            provider: 'tabular',
+            apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc/data/',
+            resourceIds: { resourceId: 'abc' },
+          },
+        ]
+      )
+    );
+    expect(tabular).toContain('server-side page-size="25"');
+  });
+
   it('une source a consommateur unique et paginant pagine cote serveur', () => {
     const html = generateDashboardHTML(dashboardWith([listeWidget()], [ODS]));
     expect(html).toContain('server-side page-size="25"');
@@ -766,6 +803,19 @@ describe('export-html — KPI calculé par le serveur (#810)', () => {
       expect(html, fn).toContain(`select="${fn}(montant) as montant__${fn}"`);
       expect(html, fn).toContain(`value="montant__${fn}"`);
     }
+  });
+
+  it('#1285 — un filtre contains interdit l’agrégat serveur : KPI derrière une query, sans like', () => {
+    // `like "%x%"` compare des mots sur un portail Opendatasoft : la clause
+    // n'a pas de traduction ODSQL, le serveur agrégerait des lignes non filtrées.
+    const html = generateDashboardHTML(
+      dashboardWith([kpiOn('ods', { aggregation: 'sum', where: 'libelle:contains:ouv' })], [ODS])
+    );
+    expect(html).not.toContain('like');
+    expect(html).not.toContain('select="sum(montant)');
+    expect(sourcesOf(html)).toEqual(['ods']);
+    expect(html).toContain('<dsfr-data-query id="q-k" source="ods" where="libelle:contains:ouv">');
+    expect(html).toContain('<dsfr-data-kpi source="q-k" value="montant:sum"');
   });
 
   it('le filtre propre du KPI passe sur sa source, traduit en ODSQL, sans query', () => {

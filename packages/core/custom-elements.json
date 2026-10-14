@@ -3619,7 +3619,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus précise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> année 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannée) retire le filtre et le signale par un avertissement console,\némis une seule fois par filtre.",
+              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus précise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> année 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannée) retire le filtre et le signale par un avertissement console,\némis une seule fois par filtre.\n\n`contains` (#1285, ADR-159) cherche une SOUS-CHAÎNE, casse ignorée,\naccents respectés (« tation » trouve « alimentation »). Un portail\nOpendatasoft ne sait pas le faire (son `like` compare des mots) : la\nclause y est calculée par la source, dans le navigateur, sur les lignes\nchargées — tout ce que les autres filtres laissent passer est lu, dans la\nlimite de `max-records` —, et une cible en `server-side` passe en erreur\nde configuration, qui dit quoi écrire à la place.",
               "attribute": "operator"
             },
             {
@@ -3994,7 +3994,7 @@
                 "text": "ContextOperator"
               },
               "default": "'eq'",
-              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus précise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> année 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannée) retire le filtre et le signale par un avertissement console,\némis une seule fois par filtre.",
+              "description": "Opérateur : eq, in, lt, gte, between, contains (sous-chaîne, #678) — et\ndates (#230, clauses en plages [debut, fin)) : month-of, year-of,\nlt-day-after, last-n-days, current-year, current-month (#682 — case à\ncocher, mois en cours, borne dynamique).\n\n`year-of` et `month-of` acceptent une date plus précise que l'opérateur\net la tronquent (#646) : \"2026-09-09\" -> année 2026 / mois 2026-09, ce\nqui permet de les nourrir d'un <input type=\"date\"> (il n'existe pas de\ntype=\"year\"). Une valeur qui reste inexploitable (ni date, ni mois, ni\nannée) retire le filtre et le signale par un avertissement console,\némis une seule fois par filtre.\n\n`contains` (#1285, ADR-159) cherche une SOUS-CHAÎNE, casse ignorée,\naccents respectés (« tation » trouve « alimentation »). Un portail\nOpendatasoft ne sait pas le faire (son `like` compare des mots) : la\nclause y est calculée par la source, dans le navigateur, sur les lignes\nchargées — tout ce que les autres filtres laissent passer est lu, dans la\nlimite de `max-records` —, et une cible en `server-side` passe en erreur\nde configuration, qui dit quoi écrire à la place.",
               "fieldName": "operator"
             },
             {
@@ -4536,7 +4536,7 @@
         },
         {
           "kind": "class",
-          "description": "<dsfr-data-context> — chef d'orchestre de filtres transverses (#229).\n\nComposant OPT-IN et additif (epic #224, ADR-031) : il tient les filtres\ncommuns d'un dashboard multi-vues et les diffuse à N sources nommées —\nle fan-out qui manquait (chaque dsfr-data-source restait un pipeline\nisolé, un filtre commun exigeait du JS d'orchestration à la main).\nLes pages mono-graphique ne sont PAS concernées : sans contexte, tout\nfonctionne comme avant.\n\nIl ne fetch rien et ne transforme rien : il écoute ses filtres et émet\ndes commandes `where` via dispatchSourceCommand, un **whereKey stable\npar filtre** — le merge multi-émetteurs existant côté source fait le AND\n(ADR-031 : jamais « le dernier gagne », l'ordre des balises HTML ne\nchange rien).\n\nUn seul bus de diffusion (#678, ADR-104) : tout composant qui remplit le\ncontrat `ContextFilterLike` peut s'y enregistrer — les enfants\n<dsfr-data-context-filter>, mais aussi <dsfr-data-facets context=\"id\">\net <dsfr-data-search context=\"id\">, qui vivent hors du contexte dans la\nmise en page. Le whereKey est indexé sur `uid + champ` : stable à\nl'insertion tardive d'un filtre, quel que soit l'ordre du DOM.\n\n```html\n<dsfr-data-context id=\"ctx\" sources=\"src-a src-b\" url-sync>\n  <dsfr-data-context-filter field=\"categorie\" operator=\"in\" ui=\"select-cat\">\n  </dsfr-data-context-filter>\n</dsfr-data-context>\n<dsfr-data-facets context=\"ctx\" source=\"src-facettes\" server-facets\n  fields=\"region,departement\" display=\"region:select | departement:select\">\n</dsfr-data-facets>\n```",
+          "description": "<dsfr-data-context> — chef d'orchestre de filtres transverses (#229).\n\nComposant OPT-IN et additif (epic #224, ADR-031) : il tient les filtres\ncommuns d'un dashboard multi-vues et les diffuse à N sources nommées —\nle fan-out qui manquait (chaque dsfr-data-source restait un pipeline\nisolé, un filtre commun exigeait du JS d'orchestration à la main).\nLes pages mono-graphique ne sont PAS concernées : sans contexte, tout\nfonctionne comme avant.\n\nIl ne fetch rien et ne transforme rien : il écoute ses filtres et émet\ndes commandes `where` via dispatchSourceCommand, un **whereKey stable\npar filtre** — le merge multi-émetteurs existant côté source fait le AND\n(ADR-031 : jamais « le dernier gagne », l'ordre des balises HTML ne\nchange rien).\n\nUn seul bus de diffusion (#678, ADR-104) : tout composant qui remplit le\ncontrat `ContextFilterLike` peut s'y enregistrer — les enfants\n<dsfr-data-context-filter>, mais aussi <dsfr-data-facets context=\"id\">\net <dsfr-data-search context=\"id\">, qui vivent hors du contexte dans la\nmise en page. Le whereKey est indexé sur `uid + champ` : stable à\nl'insertion tardive d'un filtre, quel que soit l'ordre du DOM.\n\nUne RECHERCHE n'est pas un filtre (ADR-159, lot 3) : le terme d'une\n<dsfr-data-search context=\"id\"> est porté comme une recherche, et chaque\nsource cible la traduit. Quand son API a de quoi chercher, la recherche lui\nest confiée — moteur plein texte d'un portail Opendatasoft (par début de\nmot, casse et accents ignorés), sous-chaîne de Tabular et de Grist (casse\nignorée, accents respectés) — et elle entre dans le `where` de la source :\npagination serveur et facettes serveur comptent le même ensemble. Sinon\n(INSEE Melodi, adaptateur tiers) la source la calcule dans le navigateur,\nsur les lignes chargées, casse et accents ignorés. Dans l'URL et dans les\ntags, rien ne change : un paramètre au nom du champ, un tag « Recherche ».\n\n```html\n<dsfr-data-context id=\"ctx\" sources=\"src-a src-b\" url-sync>\n  <dsfr-data-context-filter field=\"categorie\" operator=\"in\" ui=\"select-cat\">\n  </dsfr-data-context-filter>\n</dsfr-data-context>\n<dsfr-data-facets context=\"ctx\" source=\"src-facettes\" server-facets\n  fields=\"region,departement\" display=\"region:select | departement:select\">\n</dsfr-data-facets>\n```",
           "name": "DsfrDataContext",
           "members": [
             {
@@ -4593,6 +4593,20 @@
               "privacy": "private",
               "default": "new Map<ContextFilterLike, string>()",
               "description": "whereKey de chaque filtre, indexé sur `uid + champ` (#678) — stable à\nl'insertion tardive : un filtre enregistré après coup ne décale pas les\nclés des autres (l'ancien index d'ordre DOM le faisait)."
+            },
+            {
+              "kind": "field",
+              "name": "_searchRoutes",
+              "privacy": "private",
+              "default": "new Map<ContextFilterLike, Map<string, ContextSearchRoute>>()",
+              "description": "Qui calcule la recherche de chaque filtre, par source cible (ADR-159\nlot 3) — tenu à jour à chaque diffusion, lu par la recherche pour savoir\nsi les lignes qu'elle reçoit sont déjà celles que le terme désigne."
+            },
+            {
+              "kind": "field",
+              "name": "_searchFallbackWarned",
+              "privacy": "private",
+              "default": "new Set<string>()",
+              "description": "Recherches retombées dans le navigateur déjà signalées (un message par motif)."
             },
             {
               "kind": "field",
@@ -4677,6 +4691,104 @@
                 }
               ],
               "description": "Diffusion d'un filtre : recompose le where AU DIALECTE de chaque source\n(colon natif ; traduit en ODSQL via la couche partagée #275 quand\nl'adapter l'exige) et l'émet sur le whereKey du filtre."
+            },
+            {
+              "kind": "method",
+              "name": "_applySearch",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "filter",
+                  "type": {
+                    "text": "ContextFilterLike"
+                  }
+                },
+                {
+                  "name": "search",
+                  "type": {
+                    "text": "ContextSearch | null"
+                  }
+                }
+              ],
+              "description": "Diffusion d'une RECHERCHE (ADR-159, lot 3) : le terme qu'un visiteur a\nsaisi, que chaque source cible traduit à sa façon — voir `_routeSearch`.\nMême whereKey, mêmes cibles, même règle du champ absent (#805) que\n`_applyFilter` ; `null` retire la recherche de toutes les cibles."
+            },
+            {
+              "kind": "method",
+              "name": "_routeSearch",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ route: ContextSearchRoute; where: string }"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sourceId",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "search",
+                  "type": {
+                    "text": "ContextSearch"
+                  }
+                }
+              ],
+              "description": "Une recherche, pour UNE source : confiée à son API, ou à calculer dans le\nnavigateur.\n\n- `server` : le fournisseur de la source déclare de quoi chercher\n  (`query.contextSearchTemplate`) — la clause part dans le dialecte de son\n  API, par le même chemin que `server-search` (`buildSearchClause`), et\n  entre dans le `where` de la source.\n- `client` : aucun moteur, ou une clause que l'API ne sait pas porter\n  (`supportsServerWhere`), ou un champ qui n'est pas du texte face à un\n  moteur qui n'en lit pas d'autre — la source calcule la recherche\n  elle-même, sur les lignes chargées (`clientSearch`).\n- `ignored` : source sans adaptateur (mode URL). Elle refuse les\n  commandes de filtre (#288) et le dit ; la commande part quand même,\n  pour que ce refus soit dit."
+            },
+            {
+              "kind": "method",
+              "name": "_observedNotText",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "sourceId",
+                  "type": {
+                    "text": "string"
+                  }
+                },
+                {
+                  "name": "fields",
+                  "type": {
+                    "text": "string[]"
+                  }
+                }
+              ],
+              "description": "Les lignes DÉJÀ émises par la source montrent-elles un champ qui n'est\npas du texte (nombre, booléen) ? Même source de vérité que le garde-fou\n« champ absent » (#805). Sans ligne, ou sans valeur renseignée, on ne\nsait pas : `false`, la recherche part et l'API répondra."
+            },
+            {
+              "kind": "method",
+              "name": "_searchRouteFor",
+              "return": {
+                "type": {
+                  "text": "ContextSearchRoute | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "filter",
+                  "type": {
+                    "text": "ContextFilterLike"
+                  }
+                },
+                {
+                  "name": "sourceId",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Qui calcule la recherche de ce filtre pour cette source (ADR-159 lot 3) ?\n`null` : la source n'est pas une cible du filtre. Sans recherche active,\nrend la route qu'elle PRENDRAIT : une recherche qui laisse passer les\nlignes d'une source servie par son API le fait avec ou sans terme."
             },
             {
               "kind": "method",
@@ -4777,7 +4889,7 @@
                   "text": "ContextFilterLike[]"
                 }
               },
-              "description": "Filtres actifs du contexte (#232) — pour les composants d'affichage\n(tags). Un filtre est actif si sa clause courante est non vide. Tout\ntype de filtre confondu (#678) : filter, facettes, recherche."
+              "description": "Filtres actifs du contexte (#232) — pour les composants d'affichage\n(tags). Un filtre est actif si sa clause courante est non vide, ou s'il\nporte une recherche (ADR-159 lot 3 : la recherche n'a plus de clause).\nTout type de filtre confondu (#678) : filter, facettes, recherche."
             },
             {
               "kind": "method",
@@ -4910,7 +5022,7 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "string"
+                  "text": "{ where: string; clientWhere: string }"
                 }
               },
               "parameters": [
@@ -4927,7 +5039,7 @@
                   }
                 }
               ],
-              "description": "Traduit la clause colon vers le dialecte de l'adapter de la source —\nmême chemin que la délégation serveur de dsfr-data-query (#275)."
+              "description": "Prépare la clause colon pour une source — même chemin que la délégation\nserveur de dsfr-data-query (#275).\n\nLa clause est d'abord PARTAGÉE (#1285, ADR-159) : `where` est ce qui est\nconfié à l'API de la source, traduit dans son dialecte ; `clientWhere`\n(grammaire colon) est ce dont la comparaison n'a pas la même structure\nsur l'API — `contains` / `notcontains` sur un portail Opendatasoft, dont\nle `like` compare des mots — et que la source calcule elle-même, dans le\nnavigateur, sur les lignes chargées."
             }
           ],
           "events": [
@@ -7020,6 +7132,27 @@
               "name": "_fetchServerFacets",
               "privacy": "private",
               "description": "Fetch facet values from server API with cross-facet counts"
+            },
+            {
+              "kind": "field",
+              "name": "_clientWhereError",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Dernière erreur « clause calculée dans le navigateur » posée (#1285)."
+            },
+            {
+              "kind": "method",
+              "name": "_refuseClientWhere",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "`server-facets` et clause calculée dans le navigateur (#1285, ADR-159).\nLes compteurs viennent de l'API, qui ne reçoit que la part du filtre qui\npeut lui être confiée : une clause gardée par la source (`contains` /\n`notcontains`, quand l'API compare des mots et non une sous-chaîne) leur\néchappe, et ils compteraient plus de lignes que la page n'en montre. Un compteur faux est pire qu'un compteur absent :\nERREUR DE CONFIGURATION (console + `data-dsfr-config-error` + bandeau),\naucune facette n'est rendue, et le message dit quoi écrire à la place.\nOn remonte la chaîne jusqu'à la source qui charge. Levée dès que la\nclause disparaît. Retourne `true` quand le fetch doit être abandonné.\n\nMême règle pour une RECHERCHE du contexte que la source calcule\nelle-même (ADR-159 lot 3) — le cas d'une API sans moteur de recherche.\nUne recherche confiée à l'API n'est pas concernée : elle est dans le\n`where` de la source, et l'appel de facettes la porte."
             },
             {
               "kind": "method",
@@ -18944,7 +19077,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277).\n\n**La clause part au serveur** dès lors que l'amont a un adaptateur qui\nsait la traduire et que cette requête est seule lectrice de sa chaîne\n(#856) — avec ou sans `group-by`. Elle est traduite au dialecte de\nl'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :\nelle se fusionne avec les clauses des facettes, de la recherche et du\ncontexte au lieu de les écraser, et elle lève l'attente d'un\n`require-where` posé sur la source (#854). Elle reste calculée dans le\nnavigateur quand la chaîne est partagée (#765), quand un transformateur\namont renomme des colonnes (#394), quand une clause est intraduisible,\nou avec `explode` (#736).\n\nLISTE À PARENTHÈSE OU À VIRGULE (#1233) : `champ:in:a|b (c)` part au\nserveur comme toute liste — l'adaptateur Tabular écrit entre guillemets\nla valeur que l'API écarterait nue, et calcule la clause lui-même si\nl'API refuse cette forme (détail : `where` de dsfr-data-source).\n\nCHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le MÊME\nopérateur et la MÊME valeur à plusieurs champs, reliés par un OU — la\nligne passe dès qu'un des champs satisfait la clause ; les clauses entre\nelles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause\nmulti-champs par requête, valeur sans `,` `.` `(` `)` `\"` `&`, ni\n`in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) ; INSEE\net les sources sans adaptateur le calculent dans le navigateur.\n\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent\nDANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,\ncomme le compte déjà `value=\"count:tags:urgent\"` de dsfr-data-kpi, et\ncomme le retient le portail quand la clause lui est déléguée. C'est ce\nqui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —\n`keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de\n`retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :\n`where=champ = \"x\"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais\nsur le rendu texte complet du tableau.\n\nLa règle exacte, côté client :\n  eq(valeur, v) = (valeur est un tableau et un élément vaut v)\n                  OU String(valeur) === String(v)\n\nLe second terme est un repli que le portail n'a pas (`['a','b']` matche\n`'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`\nne puissent que GAGNER des correspondances, jamais en perdre. `neq` /\n`notin` en sont la négation, donc eux en perdent — et le portail fait\npareil.\n\nVALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait\n**ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique\nOpendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de\n`retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :\n`= \"Elèves\"` -> 124, `!= \"Elèves\"` -> **31** (= 155 renseignées − 124),\net non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même\n`champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour\nretrouver les lignes absentes, les nommer : `champ:isnull`.\n\n⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est\naligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se\ndélèguent en `NOT champ in (…)` / `NOT champ like \"%…%\"`, une négation\nbooléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois\nvaleurs.\n\n⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il\ncherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y\nmatche « urgent », et la recherche traverse la virgule entre deux\néléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`\n(#736). Le booléen dérivé en amont (`dsfr-data-normalize\ncompute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"` puis\n`where=\"a_urgent:eq:1\"`) reste valide — le filtre final porte sur un\nscalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE\npour obtenir le même compte des deux côtés.\n\nPendant une version mineure, un avertissement de transition nomme le\nchamp et la valeur des lignes qui se mettent à compter (dédupliqué par\ncouple champ/valeur, jamais par ligne).",
+              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277).\n\n**La clause part au serveur** dès lors que l'amont a un adaptateur qui\nsait la traduire et que cette requête est seule lectrice de sa chaîne\n(#856) — avec ou sans `group-by`. Elle est traduite au dialecte de\nl'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :\nelle se fusionne avec les clauses des facettes, de la recherche et du\ncontexte au lieu de les écraser, et elle lève l'attente d'un\n`require-where` posé sur la source (#854). Elle reste calculée dans le\nnavigateur quand la chaîne est partagée (#765), quand un transformateur\namont renomme des colonnes (#394), quand une clause est intraduisible,\nou avec `explode` (#736).\n\n`contains` ET `notcontains` SONT UNE SOUS-CHAÎNE, PARTOUT (#1285,\nADR-159) : `champ:contains:tation` retient les lignes dont la valeur porte\n« tation » n'importe où, casse ignorée, accents respectés — « tation »\ntrouve « alimentation », « ecole » ne trouve pas « École ». C'est la\nbibliothèque qui dit ce que le filtre retient, pas le serveur.\n\nUn portail Opendatasoft ne sait pas chercher une sous-chaîne : son `like`\ncompare des MOTS (`like \"%aliment%\"` rend 0 ligne pour 14 366\n« alimentation », mesuré le 2026-10-12 ; il ne trouve qu'un mot entier, ou\nun début de mot avec `like \"alim*\"`). Sur Opendatasoft, ces deux\nopérateurs ne sont donc JAMAIS confiés au portail : ils sont calculés dans\nle navigateur, sur les lignes que le reste du filtre a laissées passer —\nles autres clauses (`eq`, `in`, comparaisons…) partent comme avant.\n\nCe que cela coûte : la source charge toutes ces lignes au lieu des seules\nlignes retenues, dans la limite de `max-records` (au-delà, la troncature\nest signalée et le filtre ne porte que sur les lignes lues —\n`fetch-mode=\"export\"` et un `max-records` relevé pour un grand jeu). Le\nregroupement suit la clause : `group-by` n'est alors plus délégué (le\nserveur regrouperait des lignes non filtrées), il est calculé ici.\n\nQuand cette requête est seule lectrice de sa chaîne, elle confie la\nclause à la source, qui la calcule sur le jeu chargé — et la REFUSE si\nelle est en `server-side`, où elle ne reçoit qu'une page : erreur de\nconfiguration, posée sur la source, qui nomme la clause et la correction\n(retirer `server-side` ; pour une saisie du visiteur, `dsfr-data-search\nserver-search`). Sur une chaîne partagée rien n'est délégué, ni cette\nclause ni les autres : le filtre porte sur les lignes reçues, comme pour\ntout opérateur (#765). Tabular et Grist gardent leur délégation de\n`contains` (sous-chaîne sur ces deux API).\n\nLISTE À PARENTHÈSE OU À VIRGULE (#1233) : `champ:in:a|b (c)` part au\nserveur comme toute liste — l'adaptateur Tabular écrit entre guillemets\nla valeur que l'API écarterait nue, et calcule la clause lui-même si\nl'API refuse cette forme (détail : `where` de dsfr-data-source).\n\nCHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le MÊME\nopérateur et la MÊME valeur à plusieurs champs, reliés par un OU — la\nligne passe dès qu'un des champs satisfait la clause ; les clauses entre\nelles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause\nmulti-champs par requête, valeur sans `,` `.` `(` `)` `\"` `&`, ni\n`in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) — sauf\n`contains` / `notcontains` sur Opendatasoft, calculés dans le navigateur\n(`nom|commune:contains:martin`, #1285) ; INSEE et les sources sans\nadaptateur le calculent dans le navigateur.\n\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent\nDANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,\ncomme le compte déjà `value=\"count:tags:urgent\"` de dsfr-data-kpi, et\ncomme le retient le portail quand la clause lui est déléguée. C'est ce\nqui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —\n`keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de\n`retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :\n`where=champ = \"x\"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais\nsur le rendu texte complet du tableau.\n\nLa règle exacte, côté client :\n  eq(valeur, v) = (valeur est un tableau et un élément vaut v)\n                  OU String(valeur) === String(v)\n\nLe second terme est un repli que le portail n'a pas (`['a','b']` matche\n`'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`\nne puissent que GAGNER des correspondances, jamais en perdre. `neq` /\n`notin` en sont la négation, donc eux en perdent — et le portail fait\npareil.\n\nVALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait\n**ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique\nOpendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de\n`retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :\n`= \"Elèves\"` -> 124, `!= \"Elèves\"` -> **31** (= 155 renseignées − 124),\net non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même\n`champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour\nretrouver les lignes absentes, les nommer : `champ:isnull`.\n\n⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est\naligné aussi : ODSQL n'a pas d'infixe `not in`, donc `notin` se délègue\nen `NOT champ in (…)`, une négation booléenne qui garde les nulles\n(mesuré : 52). Seul `!=` est à trois valeurs. `notcontains` n'est plus\ndélégué à Opendatasoft (#1285) ; calculé dans le navigateur, il garde\nles valeurs absentes partout.\n\n⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il\ncherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y\nmatche « urgent », et la recherche traverse la virgule entre deux\néléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`\n(#736). Le booléen dérivé en amont (`dsfr-data-normalize\ncompute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"` puis\n`where=\"a_urgent:eq:1\"`) reste valide — le filtre final porte sur un\nscalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE\npour obtenir le même compte des deux côtés.\n\nPendant une version mineure, un avertissement de transition nomme le\nchamp et la valeur des lignes qui se mettent à compter (dédupliqué par\ncouple champ/valeur, jamais par ligne).",
               "attribute": "where"
             },
             {
@@ -19297,7 +19430,7 @@
                 {
                   "name": "cmd",
                   "type": {
-                    "text": "{ where?: string; whereKey?: string }"
+                    "text": "{\n    where?: string;\n    clientWhere?: string;\n    clientSearch?: { term: string } | null;\n    whereKey?: string;\n  }"
                   }
                 }
               ],
@@ -19684,7 +19817,7 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "{ ok: boolean; where: string; fields: string[] }"
+                  "text": "{ ok: boolean; where: string; fields: string[]; client: string; clientFields: string[] }"
                 }
               },
               "parameters": [
@@ -20433,7 +20566,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277).\n\n**La clause part au serveur** dès lors que l'amont a un adaptateur qui\nsait la traduire et que cette requête est seule lectrice de sa chaîne\n(#856) — avec ou sans `group-by`. Elle est traduite au dialecte de\nl'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :\nelle se fusionne avec les clauses des facettes, de la recherche et du\ncontexte au lieu de les écraser, et elle lève l'attente d'un\n`require-where` posé sur la source (#854). Elle reste calculée dans le\nnavigateur quand la chaîne est partagée (#765), quand un transformateur\namont renomme des colonnes (#394), quand une clause est intraduisible,\nou avec `explode` (#736).\n\nLISTE À PARENTHÈSE OU À VIRGULE (#1233) : `champ:in:a|b (c)` part au\nserveur comme toute liste — l'adaptateur Tabular écrit entre guillemets\nla valeur que l'API écarterait nue, et calcule la clause lui-même si\nl'API refuse cette forme (détail : `where` de dsfr-data-source).\n\nCHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le MÊME\nopérateur et la MÊME valeur à plusieurs champs, reliés par un OU — la\nligne passe dès qu'un des champs satisfait la clause ; les clauses entre\nelles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause\nmulti-champs par requête, valeur sans `,` `.` `(` `)` `\"` `&`, ni\n`in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) ; INSEE\net les sources sans adaptateur le calculent dans le navigateur.\n\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent\nDANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,\ncomme le compte déjà `value=\"count:tags:urgent\"` de dsfr-data-kpi, et\ncomme le retient le portail quand la clause lui est déléguée. C'est ce\nqui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —\n`keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de\n`retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :\n`where=champ = \"x\"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais\nsur le rendu texte complet du tableau.\n\nLa règle exacte, côté client :\n  eq(valeur, v) = (valeur est un tableau et un élément vaut v)\n                  OU String(valeur) === String(v)\n\nLe second terme est un repli que le portail n'a pas (`['a','b']` matche\n`'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`\nne puissent que GAGNER des correspondances, jamais en perdre. `neq` /\n`notin` en sont la négation, donc eux en perdent — et le portail fait\npareil.\n\nVALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait\n**ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique\nOpendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de\n`retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :\n`= \"Elèves\"` -> 124, `!= \"Elèves\"` -> **31** (= 155 renseignées − 124),\net non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même\n`champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour\nretrouver les lignes absentes, les nommer : `champ:isnull`.\n\n⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est\naligné aussi : ODSQL n'a pas d'infixe `not in` / `not like`, donc ils se\ndélèguent en `NOT champ in (…)` / `NOT champ like \"%…%\"`, une négation\nbooléenne qui garde les nulles (mesuré : 52). Seul `!=` est à trois\nvaleurs.\n\n⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il\ncherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y\nmatche « urgent », et la recherche traverse la virgule entre deux\néléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`\n(#736). Le booléen dérivé en amont (`dsfr-data-normalize\ncompute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"` puis\n`where=\"a_urgent:eq:1\"`) reste valide — le filtre final porte sur un\nscalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE\npour obtenir le même compte des deux côtés.\n\nPendant une version mineure, un avertissement de transition nomme le\nchamp et la valeur des lignes qui se mettent à compter (dédupliqué par\ncouple champ/valeur, jamais par ligne).",
+              "description": "Clause WHERE / Filtres — syntaxe colon UNIQUEMENT :\n\"champ:opérateur:valeur, champ2:opérateur:valeur2\"\n(opérateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in,\nnotin, isnull, isnotnull — multi-valeurs séparées par |).\n\nLa syntaxe ODSQL n'est PAS supportee ici (elle l'est sur le `where` de\ndsfr-data-source) : une clause non parsable est signalee via\nreportConfigError (#277).\n\n**La clause part au serveur** dès lors que l'amont a un adaptateur qui\nsait la traduire et que cette requête est seule lectrice de sa chaîne\n(#856) — avec ou sans `group-by`. Elle est traduite au dialecte de\nl'adaptateur (#275) et posée en overlay clé par émetteur (ADR-031) :\nelle se fusionne avec les clauses des facettes, de la recherche et du\ncontexte au lieu de les écraser, et elle lève l'attente d'un\n`require-where` posé sur la source (#854). Elle reste calculée dans le\nnavigateur quand la chaîne est partagée (#765), quand un transformateur\namont renomme des colonnes (#394), quand une clause est intraduisible,\nou avec `explode` (#736).\n\n`contains` ET `notcontains` SONT UNE SOUS-CHAÎNE, PARTOUT (#1285,\nADR-159) : `champ:contains:tation` retient les lignes dont la valeur porte\n« tation » n'importe où, casse ignorée, accents respectés — « tation »\ntrouve « alimentation », « ecole » ne trouve pas « École ». C'est la\nbibliothèque qui dit ce que le filtre retient, pas le serveur.\n\nUn portail Opendatasoft ne sait pas chercher une sous-chaîne : son `like`\ncompare des MOTS (`like \"%aliment%\"` rend 0 ligne pour 14 366\n« alimentation », mesuré le 2026-10-12 ; il ne trouve qu'un mot entier, ou\nun début de mot avec `like \"alim*\"`). Sur Opendatasoft, ces deux\nopérateurs ne sont donc JAMAIS confiés au portail : ils sont calculés dans\nle navigateur, sur les lignes que le reste du filtre a laissées passer —\nles autres clauses (`eq`, `in`, comparaisons…) partent comme avant.\n\nCe que cela coûte : la source charge toutes ces lignes au lieu des seules\nlignes retenues, dans la limite de `max-records` (au-delà, la troncature\nest signalée et le filtre ne porte que sur les lignes lues —\n`fetch-mode=\"export\"` et un `max-records` relevé pour un grand jeu). Le\nregroupement suit la clause : `group-by` n'est alors plus délégué (le\nserveur regrouperait des lignes non filtrées), il est calculé ici.\n\nQuand cette requête est seule lectrice de sa chaîne, elle confie la\nclause à la source, qui la calcule sur le jeu chargé — et la REFUSE si\nelle est en `server-side`, où elle ne reçoit qu'une page : erreur de\nconfiguration, posée sur la source, qui nomme la clause et la correction\n(retirer `server-side` ; pour une saisie du visiteur, `dsfr-data-search\nserver-search`). Sur une chaîne partagée rien n'est délégué, ni cette\nclause ni les autres : le filtre porte sur les lignes reçues, comme pour\ntout opérateur (#765). Tabular et Grist gardent leur délégation de\n`contains` (sous-chaîne sur ces deux API).\n\nLISTE À PARENTHÈSE OU À VIRGULE (#1233) : `champ:in:a|b (c)` part au\nserveur comme toute liste — l'adaptateur Tabular écrit entre guillemets\nla valeur que l'API écarterait nue, et calcule la clause lui-même si\nl'API refuse cette forme (détail : `where` de dsfr-data-source).\n\nCHAMPS MULTIPLES (#1026) : `nom|commune:contains:martin` applique le MÊME\nopérateur et la MÊME valeur à plusieurs champs, reliés par un OU — la\nligne passe dès qu'un des champs satisfait la clause ; les clauses entre\nelles restent en ET. Délégué en `or=(…)` sur Tabular (une seule clause\nmulti-champs par requête, valeur sans `,` `.` `(` `)` `\"` `&`, ni\n`in` / `notin`), en `(… OR …)` sur Opendatasoft et Grist (SQL) — sauf\n`contains` / `notcontains` sur Opendatasoft, calculés dans le navigateur\n(`nom|commune:contains:martin`, #1285) ; INSEE et les sources sans\nadaptateur le calculent dans le navigateur.\n\nCHAMP TABLEAU (#953, ex-#842) : `eq` / `neq` / `in` / `notin` regardent\nDANS le tableau. `tags: ['urgent','social']` matche `tags:eq:urgent`,\ncomme le compte déjà `value=\"count:tags:urgent\"` de dsfr-data-kpi, et\ncomme le retient le portail quand la clause lui est déléguée. C'est ce\nqui a été mesuré le 2026-09-19 sur deux portails et deux endpoints —\n`keyword` du catalogue de data.economie.gouv.fr, `themes_attendus` de\n`retours-formulaire-votre-avis-copie` sur data.education.gouv.fr :\n`where=champ = \"x\"` trouve la ligne sur n'importe quel ÉLÉMENT, et jamais\nsur le rendu texte complet du tableau.\n\nLa règle exacte, côté client :\n  eq(valeur, v) = (valeur est un tableau et un élément vaut v)\n                  OU String(valeur) === String(v)\n\nLe second terme est un repli que le portail n'a pas (`['a','b']` matche\n`'a,b'` en local, le portail rend 0) : il est gardé pour que `eq` / `in`\nne puissent que GAGNER des correspondances, jamais en perdre. `neq` /\n`notin` en sont la négation, donc eux en perdent — et le portail fait\npareil.\n\nVALEURS ABSENTES (#958) : une ligne dont le champ est nul ne satisfait\n**ni `eq` ni `neq`** — la logique SQL à trois valeurs qu'applique\nOpendatasoft. Mesuré le 2026-09-20 sur `themes_attendus` de\n`retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) :\n`= \"Elèves\"` -> 124, `!= \"Elèves\"` -> **31** (= 155 renseignées − 124),\net non 52. `eq` les excluait déjà ; `neq` les gardait, d'où le même\n`champ:neq:valeur` rendant 31 lignes délégué et 52 au client. Pour\nretrouver les lignes absentes, les nommer : `champ:isnull`.\n\n⚠️ `notin` et `notcontains` gardent, eux, les valeurs absentes — et c'est\naligné aussi : ODSQL n'a pas d'infixe `not in`, donc `notin` se délègue\nen `NOT champ in (…)`, une négation booléenne qui garde les nulles\n(mesuré : 52). Seul `!=` est à trois valeurs. `notcontains` n'est plus\ndélégué à Opendatasoft (#1285) ; calculé dans le navigateur, il garde\nles valeurs absentes partout.\n\n⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il\ncherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y\nmatche « urgent », et la recherche traverse la virgule entre deux\néléments. Pour éclater un multivalué avant un `group-by`, c'est `explode`\n(#736). Le booléen dérivé en amont (`dsfr-data-normalize\ncompute=\"a_urgent = when contains(tags,'urgent') then 1 else 0\"` puis\n`where=\"a_urgent:eq:1\"`) reste valide — le filtre final porte sur un\nscalaire, donc regroupable et délégable — mais il n'est plus NÉCESSAIRE\npour obtenir le même compte des deux côtés.\n\nPendant une version mineure, un avertissement de transition nomme le\nchamp et la valeur des lignes qui se mettent à compter (dédupliqué par\ncouple champ/valeur, jamais par ligne).",
               "fieldName": "where",
               "champ": "clauses"
             },
@@ -21259,7 +21392,7 @@
                 "text": "SearchOperator"
               },
               "default": "'contains'",
-              "description": "Mode de recherche : contains, starts, words",
+              "description": "Mode de recherche quand elle est calculée dans le navigateur, casse et\naccents ignorés : `contains` (le terme est une sous-chaîne), `starts` (un\nmot commence par le terme), `words` (tous les mots du terme sont\nprésents). Une recherche confiée à un serveur (`server-search`, ou cible\nde `context` dont l'API a de quoi chercher) suit la comparaison de ce\nserveur.",
               "attribute": "operator"
             },
             {
@@ -21346,7 +21479,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (un filtre de contexte porte un seul champ ; le OU entre\nchamps, `a|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche est confiée au contexte, qui la diffuse à ses cibles et porte\nl'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est\nnommé d'après le champ, ou via `url-param-map` du contexte). `fields` doit\nnommer UN seul champ (le OU entre champs, `a|b:contains:q` #1026, reste\npropre à `server-search`). Le contexte peut être déclaré après la\nrecherche dans la page. Vide = comportement autonome.\n\nLa recherche n'est pas un filtre `contains` (ADR-159) : CHAQUE CIBLE LA\nTRADUIT, selon ce que son API sait faire.\n- Opendatasoft : le moteur de recherche du portail, borné au champ\n  (`search(champ, \"terme\")`) — par DÉBUT DE MOT, casse et accents\n  ignorés : « aliment » trouve « alimentation », « mentation » non. Le\n  champ doit être du texte.\n- Tabular, Grist : une sous-chaîne (`champ:contains:terme`), casse\n  ignorée, accents respectés.\n- INSEE Melodi, adaptateur tiers : la source calcule la recherche dans le\n  navigateur, sur les lignes chargées (dans la limite de `max-records`),\n  avec `operator`, casse et accents ignorés.\n\nConfiée à l'API, la recherche entre dans le `where` de la source : une\ncible en `server-side` et des facettes `server-facets` voisines comptent\nle même ensemble. Ce composant laisse alors passer les lignes de sa source\nsans les refiltrer, et son compteur (`count`) annonce le total du serveur.\nCalculée dans le navigateur, elle exige que la source charge le jeu : une\ncible en `server-side` passe en erreur de configuration.",
               "attribute": "context"
             },
             {
@@ -21443,13 +21576,23 @@
             },
             {
               "kind": "field",
-              "name": "_lastPushedWhere",
+              "name": "_lastPushedSearch",
               "type": {
                 "text": "string | null"
               },
               "privacy": "private",
               "default": "null",
-              "description": "Dernière clause confiee au contexte — une donnee qui arrive ne re-diffuse pas un terme inchange"
+              "description": "Dernière recherche confiée au contexte — une donnée qui arrive ne re-diffuse pas un terme inchangé"
+            },
+            {
+              "kind": "field",
+              "name": "_servedByContext",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false",
+              "description": "En mode `context`, les lignes reçues sont-elles DÉJÀ celles que le terme\ndésigne (ADR-159 lot 3) ? Vrai quand la source amont est une cible du\ncontexte dont l'API sert la recherche : la refiltrer ici, avec une autre\nrègle, retirerait des lignes que le serveur a retenues (un portail\ncherche par mots, pas par sous-chaîne). Les lignes passent telles quelles,\navec la meta de l'amont — comme en `server-search`."
             },
             {
               "kind": "field",
@@ -21589,10 +21732,21 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "void"
+                  "text": "boolean"
                 }
               },
-              "description": "Confie le terme courant au contexte, qui diffuse (#678). Deduplique :\n_applyFilter est aussi appele a chaque arrivee de données, et une source\ncible re-emet après chaque commande — sans ce garde, boucle."
+              "description": "Confie la recherche courante au contexte, qui diffuse (#678, ADR-159).\nDédupliqué : _applyFilter est aussi appelé à chaque arrivée de données, et\nune source cible ré-émet après chaque commande — sans ce garde, boucle.\nRetourne `true` quand le contexte a été sollicité."
+            },
+            {
+              "kind": "method",
+              "name": "_upstreamSearchedByServer",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "La source amont — en direct, ou au bout d'une chaîne de transformateurs\n(`source=\"…\"`) — est-elle une cible du contexte dont l'API sert la\nrecherche ? Voir `_servedByContext`."
             },
             {
               "kind": "method",
@@ -21710,7 +21864,7 @@
                   }
                 }
               ],
-              "description": "Meta amont propagee telle quelle en server-search (lignes pre-filtrees\npar le serveur, total valide). En filtre client le nombre de lignes\nchange : pas de meta (#282)."
+              "description": "Meta amont propagee telle quelle en server-search (lignes pre-filtrees\npar le serveur, total valide) — et en mode `context` quand l'API de la\nsource sert la recherche (ADR-159 lot 3). En filtre client le nombre de\nlignes change : pas de meta (#282)."
             },
             {
               "kind": "method",
@@ -21817,7 +21971,8 @@
                     "text": "SearchOperator"
                   }
                 }
-              ]
+              ],
+              "description": "Comparaison tolerante, partagee avec la source (`utils/search-match.ts`)."
             },
             {
               "kind": "method",
@@ -22025,7 +22180,7 @@
                 "text": "SearchOperator"
               },
               "default": "'contains'",
-              "description": "Mode de recherche : contains, starts, words",
+              "description": "Mode de recherche quand elle est calculée dans le navigateur, casse et\naccents ignorés : `contains` (le terme est une sous-chaîne), `starts` (un\nmot commence par le terme), `words` (tous les mots du terme sont\nprésents). Une recherche confiée à un serveur (`server-search`, ou cible\nde `context` dont l'API a de quoi chercher) suit la comparaison de ce\nserveur.",
               "fieldName": "operator"
             },
             {
@@ -22103,7 +22258,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche devient un filtre `contains` du contexte sur le champ UNIQUE\nde `fields` (un filtre de contexte porte un seul champ ; le OU entre\nchamps, `a|b:contains:q` #1026, reste propre à `server-search`). Le contexte diffuse à ses cibles et porte l'URL (`url-sync`\net `url-search-param` sont ignorés — le paramètre est nommé d'après le\nchamp, ou via `url-param-map` du contexte). Le contexte peut être\ndéclaré après la recherche dans la page. Vide = comportement autonome.",
+              "description": "Id du dsfr-data-context auquel s'enregistrer (#678, ADR-104) : la\nrecherche est confiée au contexte, qui la diffuse à ses cibles et porte\nl'URL (`url-sync` et `url-search-param` sont ignorés — le paramètre est\nnommé d'après le champ, ou via `url-param-map` du contexte). `fields` doit\nnommer UN seul champ (le OU entre champs, `a|b:contains:q` #1026, reste\npropre à `server-search`). Le contexte peut être déclaré après la\nrecherche dans la page. Vide = comportement autonome.\n\nLa recherche n'est pas un filtre `contains` (ADR-159) : CHAQUE CIBLE LA\nTRADUIT, selon ce que son API sait faire.\n- Opendatasoft : le moteur de recherche du portail, borné au champ\n  (`search(champ, \"terme\")`) — par DÉBUT DE MOT, casse et accents\n  ignorés : « aliment » trouve « alimentation », « mentation » non. Le\n  champ doit être du texte.\n- Tabular, Grist : une sous-chaîne (`champ:contains:terme`), casse\n  ignorée, accents respectés.\n- INSEE Melodi, adaptateur tiers : la source calcule la recherche dans le\n  navigateur, sur les lignes chargées (dans la limite de `max-records`),\n  avec `operator`, casse et accents ignorés.\n\nConfiée à l'API, la recherche entre dans le `where` de la source : une\ncible en `server-side` et des facettes `server-facets` voisines comptent\nle même ensemble. Ce composant laisse alors passer les lignes de sa source\nsans les refiltrer, et son compteur (`count`) annonce le total du serveur.\nCalculée dans le navigateur, elle exige que la source charge le jeu : une\ncible en `server-side` passe en erreur de configuration.",
               "fieldName": "context"
             }
           ],
@@ -22591,7 +22746,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE statique, déléguée à l'API de l'adaptateur.\n\nUne liste `in` ou `notin` dont une valeur porte une parenthèse ou une\nvirgule est déléguée comme les autres (#1233). Sur l'API Tabular, qui\nécarte sans erreur une telle valeur écrite nue, l'adaptateur l'envoie\nentre guillemets — seule forme que l'API lise —, en chargement complet\ncomme en pagination serveur ; les autres valeurs de la liste restent\nnues.\n\nCette forme n'est écrite dans aucune documentation de l'API. Si elle est\nrefusée, l'adaptateur se replie, et le volet Diagnostic le signale :\n- en chargement complet, il calcule la clause lui-même, sur les lignes\n  chargées. Le résultat reste juste ; les autres clauses restent\n  déléguées, mais toutes les lignes qu'elles gardent sont chargées (une\n  requête par page, sous `max-records`), et un `group-by` posé à côté\n  n'est plus délégué — les lignes filtrées sont rendues brutes, une\n  `dsfr-data-query` en aval regroupe ;\n- en pagination serveur (`server-side`), où ce calcul n'est pas\n  possible, la liste repart sans guillemets : la valeur est écartée par\n  l'API et le résultat est incomplet.",
+              "description": "Clause WHERE statique, déléguée à l'API de l'adaptateur.\n\nUne liste `in` ou `notin` dont une valeur porte une parenthèse ou une\nvirgule est déléguée comme les autres (#1233). Sur l'API Tabular, qui\nécarte sans erreur une telle valeur écrite nue, l'adaptateur l'envoie\nentre guillemets — seule forme que l'API lise —, en chargement complet\ncomme en pagination serveur ; les autres valeurs de la liste restent\nnues.\n\nCette forme n'est écrite dans aucune documentation de l'API. Si elle est\nrefusée, l'adaptateur se replie, et le volet Diagnostic le signale :\n- en chargement complet, il calcule la clause lui-même, sur les lignes\n  chargées. Le résultat reste juste ; les autres clauses restent\n  déléguées, mais toutes les lignes qu'elles gardent sont chargées (une\n  requête par page, sous `max-records`), et un `group-by` posé à côté\n  n'est plus délégué — les lignes filtrées sont rendues brutes, une\n  `dsfr-data-query` en aval regroupe ;\n- en pagination serveur (`server-side`), où ce calcul n'est pas\n  possible, la liste repart sans guillemets : la valeur est écartée par\n  l'API et le résultat est incomplet.\n\nCLAUSE CALCULÉE PAR LA SOURCE (#1285, ADR-159). Un filtre n'est confié\nau serveur que si la STRUCTURE de la comparaison y est la même que dans\nle navigateur. `contains` et `notcontains` sont une sous-chaîne ; le\n`like` d'un portail Opendatasoft compare des mots (`like \"%aliment%\"` rend\n0 ligne pour 14 366 « alimentation », mesuré). Sur Opendatasoft, une telle\nclause — venue d'un filtre de `dsfr-data-context` (dont\n`dsfr-data-search` en mode `context`) ou du `where` d'une\n`dsfr-data-query` seule lectrice de la source — n'est donc jamais confiée\nau portail : c'est la source qui la calcule, sur les lignes que le reste\ndu filtre a laissées passer. Cet attribut-ci n'est pas concerné : sur\nOpendatasoft il est écrit en ODSQL et part tel quel (y écrire un `like`\nreste possible, avec sa sémantique de mots). Le résultat est juste, au\nprix d'un chargement plus large : toutes les lignes des autres clauses,\nsous `max-records` (au-delà, le filtre ne porte que sur les lignes lues,\net la source le signale comme une troncature). Deux montages ne lui\nlivrent pas le jeu et passent en ERREUR DE CONFIGURATION, qui nomme la\nclause et la correction : `server-side` (une page), et `group-by`,\n`aggregate` ou un `select` qui calcule posés sur la source (le serveur\nagrégerait des lignes non filtrées — porter le calcul par une\n`dsfr-data-query` en aval).",
               "attribute": "where"
             },
             {
@@ -22904,6 +23059,20 @@
             },
             {
               "kind": "field",
+              "name": "_clientWhereOverlays",
+              "privacy": "private",
+              "default": "new Map<string, string>()",
+              "description": "Clauses calculées DANS LE NAVIGATEUR, par émetteur (#1285) — grammaire\ncolon. Complément de `_whereOverlays` : ce qu'un filtre de contexte ou\nune query porte et qui n'est pas confié à l'API (`splitWhere`)."
+            },
+            {
+              "kind": "field",
+              "name": "_clientSearchOverlays",
+              "privacy": "private",
+              "default": "new Map<string, ContextSearch>()",
+              "description": "Recherches calculées DANS LE NAVIGATEUR, par émetteur (ADR-159 lot 3) :\nle terme d'une `dsfr-data-search` en mode `context`, quand l'API de cette\nsource n'a aucun moteur de recherche. Une recherche confiée au serveur\nest, elle, dans `_whereOverlays`."
+            },
+            {
+              "kind": "field",
               "name": "_orderByOverlay",
               "type": {
                 "text": "string"
@@ -22978,6 +23147,28 @@
                 }
               ],
               "description": "Returns the effective WHERE clause (static + all dynamic overlays merged).\n`excludeKey` : un whereKey, ou une liste de whereKeys a ignorer (#678 —\nune facette en mode `context` emet un whereKey PAR champ et doit les\nexclure tous du where de base de sa cascade)."
+            },
+            {
+              "kind": "method",
+              "name": "getClientWhere",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Part du filtre calculée DANS LE NAVIGATEUR par la source (#1285,\nADR-159), en grammaire colon : les clauses qui ne sont pas confiées à\nl'API — `contains` / `notcontains` sur un portail Opendatasoft, dont le\n`like` compare des mots. Elles viennent des filtres de contexte et du\n`where` d'une `dsfr-data-query` seule lectrice. Vide = tout le filtre est\nconfié à l'API. `getEffectiveWhere()` rend l'autre part."
+            },
+            {
+              "kind": "method",
+              "name": "getClientSearches",
+              "privacy": "public",
+              "return": {
+                "type": {
+                  "text": "ContextSearch[]"
+                }
+              },
+              "description": "Recherches que la source calcule DANS LE NAVIGATEUR (ADR-159 lot 3), sur\nles lignes chargées, avec la comparaison tolérante de `dsfr-data-search`\n(casse et accents ignorés) : celles qu'un `dsfr-data-context` lui confie\nquand son API n'a aucun moteur de recherche. Vide = aucune, ou toutes\nconfiées à l'API (elles sont alors dans `getEffectiveWhere()`)."
             },
             {
               "kind": "method",
@@ -23237,6 +23428,25 @@
                 }
               },
               "description": "Prealables d'un fetch par adaptateur : identite de la source, adaptateur\nconnu, parametres valides, et les deux diagnostics NON bloquants\n(fetch-mode/server-side #689, passe-plat `params` fautif #726).\n\n`null` : le fetch n'a pas lieu — l'erreur a deja ete signalee au DOM et\ndiffusee a l'aval."
+            },
+            {
+              "kind": "method",
+              "name": "_clientWhereConfigError",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "adapter",
+                  "type": {
+                    "text": "ApiAdapter"
+                  }
+                }
+              ],
+              "description": "Une clause calculée côté client (#1285) ne se calcule que sur le jeu\nCHARGÉ, ligne à ligne. Deux montages ne le lui livrent pas — même règle\nque le regroupement gardé côté client (#1242) : erreur de configuration\nqui nomme les attributs et la correction, jamais un résultat partiel.\n\n- `server-side` : la source ne reçoit qu'une page, la clause n'en\n  filtrerait que les lignes ;\n- `group-by`, `aggregate` ou un `select` qui calcule, POSÉS SUR LA SOURCE :\n  le serveur agrégerait des lignes que la clause n'a pas filtrées, et\n  rien en aval ne recalcule l'agrégat d'une source. (Un regroupement\n  DÉLÉGUÉ par une `dsfr-data-query` n'est pas concerné : la requête le\n  reprend côté client, sur les lignes filtrées.)"
             },
             {
               "kind": "method",
@@ -23753,7 +23963,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Clause WHERE statique, déléguée à l'API de l'adaptateur.\n\nUne liste `in` ou `notin` dont une valeur porte une parenthèse ou une\nvirgule est déléguée comme les autres (#1233). Sur l'API Tabular, qui\nécarte sans erreur une telle valeur écrite nue, l'adaptateur l'envoie\nentre guillemets — seule forme que l'API lise —, en chargement complet\ncomme en pagination serveur ; les autres valeurs de la liste restent\nnues.\n\nCette forme n'est écrite dans aucune documentation de l'API. Si elle est\nrefusée, l'adaptateur se replie, et le volet Diagnostic le signale :\n- en chargement complet, il calcule la clause lui-même, sur les lignes\n  chargées. Le résultat reste juste ; les autres clauses restent\n  déléguées, mais toutes les lignes qu'elles gardent sont chargées (une\n  requête par page, sous `max-records`), et un `group-by` posé à côté\n  n'est plus délégué — les lignes filtrées sont rendues brutes, une\n  `dsfr-data-query` en aval regroupe ;\n- en pagination serveur (`server-side`), où ce calcul n'est pas\n  possible, la liste repart sans guillemets : la valeur est écartée par\n  l'API et le résultat est incomplet.",
+              "description": "Clause WHERE statique, déléguée à l'API de l'adaptateur.\n\nUne liste `in` ou `notin` dont une valeur porte une parenthèse ou une\nvirgule est déléguée comme les autres (#1233). Sur l'API Tabular, qui\nécarte sans erreur une telle valeur écrite nue, l'adaptateur l'envoie\nentre guillemets — seule forme que l'API lise —, en chargement complet\ncomme en pagination serveur ; les autres valeurs de la liste restent\nnues.\n\nCette forme n'est écrite dans aucune documentation de l'API. Si elle est\nrefusée, l'adaptateur se replie, et le volet Diagnostic le signale :\n- en chargement complet, il calcule la clause lui-même, sur les lignes\n  chargées. Le résultat reste juste ; les autres clauses restent\n  déléguées, mais toutes les lignes qu'elles gardent sont chargées (une\n  requête par page, sous `max-records`), et un `group-by` posé à côté\n  n'est plus délégué — les lignes filtrées sont rendues brutes, une\n  `dsfr-data-query` en aval regroupe ;\n- en pagination serveur (`server-side`), où ce calcul n'est pas\n  possible, la liste repart sans guillemets : la valeur est écartée par\n  l'API et le résultat est incomplet.\n\nCLAUSE CALCULÉE PAR LA SOURCE (#1285, ADR-159). Un filtre n'est confié\nau serveur que si la STRUCTURE de la comparaison y est la même que dans\nle navigateur. `contains` et `notcontains` sont une sous-chaîne ; le\n`like` d'un portail Opendatasoft compare des mots (`like \"%aliment%\"` rend\n0 ligne pour 14 366 « alimentation », mesuré). Sur Opendatasoft, une telle\nclause — venue d'un filtre de `dsfr-data-context` (dont\n`dsfr-data-search` en mode `context`) ou du `where` d'une\n`dsfr-data-query` seule lectrice de la source — n'est donc jamais confiée\nau portail : c'est la source qui la calcule, sur les lignes que le reste\ndu filtre a laissées passer. Cet attribut-ci n'est pas concerné : sur\nOpendatasoft il est écrit en ODSQL et part tel quel (y écrire un `like`\nreste possible, avec sa sémantique de mots). Le résultat est juste, au\nprix d'un chargement plus large : toutes les lignes des autres clauses,\nsous `max-records` (au-delà, le filtre ne porte que sur les lignes lues,\net la source le signale comme une troncature). Deux montages ne lui\nlivrent pas le jeu et passent en ERREUR DE CONFIGURATION, qui nomme la\nclause et la correction : `server-side` (une page), et `group-by`,\n`aggregate` ou un `select` qui calcule posés sur la source (le serveur\nagrégerait des lignes non filtrées — porter le calcul par une\n`dsfr-data-query` en aval).",
               "fieldName": "where"
             },
             {

@@ -976,9 +976,81 @@ mais le total des lignes RENSEIGNEES. Un avertissement de transition nomme en co
 **compte** les lignes qui cessent d'etre retenues (un message par champ, jamais par ligne).
 
 **`notin` et `notcontains` ne changent pas**, et c'est volontaire : ODSQL n'a pas d'infixe
-`not in` / `not like`, ces deux-la se deleguent en `NOT champ in (…)` / `NOT champ like "%…%"`,
-une negation booleenne qui GARDE les nulles (mesure : 52). Le client les gardait deja ; les aligner
+`not in`, `notin` se delegue en `NOT champ in (…)`, une negation booleenne qui GARDE les nulles
+(mesure : 52) ; `notcontains`, calcule dans le navigateur sur Opendatasoft depuis #1285 (voir
+ci-dessous), les garde aussi. Le client les gardait deja ; les aligner
 « par symetrie » aurait rouvert la divergence qu'on vient de fermer. Seul `!=` est a trois valeurs.
+
+#### `contains` est une sous-chaine, partout — et Opendatasoft ne la calcule pas (#1285)
+
+`champ:contains:tation` retient les lignes dont la valeur porte « tation » n'importe ou : casse
+ignoree, accents respectes. `notcontains` en est la negation. C'est la bibliotheque qui dit ce que
+le filtre retient, pas le serveur.
+
+**Le defaut corrige.** Le `like` d'un portail Opendatasoft compare des MOTS, pas une sous-chaine,
+et `%` n'y est pas un joker. La bibliotheque traduisait `contains` en `champ like "%aliment%"`, que
+le portail lit comme le mot entier « aliment » — **0 ligne la ou 14 366 valent « alimentation »**,
+HTTP 200, sans un message (mesure le 2026-10-12 sur `rappelconso-v2-gtin-trie`, remesure sur
+data.education.gouv.fr). Le meme `where` trouvait ses lignes sur un fichier CSV et zero sur un
+portail.
+
+**Ce qui change pour une page existante**, sur une source `api-type="opendatasoft"` seulement :
+
+| Montage | Avant | Maintenant |
+|---|---|---|
+| `where` / `filter` d'une `dsfr-data-query`, filtre `dsfr-data-context-filter` avec `contains` / `notcontains` (la recherche `dsfr-data-search context` n'est plus un filtre : voir plus bas) | clause envoyee au portail en `like "%x%"` : juste si « x » est un mot entier, zero ligne sinon | clause calculee dans le navigateur : toujours la sous-chaine |
+| les autres clauses du meme filtre (`eq`, `in`, `gte`…) | envoyees au portail | envoyees au portail, inchange |
+| lignes telechargees | les seules lignes retenues | toutes les lignes que laissent passer les AUTRES clauses, dans la limite de `max-records` (1 000 par defaut ; au-dela, troncature signalee) |
+| `group-by` de la meme query | calcule par le portail | calcule dans le navigateur, sur les lignes filtrees |
+| source en `server-side` | une page du resultat du `like` | **erreur de configuration** : retirer `server-side`, ou `dsfr-data-search` (en `server-search` ou en mode `context`) pour une saisie du visiteur |
+| `dsfr-data-facets server-facets` a cote | compteurs du `like` | **erreur de configuration** sur les facettes : retirer `server-facets` |
+| `group-by` / `aggregate` / `select` calcule POSES SUR LA SOURCE | agregat du `like` | **erreur de configuration** : porter le calcul par une `dsfr-data-query` |
+
+Pour un jeu de plus de 1 000 lignes, poser `fetch-mode="export"` et `max-records` a la taille du
+jeu sur la source — ou resserrer le filtre par une egalite, qui part au portail. Quand la valeur
+cherchee est connue, `champ:eq:valeur` ou `champ:in:a|b` reste le filtre le moins cher. Le `where`
+d'une `dsfr-data-source` Opendatasoft, ecrit en ODSQL, n'est pas touche : un `like` y garde la
+semantique du portail (mots entiers, `mot*` pour un debut de mot). Tabular et Grist gardent
+`contains` delegue.
+
+#### Une recherche n'est pas un filtre : `dsfr-data-search context` (ADR-159, #1285)
+
+Filtrer et chercher sont deux besoins. Un **filtre** est une regle ecrite par l'integrateur
+(`contains` : sous-chaine, accents respectes) — c'est la bibliotheque qui dit ce qu'il retient. Une
+**recherche** est ce qu'un visiteur tape : on en attend de la tolerance, et quand l'API d'une source
+sait chercher, c'est elle qui cherche.
+
+Jusqu'ici, `dsfr-data-search context="…"` emettait un filtre `contains`. Elle porte desormais une
+recherche (le terme, le champ unique de `fields`, `operator`), que **chaque source cible traduit** :
+
+| Source cible | Qui cherche | Ce que trouve « aliment » |
+|---|---|---|
+| Opendatasoft | le moteur du portail, borne au champ : `search(champ, "aliment")` | les valeurs dont un MOT commence par « aliment », casse et accents ignores. « mentation » ne trouve rien (milieu de mot) |
+| Tabular, Grist | l'API : `champ:contains:aliment` (inchange) | la sous-chaine, casse ignoree, accents RESPECTES |
+| INSEE Melodi, adaptateur tiers | la source, dans le navigateur | la sous-chaine (ou `operator="starts"` / `"words"`), casse et accents ignores, sur les lignes chargees |
+
+**Ce qui change pour une page existante** qui a une `dsfr-data-search context` :
+
+| Source cible | Avant | Maintenant |
+|---|---|---|
+| Opendatasoft | `like "%x%"` : zero ligne sur une saisie partielle (puis, depuis #1285, sous-chaine calculee dans le navigateur, accents respectes) | recherche du portail par debut de mot, casse et accents ignores |
+| Opendatasoft en `server-side`, ou avec `dsfr-data-facets server-facets` a cote | erreur de configuration depuis #1285 | **fonctionne** : la recherche est dans le `where` de la source, la pagination et les compteurs des facettes comptent le meme ensemble |
+| Tabular, Grist | `champ:contains:x` envoye a l'API | la meme clause, les memes lignes |
+| INSEE Melodi | le terme n'etait applique nulle part (l'API n'a pas de filtre de texte) | recherche calculee dans le navigateur ; en `server-side`, erreur de configuration |
+| source en mode URL | commande refusee, signalee en console | inchange |
+
+Deux effets de bord, tous deux voulus :
+
+- quand l'API de sa source sert la recherche, `dsfr-data-search` ne refiltre plus les lignes qu'elle
+  recoit (elle retirerait des lignes que le serveur a retenues — un portail cherche par mots) : elle
+  les laisse passer avec leur meta, et son compteur `count` annonce le total du serveur ;
+- sur un portail Opendatasoft, le champ cherche doit etre du texte. Un champ numerique ferait
+  repondre HTTP 400 au portail : la recherche est alors calculee dans le navigateur, et c'est dit en
+  console.
+
+L'URL (`url-sync` du contexte : un parametre au nom du champ), le tag « Recherche : terme » de
+`dsfr-data-context-tags` et `{{champ}}` de `dsfr-data-context-value` ne changent pas. Le gabarit de
+`server-search` non plus (`search("{q}")` sur Opendatasoft : tous les champs).
 
 #### `contains` reste un piege, et `explode` n'est pas un filtre
 

@@ -34,6 +34,7 @@ import {
   resolveTransportUrl,
   transportFetch,
   normalizeProviderAuthHeaders,
+  odsqlCanExpress,
 } from '@dsfr-data/shared/lib';
 import { httpError, releaseBody } from '../utils/http-error.js';
 
@@ -1090,6 +1091,26 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    */
   translateWhere(colonWhere: string): string {
     return ODSQL_WHERE_DIALECT.translate(colonWhere);
+  }
+
+  /**
+   * Ce qui peut être confié au portail (#1285, ADR-159) : une clause dont la
+   * STRUCTURE de comparaison y est la même que dans le navigateur. Son `like`
+   * compare des MOTS, et `%` n'y est pas un joker — mesuré le 2026-10-12 sur
+   * data.economie.gouv.fr (`rappelconso-v2-gtin-trie`), remesuré le 13 sur
+   * data.education.gouv.fr :
+   *
+   *   categorie_produit like "%aliment%"     ->      0   (14 366 « alimentation »)
+   *   categorie_produit like "alimentation"  -> 14 366   mot entier
+   *   categorie_produit like "alim*"         -> 15 632   début de mot
+   *   categorie_produit like "*tation"       ->      0   jamais de milieu de mot
+   *
+   * `contains` et `notcontains`, comparaisons de sous-chaîne, n'ont donc aucun
+   * équivalent ODSQL : ils sont calculés dans le navigateur, sur les lignes
+   * chargées. Tous les autres opérateurs restent confiés au portail.
+   */
+  supportsServerClause(clause: string): boolean {
+    return odsqlCanExpress(clause);
   }
 
   /** Clauses ODSQL jointes par ` AND ` (#271, #1135). */

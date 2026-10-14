@@ -783,12 +783,14 @@ describe('filterToOdsql', () => {
     expect(filterToOdsql('pop:lte:500')).toBe('pop <= 500');
   });
 
-  it('should convert contains to LIKE', () => {
-    expect(filterToOdsql('name:contains:bret')).toBe('name like "%bret%"');
-  });
-
-  it('should convert notcontains to NOT LIKE', () => {
-    expect(filterToOdsql('name:notcontains:paris')).toBe('NOT name like "%paris%"');
+  it('n’écrit plus de like "%…%" pour contains / notcontains (#1285)', () => {
+    // Le `like` d'un portail Opendatasoft compare des mots : `like "%bret%"`
+    // ne trouvait pas « Bretagne ». La sous-chaîne n'a pas d'équivalent ODSQL.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(filterToOdsql('name:contains:bret')).toBe('');
+    expect(filterToOdsql('name:notcontains:paris')).toBe('');
+    expect(filterToOdsql('region:eq:Bretagne, name:contains:bret')).toBe('region = "Bretagne"');
+    warn.mockRestore();
   });
 
   it('should convert in operator', () => {
@@ -1326,6 +1328,32 @@ describe('generateOdsQueryCode', () => {
       'population'
     );
     expect(result.queryElement).not.toContain('order-by=');
+  });
+
+  it('#1285 — un filtre « contient » : plus de like "%…%", plus d’agrégation serveur', () => {
+    // Le `like` d'un portail Opendatasoft compare des mots : `like "%bret%"`
+    // ne trouvait pas « Bretagne ». La source charge le jeu, la query filtre
+    // et regroupe ; elle délègue d'elle-même les clauses que le portail sait.
+    state.advancedMode = true;
+    state.queryFilter = 'annee:eq:2024, region:contains:bret';
+    state.aggregation = 'sum';
+    const result = generateOdsQueryCode(
+      { baseUrl: 'https://ods.example.com', datasetId: 'ds1' },
+      'region',
+      'population'
+    );
+    expect(result.queryElement).not.toContain('like');
+    expect(result.queryElement).not.toContain('select=');
+    expect(result.queryElement).toContain('api-type="opendatasoft"');
+    expect(result.queryElement).toContain('fetch-mode="export"');
+    // Aucun plafond arbitraire dans le code généré (ADR-159) : c'est le
+    // max-records de la bibliothèque qui s'applique, troncature signalée.
+    expect(result.queryElement).not.toMatch(/max-records="\d/);
+    expect(result.queryElement).toContain('ajoutez max-records');
+    expect(result.queryElement).toContain('filter="annee:eq:2024, region:contains:bret"');
+    expect(result.queryElement).toContain('group-by="region"');
+    expect(result.queryElement).toContain('aggregate="population:sum"');
+    expect(result.valueField).toBe('population__sum');
   });
 
   it('should convert filter to ODSQL where clause in advanced mode', () => {
@@ -2552,8 +2580,7 @@ describe('alignment: all filter operators in filterToOdsql', () => {
     'gte',
     'lt',
     'lte',
-    'contains',
-    'notcontains',
+    // `contains` / `notcontains` : sans traduction ODSQL depuis #1285.
     'in',
     'notin',
     'isnull',

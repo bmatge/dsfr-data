@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { TABULAR_CONFIG, type ProviderConfig } from '@dsfr-data/shared';
 
 /**
  * #1243 — une valeur à virgule ne survivait pas au rechargement de l'URL
@@ -73,11 +74,20 @@ function demonter(): void {
   }
 }
 
-/** Fausse source cible, au dialecte colon : rend la dernière clause reçue. */
-function cible(): () => string | undefined {
+/**
+ * Fausse source cible, au dialecte colon : rend la dernière clause reçue.
+ * `provider` : la configuration de fournisseur que son adaptateur déclare —
+ * c'est elle qui dit ce que l'API sait faire d'une recherche (ADR-159 lot 3).
+ */
+function cible(provider?: ProviderConfig): () => string | undefined {
   const el = document.createElement('div');
   el.id = CIBLE;
-  Object.assign(el, { getAdapter: () => ({ capabilities: { whereFormat: 'colon' } }) });
+  Object.assign(el, {
+    getAdapter: () => ({
+      capabilities: { whereFormat: 'colon' },
+      ...(provider ? { getProviderConfig: () => provider } : {}),
+    }),
+  });
   document.body.appendChild(el);
   const commands: Captured[] = [];
   unsubs.push(subscribeToSourceCommands(CIBLE, (cmd) => commands.push(cmd as Captured)));
@@ -296,8 +306,10 @@ describe('#1243 — dsfr-data-search en mode context', () => {
     `<dsfr-data-search id="s-1243" context="ctx-1243" source="${CIBLE}" fields="lieu"
        debounce="0" server-search></dsfr-data-search>`;
 
+  // Cible à la façon de Tabular : la recherche du contexte y part en
+  // `champ:contains:terme`, la clause qu'elle émettait avant l'ADR-159.
   it('« Paris, France » revient avec son blanc', async () => {
-    let where = cible();
+    let where = cible(TABULAR_CONFIG);
     await monter(PAGE);
     const search = document.getElementById('s-1243') as DsfrDataSearch;
     await search.updateComplete;
@@ -307,7 +319,7 @@ describe('#1243 — dsfr-data-search en mode context', () => {
     expect(param('lieu')).toBe('Paris%2C France');
 
     recharger();
-    where = cible();
+    where = cible(TABULAR_CONFIG);
     await monter(PAGE);
     const reloaded = document.getElementById('s-1243') as DsfrDataSearch;
     await reloaded.updateComplete;
@@ -317,13 +329,13 @@ describe('#1243 — dsfr-data-search en mode context', () => {
 
   it('lien ancien : sans virgule identique, à virgule nue relu tel qu’écrit', async () => {
     window.history.replaceState(null, '', '?lieu=immo');
-    let where = cible();
+    let where = cible(TABULAR_CONFIG);
     await monter(PAGE);
     expect(where()).toBe('lieu:contains:immo');
 
     demonter();
     window.history.replaceState(null, '', '?lieu=Paris, France');
-    where = cible();
+    where = cible(TABULAR_CONFIG);
     await monter(PAGE);
     expect(where()).toBe('lieu:contains:Paris%2C France');
   });

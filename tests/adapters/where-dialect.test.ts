@@ -66,12 +66,19 @@ const COLON_AVANT = {
   escape: ['O"Brien \\ a%2Cb%3Ac%7Cd', 'simple', '50%25'],
 };
 
-/** Relevé sur le code d'avant #1135 (Opendatasoft). */
+/**
+ * Relevé sur le code d'avant #1135 (Opendatasoft) — à une clause près, depuis
+ * #1285 : `nom|prenom:contains:x` se traduisait `(nom like "%x%" OR prenom
+ * like "%x%")`, que le portail lit comme une comparaison de MOTS et non comme
+ * la sous-chaîne demandée. `contains` n'a plus de traduction ODSQL : la
+ * clause est écartée de la traduction (et gardée pour le navigateur par
+ * `splitWhere`).
+ */
 const ODSQL_AVANT = {
   translate: [
     'region = "Provence, Alpes"',
     'population > 2500 AND region in ("IDF", "PACA")',
-    '(nom like "%x%" OR prenom like "%x%")',
+    '',
     'date >= "2020-01-01" AND x is null',
     'a != "b" AND c <= 3 AND NOT d in ("u", "v") AND e is not null',
     '',
@@ -223,13 +230,13 @@ interface QueryInternals {
   _buildWhereDelegation(
     expr: string,
     adapter?: ApiAdapter
-  ): { ok: boolean; where: string; fields: string[] };
+  ): { ok: boolean; where: string; fields: string[]; client: string; clientFields: string[] };
 }
 interface SourceInternals {
   _whereOverlays: Map<string, string>;
 }
 interface ContextInternals {
-  _translateFor(sourceId: string, colonWhere: string): string;
+  _translateFor(sourceId: string, colonWhere: string): { where: string; clientWhere: string };
 }
 interface SearchInternals {
   _term: string;
@@ -272,13 +279,18 @@ describe('#1135 — adaptateur tiers à dialecte propre, composants inchangés',
       ok: true,
       where: "pop > '10' && nom = 'x'",
       fields: ['pop', 'nom'],
+      client: '',
+      clientFields: [],
     });
   });
 
   it('dsfr-data-context traduit pour la source de l’adaptateur', () => {
     elements.push(sourceFactice('fictif-ctx', fictif()));
     const ctx = new DsfrDataContext() as unknown as ContextInternals;
-    expect(ctx._translateFor('fictif-ctx', 'dep:eq:75')).toBe("dep = '75'");
+    expect(ctx._translateFor('fictif-ctx', 'dep:eq:75')).toEqual({
+      where: "dep = '75'",
+      clientWhere: '',
+    });
   });
 
   it('dsfr-data-facets (serveur) regroupe avec le joint de l’adaptateur', () => {

@@ -173,6 +173,41 @@ function agreger(col: Extract<Colonne, { sorte: 'agregat' }>, lignes: Row[]): Va
   return nombres.reduce((m, v) => (col.fn === 'MIN' ? (v < m ? v : m) : v > m ? v : m));
 }
 
+/**
+ * Le `LIKE` de SQLite, tel que Grist le sert (mesuré le 2026-10-13 sur
+ * grist.numerique.gouv.fr, ADR-159) : `%` vaut toute suite de caractères, `_`
+ * un caractère ; la casse n'est ignorée que pour les lettres ASCII (`É` n'est
+ * pas `é`) et les accents sont respectés. Aucune clause `ESCAPE` : la
+ * bibliothèque n'en émet pas (lot 2 de l'ADR-159).
+ */
+function likeSqlite(valeur: string, motif: string): boolean {
+  const ascii = (t: string) => t.replace(/[A-Z]/g, (c) => c.toLowerCase());
+  const v = ascii(valeur);
+  const m = ascii(motif);
+  // Parcours à deux curseurs avec retour sur le dernier `%` : pas d'expression
+  // régulière construite depuis une valeur.
+  let i = 0;
+  let j = 0;
+  let etoile = -1;
+  let repere = 0;
+  while (i < v.length) {
+    if (j < m.length && (m[j] === '_' || m[j] === v[i])) {
+      i++;
+      j++;
+    } else if (j < m.length && m[j] === '%') {
+      etoile = j++;
+      repere = i;
+    } else if (etoile !== -1) {
+      j = etoile + 1;
+      i = ++repere;
+    } else {
+      return false;
+    }
+  }
+  while (j < m.length && m[j] === '%') j++;
+  return j === m.length;
+}
+
 /** `WHERE` : des clauses `"col" op ?` reliées par `AND`. */
 function filtrer(where: string, args: unknown[], lignes: Row[]): Row[] | null {
   let reste = lignes;
@@ -191,6 +226,18 @@ function filtrer(where: string, args: unknown[], lignes: Row[]): Row[] | null {
       const valeurs = args.slice(rang, rang + n).map(String);
       rang += n;
       reste = reste.filter((l) => valeurs.includes(String(l[champ])) === !liste[2]);
+      continue;
+    }
+    const semblable = new RegExp(`^${IDENT} (NOT )?LIKE \\?$`).exec(clause);
+    if (semblable) {
+      const champ = nu(semblable[1]);
+      const motif = String(args[rang++]);
+      // `NOT LIKE` écarte les valeurs absentes (mesuré : 89 lignes sur 101
+      // quand 12 valeurs sont nulles) — logique SQL à trois valeurs.
+      reste = reste.filter((l) => {
+        if (l[champ] === null || l[champ] === undefined) return false;
+        return likeSqlite(String(l[champ]), motif) === !semblable[2];
+      });
       continue;
     }
     const m = new RegExp(`^${IDENT} (=|!=|>=|<=|>|<) \\?$`).exec(clause);

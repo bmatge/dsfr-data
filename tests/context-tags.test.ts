@@ -150,6 +150,7 @@ describe('#232 — config', () => {
 
 interface Captured {
   where?: string;
+  clientSearch?: { term: string; fields: string[]; operator: string } | null;
   whereKey?: string;
 }
 
@@ -281,7 +282,14 @@ describe('#679 — recherche : tag « Recherche : terme »', () => {
     await tags.updateComplete;
 
     expect(tagTexts(tags)).toEqual(['Recherche : dette']);
-    expect(commands.at(-1)?.where).toBe('postes:contains:dette');
+    // ADR-159 lot 3 : la recherche n'est plus un filtre `contains`. La fausse
+    // source n'a aucun moteur : elle reçoit la recherche à calculer elle-même.
+    expect(commands.at(-1)?.where).toBe('');
+    expect(commands.at(-1)?.clientSearch).toEqual({
+      term: 'dette',
+      fields: ['postes'],
+      operator: 'contains',
+    });
 
     (tags.querySelector('.fr-tag') as HTMLButtonElement).click();
     await search.updateComplete;
@@ -289,6 +297,7 @@ describe('#679 — recherche : tag « Recherche : terme »', () => {
     expect((search.querySelector('input') as HTMLInputElement).value).toBe('');
     expect(tagTexts(tags)).toEqual([]);
     expect(commands.at(-1)?.where).toBe('');
+    expect(commands.at(-1)?.clientSearch).toBeUndefined();
     unsub();
   });
 });

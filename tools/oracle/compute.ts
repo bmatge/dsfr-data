@@ -83,10 +83,27 @@ export function replier(v: unknown): string {
     .trim();
 }
 
+/**
+ * Les MOTS d'un texte, repliés : suites de lettres et de chiffres, tout autre
+ * caractère sépare. Une valeur qui n'est pas un texte ne porte aucun mot —
+ * la recherche d'un portail ne lit que ses champs texte (#1285).
+ */
+export function motsDe(v: unknown): string[] {
+  if (typeof v !== 'string') return [];
+  return replier(v)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+}
+
 /** Un filtre ligne à ligne. */
 export function passeFiltre(row: Row, filter: RowFilter): boolean {
   // Le OU entre champs (#1026) : une disjonction, évaluée filtre par filtre.
   if (filter.op === 'or') return filter.any.some((f) => passeFiltre(row, f));
+  if (filter.op === 'word-prefix') {
+    const mots = filter.fields.flatMap((f) => motsDe(row[f]));
+    const termes = motsDe(filter.value);
+    return termes.length > 0 && termes.every((t) => mots.some((m) => m.startsWith(t)));
+  }
   const v = row[filter.field];
   switch (filter.op) {
     case 'isnotnull':

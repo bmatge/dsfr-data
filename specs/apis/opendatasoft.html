@@ -138,6 +138,44 @@
 
           <h3 class="fr-mt-2w">Separateur WHERE</h3>
           <p>Les clauses WHERE multiples sont jointes par <code> AND </code>.</p>
+
+          <h3 id="like-des-mots" class="fr-mt-2w">Chercher du texte : <code>like</code> compare des mots</h3>
+          <p>
+            Le <code>like</code> d'ODSQL n'est <strong>pas</strong> une recherche de sous-chaîne, et le
+            <code>%</code> n'y est pas un joker : il compare des <strong>mots</strong>. Mesuré le 2026-10-12 sur
+            <code>rappelconso-v2-gtin-trie</code> (data.economie.gouv.fr, 18 559 lignes) et le 2026-10-13 sur
+            data.education.gouv.fr :
+          </p>
+          <div class="fr-table">
+            <table class="attr-table">
+              <thead><tr><th>Clause</th><th>Lignes</th><th>Lecture</th></tr></thead>
+              <tbody>
+                <tr><td><code>categorie_produit like "%aliment%"</code></td><td>0</td><td>mot entier « aliment » : aucun — 14 366 lignes valent pourtant « alimentation »</td></tr>
+                <tr><td><code>categorie_produit like "alimentation"</code></td><td>14 366</td><td>mot entier</td></tr>
+                <tr><td><code>categorie_produit like "alim*"</code></td><td>15 632</td><td><strong>début de mot</strong> (« alimentation », « hors alimentaire »)</td></tr>
+                <tr><td><code>categorie_produit like "*tation"</code></td><td>0</td><td>pas de recherche par fin ou milieu de mot</td></tr>
+                <tr><td><code>categorie_produit like "*ALIMENT*"</code>, <code>"bebes*"</code></td><td>15 632, 1 266</td><td>casse et accents ignorés</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            La bibliothèque en tire une conséquence : les opérateurs <code>contains</code> et
+            <code>notcontains</code> (une sous-chaîne) n'ont aucun équivalent ODSQL. Ils ne sont
+            <strong>jamais confiés</strong> à un portail OpenDataSoft : ils sont calculés dans le navigateur, sur les
+            lignes que les autres clauses du filtre ont laissées passer. La source charge donc ces lignes-là, dans la
+            limite de <code>max-records</code>, et ce calcul n'est pas compatible avec <code>server-side</code> ni
+            avec <code>server-facets</code> (erreur de configuration). Le <code>where</code> écrit en ODSQL sur la
+            source, lui, part tel quel : un <code>like</code> y garde la sémantique du portail. Pour une recherche
+            saisie par le visiteur, <code>dsfr-data-search</code> utilise la recherche du portail, par début de
+            mot, casse et accents ignorés : <code>search("…")</code> dans tous les champs en
+            <code>server-search</code>, <code>search(champ, "…")</code> dans le champ nommé en mode
+            <code>context</code> (mesuré le 2026-10-13 sur le même jeu : <code>search("aliment")</code> rend
+            15 866 lignes, <code>search(categorie_produit, "aliment")</code> 15 636, et
+            <code>search(sous_categorie_produit, "iand")</code>, un milieu de mot, aucune ; un champ qui n'est pas
+            du texte fait répondre HTTP 400). Cette recherche-là entre dans le <code>where</code> de la source :
+            elle est compatible avec <code>server-side</code> et <code>server-facets</code>. Voir
+            <a href="../components/dsfr-data-query.html#contains-sous-chaine">dsfr-data-query, « contains est une sous-chaîne »</a>.
+          </p>
         </section>
 
         <!-- Facettes -->

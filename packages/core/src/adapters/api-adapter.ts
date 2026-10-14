@@ -370,6 +370,25 @@ export interface ApiAdapter {
   supportsServerAggregate?(fn: string): boolean;
 
   /**
+   * Indique si UNE clause de la grammaire colon (`champ:op[:valeur]`) peut
+   * être confiée à l'API (#1285, ADR-159) : la STRUCTURE de la comparaison y
+   * est-elle la même que dans le navigateur ? Un refus (false) garde la clause
+   * dans le navigateur, sur les lignes chargées, au lieu de laisser un chiffre
+   * dépendre du chemin qu'a pris le filtre : Opendatasoft refuse `contains` /
+   * `notcontains` (son `like` compare des mots, pas une sous-chaîne).
+   *
+   * Distincte de `supportsServerWhere`, qui juge le TRANSPORT (une valeur que
+   * l'API ne sait pas porter) dans le dialecte de l'adaptateur : celle-ci juge
+   * la comparaison, toujours sur une clause colon.
+   *
+   * Non implémenté = tout opérateur peut être confié (sauf dialecte ODSQL par
+   * défaut, qui refuse aussi `contains` / `notcontains`). Lu par
+   * `canDelegateClause` / `splitWhere` de `utils/where.ts` — jamais
+   * directement par un composant.
+   */
+  supportsServerClause?(clause: string): boolean;
+
+  /**
    * Indique si une clause `where` du dialecte de l'adapter (`whereFormat`)
    * est traduisible TELLE QUELLE dans la requete serveur (#1026).
    *

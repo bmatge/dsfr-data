@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { applyLocalFilter, ODS_CONFIG } from '@dsfr-data/shared';
 
 /**
  * Tests #678 (épic #697, ADR-104 — amende ADR-031) — facettes et recherche
@@ -38,6 +39,7 @@ type Row = Record<string, string>;
 
 interface Captured {
   where?: string;
+  clientWhere?: string;
   whereKey?: string;
   origin?: string;
 }
@@ -62,7 +64,11 @@ const ROWS: Row[] = [
   { region: 'PAC', departement: '83', postes: 'Tresorerie' },
 ];
 
-/** Évaluateur ODSQL minimal (=, IN, like) pour le faux serveur */
+/**
+ * Évaluateur ODSQL minimal (=, IN) pour le faux serveur. Aucun `like` : la
+ * bibliothèque n'en émet plus (#1285), et le lire comme une sous-chaîne
+ * — ce que faisait ce faux serveur — n'est pas ce que fait le portail.
+ */
 function matchesOdsql(row: Row, where: string): boolean {
   if (!where.trim()) return true;
   return where.split(' AND ').every((clause) => {
@@ -73,8 +79,6 @@ function matchesOdsql(row: Row, where: string): boolean {
       const vals = m[2].split(',').map((v) => v.trim().replace(/^"|"$/g, ''));
       return vals.includes(row[m[1]]);
     }
-    m = /^(\w+) like "%(.*)%"$/.exec(clause.trim());
-    if (m) return (row[m[1]] ?? '').toLowerCase().includes(m[2].toLowerCase());
     return true; // comparaisons non modelisees (annee >= …) : sans effet sur le faux serveur
   });
 }
@@ -96,6 +100,9 @@ function fakeOdsSource(id: string) {
   const el = document.createElement('div');
   el.id = id;
   const overlays = new Map<string, string>();
+  // Part du filtre que la source calcule dans le navigateur (#1285)
+  const clientOverlays = new Map<string, string>();
+  const clientWhere = () => [...clientOverlays.values()].filter(Boolean).join(', ');
   const commands: Captured[] = [];
   const effectiveWhere = (exclude?: string | string[]) => {
     const ex = new Set(Array.isArray(exclude) ? exclude : exclude ? [exclude] : []);
@@ -111,7 +118,10 @@ function fakeOdsSource(id: string) {
     }
   );
   const adapter = {
+    type: 'opendatasoft',
     capabilities: { serverFacets: true, whereFormat: 'odsql' },
+    // Ce que le portail sait faire d'une recherche (ADR-159 lot 3)
+    getProviderConfig: () => ODS_CONFIG,
     fetchFacets,
     buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
       const parts: string[] = [];
@@ -130,6 +140,7 @@ function fakeOdsSource(id: string) {
     getAdapter: () => adapter,
     getAdapterParams: () => ({ baseUrl: 'https://data.economie.gouv.fr', datasetId: 'balances' }),
     getEffectiveWhere: effectiveWhere,
+    getClientWhere: clientWhere,
   });
   const unsub = subscribeToSourceCommands(id, (cmd) => {
     commands.push(cmd as Captured);
@@ -137,15 +148,21 @@ function fakeOdsSource(id: string) {
       const key = cmd.whereKey || '__default';
       if (cmd.where) overlays.set(key, cmd.where);
       else overlays.delete(key);
+      const client = (cmd as Captured).clientWhere ?? '';
+      if (client) clientOverlays.set(key, client);
+      else clientOverlays.delete(key);
     }
     dispatchDataLoaded(
       id,
-      ROWS.filter((r) => matchesOdsql(r, effectiveWhere()))
+      applyLocalFilter(
+        ROWS.filter((r) => matchesOdsql(r, effectiveWhere())),
+        clientWhere()
+      ) as Row[]
     );
   });
   document.body.appendChild(el);
   dispatchDataLoaded(id, ROWS);
-  return { el, commands, fetchFacets, overlays, effectiveWhere, unsub };
+  return { el, commands, fetchFacets, overlays, effectiveWhere, clientWhere, unsub };
 }
 
 /** Laisse passer les microtasks de bind et les fetch de facettes (async) */
@@ -388,8 +405,8 @@ describe('#678 — forme ADR-104 §7 : une facette multi-champs sur une source d
   });
 });
 
-describe('#678 — dsfr-data-search context="ctx" : un filtre contains', () => {
-  it('la frappe devient une clause contains diffusée par le contexte, sans commande directe', async () => {
+describe('#678, ADR-159 — dsfr-data-search context="ctx" : une recherche, pas un filtre', () => {
+  it('la frappe devient une recherche diffusée par le contexte, sans commande directe', async () => {
     const charges = fakeOdsSource('cg-charges');
     const produits = fakeOdsSource('cg-produits');
     unsubs.push(charges.unsub, produits.unsub);
@@ -408,8 +425,13 @@ describe('#678 — dsfr-data-search context="ctx" : un filtre contains', () => {
     await settle();
     await tags.updateComplete;
 
-    expect(charges.effectiveWhere()).toBe('postes like "%dette%"');
-    expect(produits.effectiveWhere()).toBe('postes like "%dette%"');
+    // ADR-159 lot 3 : la recherche est confiée au moteur du portail, bornée
+    // au champ — elle entre dans le `where` de chaque cible. Ni `like`
+    // (#1285), ni clause `contains` à calculer dans le navigateur.
+    expect(charges.effectiveWhere()).toBe('search(postes, "dette")');
+    expect(produits.effectiveWhere()).toBe('search(postes, "dette")');
+    expect(charges.clientWhere()).toBe('');
+    expect(produits.clientWhere()).toBe('');
     expect(charges.commands.some((c) => c.whereKey === 's-postes')).toBe(false);
     expect(new URLSearchParams(window.location.search).get('postes')).toBe('dette');
     expect(tags.querySelector('.fr-tag')?.textContent).toContain('dette');
@@ -417,6 +439,7 @@ describe('#678 — dsfr-data-search context="ctx" : un filtre contains', () => {
     search.clear();
     await settle();
     expect(charges.effectiveWhere()).toBe('');
+    expect(charges.clientWhere()).toBe('');
     expect(new URLSearchParams(window.location.search).get('postes')).toBeNull();
   });
 
@@ -433,10 +456,11 @@ describe('#678 — dsfr-data-search context="ctx" : un filtre contains', () => {
     await search.updateComplete;
 
     expect((search.querySelector('input') as HTMLInputElement).value).toBe('immo');
-    expect(charges.effectiveWhere()).toBe('postes like "%immo%"');
+    expect(charges.effectiveWhere()).toBe('search(postes, "immo")');
+    expect(charges.clientWhere()).toBe('');
   });
 
-  it('plusieurs champs en mode context → erreur de config (la clause colon ne sait pas dire « ou »)', async () => {
+  it('plusieurs champs en mode context → erreur de config (un filtre de contexte porte un seul champ)', async () => {
     const charges = fakeOdsSource('cg-charges');
     unsubs.push(charges.unsub);
     mount(`
@@ -473,7 +497,8 @@ describe('#678 — dsfr-data-context-filter context="ctx" et opérateur contains
 
     input.value = 'Dette';
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(charges.effectiveWhere()).toBe('postes like "%Dette%"');
+    expect(charges.effectiveWhere()).toBe('');
+    expect(charges.clientWhere()).toBe('postes:contains:Dette');
   });
 
   it('sans context, le repli closest() est inchangé', async () => {

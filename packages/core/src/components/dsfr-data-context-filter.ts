@@ -167,8 +167,9 @@ const OPERATORS = [
   'lt',
   'gte',
   'between',
-  // Sous-chaine (#678) : deja traduit par filter-translator (like "%v%" en
-  // ODSQL, includes en local), il n'etait simplement pas expose ici
+  // Sous-chaine (#678). Jamais delegue a un portail Opendatasoft, dont le
+  // `like` compare des mots (#1285) : la source le calcule sur les lignes
+  // chargees — et le refuse en `server-side`, ou elle n'en a qu'une page.
   'contains',
   // Operateurs de date (#230) — clauses en plages [debut, fin)
   'month-of',
@@ -256,6 +257,14 @@ export class DsfrDataContextFilter extends LitElement {
    * type="year"). Une valeur qui reste inexploitable (ni date, ni mois, ni
    * année) retire le filtre et le signale par un avertissement console,
    * émis une seule fois par filtre.
+   *
+   * `contains` (#1285, ADR-159) cherche une SOUS-CHAÎNE, casse ignorée,
+   * accents respectés (« tation » trouve « alimentation »). Un portail
+   * Opendatasoft ne sait pas le faire (son `like` compare des mots) : la
+   * clause y est calculée par la source, dans le navigateur, sur les lignes
+   * chargées — tout ce que les autres filtres laissent passer est lu, dans la
+   * limite de `max-records` —, et une cible en `server-side` passe en erreur
+   * de configuration, qui dit quoi écrire à la place.
    */
   @property({ type: String })
   operator: ContextOperator = 'eq';

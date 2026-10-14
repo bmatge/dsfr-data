@@ -48,6 +48,8 @@ export const GENERIC_CONFIG: ProviderConfig = {
   query: {
     aggregationSyntax: 'client-only',
     searchTemplate: null,
+    // Aucun moteur : la recherche du contexte est calculée dans le navigateur.
+    contextSearchTemplate: null,
   },
 
   facets: {

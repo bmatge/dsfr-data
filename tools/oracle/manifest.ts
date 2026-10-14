@@ -72,6 +72,20 @@ export type RowFilter =
        */
       fold?: boolean;
     }
+  /**
+   * RECHERCHE PAR DÉBUT DE MOT (#1285, ADR-159) : chaque terme de `value` est
+   * le DÉBUT d'un mot de l'un des `fields`, sans casse ni accents ; les termes
+   * sont reliés par un ET. C'est ce que rend le moteur de recherche d'un
+   * portail Opendatasoft (`search(champ, "terme")`) à qui la recherche du
+   * contexte est confiée — « to » trouve « Toulouse », pas « Victor ».
+   *
+   * Un mot est une suite de lettres et de chiffres ; tout autre caractère
+   * sépare (blanc, tiret, apostrophe). Seul un champ TEXTE porte des mots.
+   * Ne sont PAS reproduits, et les contrôles s'en tiennent à l'écart : la
+   * racinisation du portail (« alimentations » y trouve « alimentation ») et
+   * ses mots vides.
+   */
+  | { op: 'word-prefix'; fields: string[]; value: string }
   /** Appartenance à un ensemble — le OU multi-valeurs d'un `in` ou d'une facette. */
   | { field: string; op: 'in' | 'notin'; values: Array<string | number> }
   | { field: string; op: 'isnotnull' | 'isnull' | 'isnull-strict' | 'isnotnull-strict' }

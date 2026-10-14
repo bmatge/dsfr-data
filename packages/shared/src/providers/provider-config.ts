@@ -114,6 +114,32 @@ export interface ProviderConfig {
      * adapters la lit (#285).
      */
     searchTemplate?: string | null;
+    /**
+     * Gabarit de la recherche PORTÉE PAR LE CONTEXTE (ADR-159, lot 3, #1285) :
+     * ce que l'API sait faire d'un terme saisi par un visiteur dans des champs
+     * NOMMÉS. `{fields}` devient les champs joints par
+     * `contextSearchFieldsJoin` (défaut `|`, le OU entre champs de la
+     * grammaire colon, #1026), `{q}` le terme échappé dans le dialecte de
+     * l'adaptateur.
+     *
+     * Distinct de `searchTemplate`, le gabarit de l'attribut `server-search`,
+     * qui ne change pas : sur Opendatasoft celui-là cherche dans TOUS les
+     * champs (`search("{q}")`), celui-ci dans les seuls champs que la
+     * recherche désigne (`search(champ, "{q}")`).
+     *
+     * `null` ou absent = l'API n'a rien pour chercher : la source calcule la
+     * recherche elle-même, dans le navigateur, sur les lignes chargées.
+     */
+    contextSearchTemplate?: string | null;
+    /** Séparateur des champs dans `contextSearchTemplate` (défaut `|`). */
+    contextSearchFieldsJoin?: string;
+    /**
+     * Le moteur ne lit que des champs TEXTE et REFUSE les autres (HTTP 400
+     * sur un portail Opendatasoft, mesuré). Quand les lignes déjà chargées
+     * montrent un champ numérique, la recherche est calculée dans le
+     * navigateur plutôt que confiée au serveur.
+     */
+    contextSearchTextOnly?: boolean;
   };
 
   // --- Facets ---

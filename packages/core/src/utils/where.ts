@@ -23,9 +23,15 @@
  * et laissent le filtre au client.
  */
 
-import { whereDialectOf, type WhereDialectCarrier } from '../adapters/where-dialect.js';
+import {
+  whereDialectOf,
+  splitWhereFor,
+  type WhereDialectCarrier,
+  type WhereSplit,
+} from '../adapters/where-dialect.js';
 
-export type { WhereDialectCarrier } from '../adapters/where-dialect.js';
+export type { WhereDialectCarrier, WhereSplit } from '../adapters/where-dialect.js';
+export { canDelegateClause, describeClientWhere } from '../adapters/where-dialect.js';
 
 // Implementation partagee avec les utilitaires app-side (filter-translator) :
 // definie dans @dsfr-data/shared (lib-safe), re-exportee ici pour les
@@ -86,6 +92,23 @@ export function translateWhere(
 ): string {
   if (!colonWhere) return colonWhere;
   return whereDialectOf(adapter).translate(colonWhere);
+}
+
+/**
+ * Partage un filtre colon entre l'API et le navigateur (#1285, ADR-159) :
+ * `server` part (à traduire par `translateWhere`), `client` est calculé sur
+ * les lignes chargées. Une clause dont la STRUCTURE de comparaison n'est pas
+ * la même sur l'API n'est jamais confiée au serveur — `contains` et
+ * `notcontains` sur Opendatasoft, dont le `like` compare des mots et non une
+ * sous-chaîne. Tout composant qui confie un filtre colon à une source passe
+ * par ici.
+ */
+export function splitWhere(
+  adapter: WhereDialectCarrier | null | undefined,
+  colonWhere: string
+): WhereSplit {
+  if (!colonWhere) return { server: '', client: '' };
+  return splitWhereFor(adapter, colonWhere);
 }
 
 /**

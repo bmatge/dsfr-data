@@ -115,11 +115,13 @@ export type { DSFRChartType } from './charts/chart-types.js';
 // Query / Filters
 export {
   filterToOdsql,
+  odsqlCanExpress,
+  splitFilterForOdsql,
   applyLocalFilter,
   validateColonFilter,
   COLON_FILTER_OPERATORS,
 } from './query/filter-translator.js';
-export type { ContextFilterLike } from './query/context-filter.js';
+export type { ContextFilterLike, ContextSearch } from './query/context-filter.js';
 
 // API / Proxy
 export {

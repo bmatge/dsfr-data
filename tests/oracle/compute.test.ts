@@ -13,6 +13,7 @@ import {
   groupBy,
   isoToFrDate,
   replier,
+  motsDe,
   joinRows,
   legendClasses,
   orderBy,
@@ -235,6 +236,31 @@ describe('oracle — recalcul indépendant', () => {
     expect(
       applyFilter(rows, [{ field: 'l', op: 'eq', value: 'ecole de sete', fold: true }])
     ).toEqual([{ l: 'École de Sète' }]);
+  });
+
+  it('word-prefix : chaque terme commence un MOT du champ, sans casse ni accents (#1285)', () => {
+    const rows = [
+      { l: 'Collège Victor Hugo', n: 12 },
+      { l: 'Lycée de Toulouse Centre', n: 31 },
+      { l: 'Lycée de Saint-Malo', n: 35 },
+      { l: "Lycée d'Antibes", n: 6 },
+      { l: null, n: 0 },
+    ];
+    const cherche = (value: string, fields = ['l']) =>
+      applyFilter(rows, [{ op: 'word-prefix', fields, value }]).map((r) => r.n);
+    // « to » commence « Toulouse » ; il est au MILIEU de « Victor » : pas trouvé.
+    expect(cherche('to')).toEqual([31]);
+    // Le tiret et l'apostrophe séparent des mots.
+    expect(cherche('malo')).toEqual([35]);
+    expect(cherche('antib')).toEqual([6]);
+    // Sans accents ni casse ; plusieurs termes : un ET, sans ordre.
+    expect(cherche('LYCEE')).toEqual([31, 35, 6]);
+    expect(cherche('centre lyc')).toEqual([31]);
+    expect(cherche('lyc brest')).toEqual([]);
+    // Un terme vide ne trouve rien ; un nombre ne porte aucun mot.
+    expect(cherche('')).toEqual([]);
+    expect(cherche('31', ['n'])).toEqual([]);
+    expect(motsDe("École d'Aix-en-Provence")).toEqual(['ecole', 'd', 'aix', 'en', 'provence']);
   });
 
   it('texte d’une cellule de tableau : deux décimales, deux chiffres significatifs sous 0,01 (#1282)', () => {

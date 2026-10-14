@@ -449,12 +449,36 @@ Multiples filtres separes par virgule (logique ET) :
 | gte | Superieur ou egal | \`"population:gte:10000"\` |
 | lt | Strictement inferieur | \`"score:lt:50"\` |
 | lte | Inferieur ou egal | \`"age:lte:30"\` |
-| contains | Contient (insensible a la casse) | \`"nom:contains:paris"\` |
-| notcontains | Ne contient pas | \`"email:notcontains:spam"\` |
+| contains | Contient : SOUS-CHAINE, n'importe ou dans la valeur (casse ignoree, accents respectes) | \`"nom:contains:paris"\` |
+| notcontains | Ne contient pas (meme sous-chaine ; garde les valeurs absentes) | \`"email:notcontains:spam"\` |
 | in | Dans la liste (separateur \\|) | \`"region:in:IDF\\|OCC\\|BRE"\` |
 | notin | Pas dans la liste | \`"status:notin:archive\\|supprime"\` |
 | isnull | Est vide/null | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
+
+**\`contains\` / \`notcontains\` sont une SOUS-CHAINE, partout (#1285)** : \`nom:contains:tation\`
+trouve « alimentation », quel que soit le fournisseur. C'est la bibliotheque qui dit ce que le
+filtre retient, pas le serveur.
+
+⚠️ **Sur une source Opendatasoft, \`contains\` / \`notcontains\` sont calcules dans le navigateur**,
+jamais par le portail : son \`like\` compare des MOTS, pas une sous-chaine (\`like "%aliment%"\`
+rend 0 ligne pour 14 366 « alimentation », mesure ; il ne trouve qu'un mot entier, ou un debut de
+mot avec \`like "alim*"\`). Consequences a connaitre AVANT de generer :
+- les autres clauses du meme filtre (\`eq\`, \`in\`, comparaisons) partent toujours au portail ; la
+  source charge tout ce qu'elles laissent passer, dans la limite de \`max-records\` (1 000 par
+  defaut ; au-dela la troncature est signalee) — pour un grand jeu, poser \`fetch-mode="export"\` et
+  \`max-records\` a la taille du jeu, ou resserrer le filtre par une egalite ;
+- \`group-by\` n'est plus delegue quand le filtre porte un \`contains\` (il est calcule dans le
+  navigateur, sur les lignes filtrees) ;
+- derriere une source \`server-side\` (une page), ou a cote de \`dsfr-data-facets server-facets\`,
+  c'est une ERREUR DE CONFIGURATION (\`data-dsfr-config-error\`), qui dit quoi ecrire : retirer
+  \`server-side\` / \`server-facets\`, remplacer la clause par une egalite (\`eq\`, \`in\`) quand la
+  valeur est connue, ou, pour une saisie du visiteur, \`dsfr-data-search\` — en \`server-search\` ou
+  en mode \`context\` (recherche du portail, par debut de mot : une recherche n'est pas un filtre
+  \`contains\`, elle est confiee au moteur du portail et reste compatible avec \`server-side\` et
+  \`server-facets\`).
+Ne JAMAIS ecrire \`champ like "%x%"\` dans le \`where\` ODSQL d'une source pour « contient » : le
+portail n'y lit pas une sous-chaine. Tabular et Grist gardent \`contains\` delegue.
 
 **Champs multiples — un OU entre champs (#1026)** : \`"nom|commune:contains:martin"\` applique le
 MÊME opérateur et la MÊME valeur à plusieurs champs ; la ligne passe dès qu'UN champ satisfait la
@@ -463,7 +487,8 @@ clause. Les clauses entre elles restent en ET : \`where="nom|commune:contains:ma
 OU de la grammaire (pas de clause \`or(...)\` générale). Traduction serveur : Tabular
 \`or=(nom__contains.martin,commune__contains.martin)\` (une seule clause multi-champs par requête,
 valeur sans \`,\` \`.\` \`(\` \`)\` \`"\` \`&\`, pas de \`in\`/\`notin\`), Opendatasoft et Grist
-\`(… OR …)\` ; INSEE et les sources sans adaptateur filtrent dans le navigateur.
+\`(… OR …)\` (sauf \`contains\` / \`notcontains\` sur Opendatasoft, calcules dans le navigateur,
+#1285) ; INSEE et les sources sans adaptateur filtrent dans le navigateur.
 
 **Champs tableau (#953, ex-#842)** : \`eq\` / \`neq\` / \`in\` / \`notin\` regardent DANS le tableau.
 \`tags:eq:urgent\` retient une ligne dont \`tags\` vaut \`["urgent","social"]\`, exactement comme
@@ -1272,7 +1297,7 @@ Les compteurs de facettes se recalculent dynamiquement.
 | debounce | Number | 300 | non | Delai en ms avant filtrage |
 | min-length | Number | 0 | non | Nb minimum de caractères |
 | highlight | Boolean | false | non | Ajoute _highlight avec <mark> pour dsfr-data-display |
-| operator | String | "contains" | non | Mode : contains, starts, words |
+| operator | String | "contains" | non | Mode de la recherche CALCULEE DANS LE NAVIGATEUR : contains, starts, words (casse et accents ignores). Une recherche confiee a un serveur (\`server-search\`, ou cible de \`context\` dont l'API sait chercher) suit la comparaison de ce serveur |
 | sr-label | Boolean | false | non | Label en sr-only (masque visuellement) |
 | count | Boolean | false | non | Affiche un compteur de résultats visible sous le champ (compte serveur en \`server-search\`), avec séparateur de milliers français. Voir Accessibilité : il n'est une région live que sans afficheur aval. Tant que l'amont attend un filtre (\`require-where\`), le compteur cède la place au message d'attente |
 | count-label | String | \`""\` | non | Nom compté à la place de « résultat » : \`count-label="établissement"\` → « 12 345 établissements ». Pluriel irrégulier : les deux formes, \`count-label="cheval|chevaux"\` |
@@ -1281,7 +1306,48 @@ Les compteurs de facettes se recalculent dynamiquement.
 | url-sync | Boolean | false | non | Synchronise l'URL quand l'utilisateur tape (replaceState) |
 | server-search | Boolean | false | non | Delegue la recherche au serveur (le dsfr-data-query amont relaie automatiquement vers la source server-side) |
 | search-template | String | \`'search("{q}")'\` | non | Template ODSQL pour la recherche serveur ({q} = terme) |
-| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche devient un filtre \`contains\` du contexte sur le champ UNIQUE de \`fields\` (obligatoire). Le contexte diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag. Vide = mode autonome |
+| context | String | "" | non | Id d'un dsfr-data-context (#678) : la recherche est confiee au contexte, qui la diffuse a ses cibles, porte l'URL (parametre nomme d'apres le champ ; url-sync / url-search-param ignores) et le tag « Recherche : terme ». \`fields\` doit nommer UN seul champ. Ce n'est PAS un filtre \`contains\` : chaque cible traduit la recherche selon son API (voir « Recherche portee par le contexte »). Vide = mode autonome |
+
+### Recherche portee par le contexte (\`context="id"\`, ADR-159)
+Une recherche n'est pas un filtre. Le filtre \`contains\` est EXACT (sous-chaine, accents
+respectes) ; la recherche est TOLERANTE, et quand l'API d'une source sait chercher, c'est elle qui
+cherche. En mode \`context\`, le terme saisi est porte comme une recherche et CHAQUE SOURCE CIBLE
+le traduit :
+
+| Source cible | Qui cherche | Comment |
+|---|---|---|
+| Opendatasoft | le moteur du portail, borne au champ (\`search(champ, "terme")\`) | par DEBUT DE MOT, casse et accents ignores : « aliment » trouve « alimentation », « mentation » non. Le champ doit etre du TEXTE (un champ numerique : recherche calculee dans le navigateur) |
+| Tabular, Grist | l'API (\`champ:contains:terme\`) | sous-chaine, casse ignoree, accents RESPECTES : « ecole » ne trouve pas « École » |
+| INSEE Melodi, adaptateur tiers | la source, dans le navigateur | sur les lignes chargees (sous \`max-records\`), avec \`operator\`, casse et accents ignores |
+| source en mode URL (sans \`api-type\`) | personne : la commande est refusee et signalee en console | brancher la recherche SUR cette source (\`source="…"\`, sans \`context\`) : elle filtre alors ses lignes elle-meme |
+
+Consequences :
+- confiee a l'API, la recherche entre dans le \`where\` de la source : une cible \`server-side\`
+  pagine les seules lignes trouvees, et des \`dsfr-data-facets server-facets\` voisines comptent le
+  meme ensemble. La recherche laisse alors passer les lignes de sa source sans les refiltrer, et son
+  compteur (\`count\`) annonce le total du serveur ;
+- calculee dans le navigateur, elle exige que la source charge le jeu : une cible \`server-side\`,
+  ou des \`server-facets\` voisines, passent en ERREUR DE CONFIGURATION ;
+- le resultat n'est donc pas identique d'un fournisseur a l'autre (debut de mot, sous-chaine,
+  accents) : c'est assume, et c'est ce tableau qui le dit. Ne pas promettre une recherche « au
+  milieu d'un mot » sur un portail Opendatasoft ;
+- dans l'URL, dans \`dsfr-data-context-tags\` et dans \`dsfr-data-context-value\`, la recherche
+  reste un filtre comme les autres : un parametre au nom du champ, un tag retirable, \`{{champ}}\`.
+
+\`\`\`html
+<!-- Recherche, facettes serveur et pagination serveur sur un portail Opendatasoft :
+     les trois comptent le meme ensemble -->
+<dsfr-data-source id="src" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
+  dataset-id="rappelconso-v2-gtin-trie" server-side page-size="20"></dsfr-data-source>
+<dsfr-data-context id="ctx" sources="src" url-sync></dsfr-data-context>
+<dsfr-data-search id="recherche" source="src" context="ctx" fields="libelle"
+  label="Rechercher un produit" count></dsfr-data-search>
+<dsfr-data-context-tags for="ctx" clear-all></dsfr-data-context-tags>
+<dsfr-data-facets id="facettes" source="src" context="ctx" server-facets
+  fields="categorie_produit" labels="categorie_produit:Catégorie" no-reset></dsfr-data-facets>
+<dsfr-data-list source="src" columns="libelle:Produit, marque_produit:Marque" pagination="20">
+</dsfr-data-list>
+\`\`\`
 
 ### Recherche serveur
 Avec \`server-search\`, au lieu de filtrer localement, dsfr-data-search envoie une commande
@@ -1312,6 +1378,8 @@ annonce lui-même son compte. Ne pas ajouter de région live supplémentaire dan
 contradictoires (#654).
 
 ### Modes de recherche
+Ils valent pour la recherche calculee dans le navigateur (mode autonome, repli de
+\`server-search\`, cible de \`context\` sans API pour chercher) :
 - **contains** (défaut) : sous-chaine insensible a la casse et aux accents
 - **starts** : chaque mot du champ doit commencer par le terme
 - **words** : tous les mots saisis doivent etre presents (dans n'importe quel champ)
@@ -4173,7 +4241,8 @@ construite en colon (dialecte pivot) puis traduite au whereFormat de chaque adap
 Tout composant qui filtre peut etre un filtre du contexte via \`context="id"\` :
 <dsfr-data-context-filter context="ctx"> (place n'importe ou, plus seulement enfant),
 <dsfr-data-facets context="ctx"> (un filtre par champ, select peuple + cascade sans option
-en dur), <dsfr-data-search context="ctx"> (filtre contains sur un champ) et
+en dur), <dsfr-data-search context="ctx"> (une RECHERCHE sur un champ, que chaque source
+cible traduit — moteur de son API ou calcul dans le navigateur, ADR-159) et
 <dsfr-data-map-layer refine-on-click="champ" context="ctx"> (filtre eq au clic sur la carte, #681). Le contexte
 diffuse, porte l'URL (un parametre par champ, url-sync unique) et alimente context-tags.
 Dans l'URL, les valeurs d'un filtre a plusieurs valeurs (\`in\`, facette) sont jointes par des
@@ -4214,7 +4283,10 @@ La valeur vide RETIRE le filtre. Les valeurs sont percent-encodees (#271).
 ### Operateurs
 
 - \`eq\` : egalite — \`in\` : multi-valeurs (select multiple, valeurs jointes par | ou ,)
-- \`contains\` : sous-chaine (input texte ; \`like "%v%"\` en ODSQL) — #678
+- \`contains\` : sous-chaine (input texte) — #678. Jamais confie a un portail Opendatasoft, dont
+  le \`like\` compare des mots (#1285) : la source cible le calcule dans le navigateur, sur les
+  lignes chargees (sous \`max-records\`), et une cible \`server-side\` passe en erreur de
+  configuration
 - \`lt\` / \`gte\` : comparaisons — \`between\` : deux UI (min puis max) -> gte + lt
 - Dates (#230) : \`month-of\` (input type=month -> plage du mois), \`year-of\` (plage annuelle),
   \`lt-day-after\` (inclusif jusqu'au jour choisi), \`last-n-days\` (N derniers jours, borne
@@ -6043,8 +6115,8 @@ champ de vision.
 <div class="fr-container fr-my-6v">
   <div class="fr-grid-row fr-mb-4v">
     <div class="fr-col-12 fr-col-lg-8">
-      <dsfr-data-search source="src" context="ctx" fields="nom, commune"
-        placeholder="Un mot, une commune, un code postal…"></dsfr-data-search>
+      <dsfr-data-search source="src" context="ctx" fields="nom"
+        placeholder="Rechercher un établissement…"></dsfr-data-search>
     </div>
   </div>
   <dsfr-data-context-tags for="ctx" class="fr-mb-4v"></dsfr-data-context-tags>

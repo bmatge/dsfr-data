@@ -356,6 +356,9 @@
         <!-- query-kpi (RappelConso ODS, filter by category) -->
         <h4 id="query-kpi">KPI — Statistiques des rappels avec filtre</h4>
         <p>Compare le nombre total de rappels au nombre de rappels alimentaires via <code>filter</code>.
+          Chaque chiffre est le <strong>total du serveur</strong> (<code>value="meta:total"</code>) : la source
+          est en pagination serveur, le filtre lui est délégué, et le portail compte sur le jeu entier —
+          aucune ligne n'est chargée pour compter.
           <a href="../apps/playground/index.html?example=query-kpi" class="fr-link fr-link--sm">Tester dans le Playground</a>
         </p>
         <div class="example-loading" data-example>Chargement...</div>
@@ -365,17 +368,23 @@
 <pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
   dataset-id="rappelconso-v2-gtin-trie"
   base-url="https://data.economie.gouv.fr"
-  server-side page-size="100"&gt;
+  server-side page-size="1"&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-query id="q-alim" source="src"
-  filter="categorie_produit:contains:Aliment"&gt;
+&lt;!-- Une source par chiffre filtré : le filtre d'une query lui est délégué --&gt;
+&lt;dsfr-data-source id="src-alim" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="1"&gt;
+&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-query id="q-alim" source="src-alim"
+  filter="categorie_produit:eq:alimentation"&gt;
 &lt;/dsfr-data-query&gt;
 
 &lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"&gt;
-  &lt;dsfr-data-kpi source="src" value="count"
+  &lt;dsfr-data-kpi source="src" value="meta:total"
     label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="q-alim" value="count"
+  &lt;dsfr-data-kpi source="q-alim" value="meta:total"
     label="Dont alimentation" format="nombre" color-token="bleu"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/div&gt;</pre>
           </div>
@@ -383,7 +392,14 @@
 
         <!-- Variation: filtres combines -->
         <h4 id="variation-filter">Variation : filtres combines</h4>
-        <p>Combine deux filtres avec <code>,</code> (logique ET) : ne garder que les rappels alimentaires contenant "lait".</p>
+        <p>Combine deux filtres avec <code>,</code> (logique ET) : les rappels alimentaires de la sous-catégorie « lait et produits laitiers ».</p>
+        <p>
+          Les deux clauses sont des égalités : elles partent au portail, qui compte sur le jeu entier.
+          <code>contains</code>, lui, cherche une <strong>sous-chaîne</strong> (« tation » trouve « alimentation ») :
+          un portail OpenDataSoft ne sait pas le faire (son <code>like</code> compare des mots), la clause y est
+          donc calculée dans le navigateur, sur les lignes chargées — ce qui n'est pas compatible avec
+          <code>server-side</code>. Quand la valeur est connue, écrire l'égalité.
+        </p>
         <div class="example-loading" data-example>Chargement...</div>
         <section class="fr-accordion fr-mt-1w">
           <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-v-filter">Code source</button></h3>
@@ -391,18 +407,23 @@
 <pre class="example-code">&lt;dsfr-data-source id="src" api-type="opendatasoft"
   dataset-id="rappelconso-v2-gtin-trie"
   base-url="https://data.economie.gouv.fr"
-  server-side page-size="100"&gt;
+  server-side page-size="1"&gt;
 &lt;/dsfr-data-source&gt;
 
-&lt;dsfr-data-query id="q-combine" source="src"
-  filter="categorie_produit:contains:Aliment, sous_categorie_produit:contains:Lait"&gt;
+&lt;dsfr-data-source id="src-lait" api-type="opendatasoft"
+  dataset-id="rappelconso-v2-gtin-trie"
+  base-url="https://data.economie.gouv.fr"
+  server-side page-size="1"&gt;
+&lt;/dsfr-data-source&gt;
+&lt;dsfr-data-query id="q-combine" source="src-lait"
+  filter="categorie_produit:eq:alimentation, sous_categorie_produit:eq:lait et produits laitiers"&gt;
 &lt;/dsfr-data-query&gt;
 
 &lt;div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;"&gt;
-  &lt;dsfr-data-kpi source="src" value="count"
+  &lt;dsfr-data-kpi source="src" value="meta:total"
     label="Total des rappels" format="nombre"&gt;&lt;/dsfr-data-kpi&gt;
-  &lt;dsfr-data-kpi source="q-combine" value="count"
-    label="Alimentaires (Lait)" format="nombre" color-token="bleu"&gt;&lt;/dsfr-data-kpi&gt;
+  &lt;dsfr-data-kpi source="q-combine" value="meta:total"
+    label="Alimentaires (lait)" format="nombre" color-token="bleu"&gt;&lt;/dsfr-data-kpi&gt;
 &lt;/div&gt;</pre>
           </div>
         </section>
@@ -424,7 +445,7 @@
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-query id="q" source="src"
-  filter="categorie_produit:contains:Aliment"&gt;
+  filter="categorie_produit:eq:alimentation"&gt;
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-list source="q"
@@ -436,7 +457,7 @@
 
         <!-- Variation: operateur in -->
         <h4 id="variation-in">Variation : operateur <code>in</code> pour plusieurs categories</h4>
-        <p>Utilise <code>filter="categorie_produit:in:Alimentation|Habitat"</code> pour selectionner plusieurs categories avec le separateur <code>|</code>.</p>
+        <p>Utilise <code>filter="categorie_produit:in:alimentation|maison-habitat"</code> pour selectionner plusieurs categories avec le separateur <code>|</code>. Les valeurs sont celles du jeu, à la lettre : l'égalité distingue la casse.</p>
         <div class="example-loading" data-example>Chargement...</div>
         <section class="fr-accordion fr-mt-1w">
           <h3 class="fr-accordion__title"><button class="fr-accordion__btn" aria-expanded="false" aria-controls="code-v-in">Code source</button></h3>
@@ -449,7 +470,7 @@
 &lt;/dsfr-data-source&gt;
 
 &lt;dsfr-data-query id="q" source="src"
-  filter="categorie_produit:in:Alimentation|Habitat"&gt;
+  filter="categorie_produit:in:alimentation|maison-habitat"&gt;
 &lt;/dsfr-data-query&gt;
 
 &lt;dsfr-data-list source="q"
