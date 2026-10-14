@@ -840,26 +840,128 @@ describe('DsfrDataNormalize', () => {
       expect(result[0]).toEqual({ id: 1, x: 'value' });
     });
 
-    it('handles 1000 records efficiently', () => {
-      normalize.id = 'test-normalize';
-      normalize.source = 'test-source';
+    // Ce que gardait l'ancien seuil de 200 ms : un lot traité en UNE passe,
+    // configuration lue une fois par lot et non par ligne, rien de
+    // quadratique. Le chronomètre dépendait du runner (#1309 : 222 ms sur
+    // GitHub, sans rapport avec le code) ; on compte maintenant le travail,
+    // qui ne dépend que du code.
+    it('handles 1000 records in one pass: linear work, configuration parsed once per batch', () => {
+      normalize.id = 'passes-normalize';
+      normalize.source = 'passes-source';
       normalize.flatten = 'fields';
+      normalize.numeric = 'value';
+      normalize.rename = 'name:Nom';
+      normalize.replace = 'N/A:';
 
-      const input = Array.from({ length: 1000 }, (_, i) => ({
-        id: i,
-        fields: { name: `Item ${i}`, value: i * 10 },
-      }));
+      /** Vue interne : les étapes par ligne et les lectures de configuration. */
+      interface NormalizeInterne {
+        _normalizeRow(...args: unknown[]): unknown;
+        _flattenRow(...args: unknown[]): unknown;
+        _parseNumericFields(): unknown;
+        _parseRoundFields(): unknown;
+        _parsePipeMap(raw: string): unknown;
+        _parseReplaceFields(raw: string): unknown;
+        _parseSplitFields(): unknown;
+        _parseFold(): unknown;
+      }
+      const interne = normalize as unknown as NormalizeInterne;
+      const parRang = vi.spyOn(interne, '_normalizeRow');
+      const aplatis = vi.spyOn(interne, '_flattenRow');
+      const lectures = (
+        [
+          '_parseNumericFields',
+          '_parseRoundFields',
+          '_parsePipeMap',
+          '_parseReplaceFields',
+          '_parseSplitFields',
+          '_parseFold',
+        ] as const
+      ).map((nom) => vi.spyOn(interne, nom));
 
-      normalize.connectedCallback();
-      const start = performance.now();
-      dispatchDataLoaded('test-source', input);
-      const duration = performance.now() - start;
+      let emissions = 0;
+      const compterEmission = (e: Event) => {
+        if ((e as CustomEvent<{ sourceId: string }>).detail.sourceId === 'passes-normalize') {
+          emissions++;
+        }
+      };
+      document.addEventListener('dsfr-data-loaded', compterEmission);
 
-      const result = getDataCache('test-normalize') as Record<string, unknown>[];
-      expect(result).toHaveLength(1000);
-      expect(result[0]).toEqual({ id: 0, name: 'Item 0', value: 0 });
-      expect(result[999]).toEqual({ id: 999, name: 'Item 999', value: 9990 });
-      expect(duration).toBeLessThan(200);
+      /** Chaque accès aux lignes d'entrée (tableau, lignes, sous-objets) compté. */
+      let acces = 0;
+      const compte = <T extends object>(cible: T): T =>
+        new Proxy(cible, {
+          get(t, cle, recepteur) {
+            acces++;
+            return Reflect.get(t, cle, recepteur);
+          },
+          ownKeys(t) {
+            acces++;
+            return Reflect.ownKeys(t);
+          },
+          getOwnPropertyDescriptor(t, cle) {
+            acces++;
+            return Reflect.getOwnPropertyDescriptor(t, cle);
+          },
+        });
+      const lot = (n: number) =>
+        compte(
+          Array.from({ length: n }, (_, i) =>
+            compte({ id: i, fields: compte({ name: `Item ${i}`, value: String(i * 10) }) })
+          )
+        );
+
+      const mesurer = (n: number) => {
+        const input = lot(n);
+        acces = 0;
+        emissions = 0;
+        parRang.mockClear();
+        aplatis.mockClear();
+        lectures.forEach((espion) => espion.mockClear());
+        dispatchDataLoaded('passes-source', input);
+        return {
+          acces,
+          emissions,
+          parRang: parRang.mock.calls.length,
+          aplatis: aplatis.mock.calls.length,
+          lectures: lectures.map((espion) => espion.mock.calls.length),
+        };
+      };
+
+      try {
+        normalize.connectedCallback();
+        const mille = mesurer(1000);
+
+        const result = getDataCache('passes-normalize') as Record<string, unknown>[];
+        expect(result).toHaveLength(1000);
+        expect(result[0]).toEqual({ id: 0, Nom: 'Item 0', value: 0 });
+        expect(result[999]).toEqual({ id: 999, Nom: 'Item 999', value: 9990 });
+
+        // Une passe : chaque ligne aplatie et normalisée une fois, un seul envoi.
+        expect(mille.parRang).toBe(1000);
+        expect(mille.aplatis).toBe(1000);
+        expect(mille.emissions).toBe(1);
+
+        // 1000, 2000, 3000 lignes : chaque millier de lignes coûte le même
+        // nombre d'accès (linéaire — rien ne relit le lot par ligne), et la
+        // MÊME configuration est lue — une fois par lot, pas une par ligne.
+        const deuxMille = mesurer(2000);
+        const troisMille = mesurer(3000);
+        const parMillier = deuxMille.acces - mille.acces;
+        expect(troisMille.acces - deuxMille.acces).toBe(parMillier);
+        expect(deuxMille.lectures).toEqual(mille.lectures);
+        expect(troisMille.lectures).toEqual(mille.lectures);
+        expect(Math.max(...mille.lectures)).toBeLessThanOrEqual(2);
+        // Et un plafond par ligne, pour qu'une passe en trop (linéaire elle
+        // aussi) ne se fonde pas dans la pente : 12 accès par ligne aujourd'hui ;
+        // relire chaque ligne une fois de plus (clés + copie) en fait 20.
+        expect(parMillier / 1000).toBeLessThanOrEqual(14);
+      } finally {
+        document.removeEventListener('dsfr-data-loaded', compterEmission);
+        // Ids propres au test : les normalize des tests voisins, abonnés à
+        // `test-source`, auraient compté leurs propres envois.
+        clearDataCache('passes-normalize');
+        clearDataCache('passes-source');
+      }
     });
   });
 
