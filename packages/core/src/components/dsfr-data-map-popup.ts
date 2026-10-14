@@ -32,6 +32,7 @@
  */
 import { LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { readingPopupNoteHtml } from '../utils/stale-reading.js';
 import { getByPath } from '../utils/json-path.js';
 import { readChildTemplate } from '../utils/child-template.js';
 import { renderTemplate } from '../utils/template-expression.js';
@@ -119,10 +120,28 @@ export class DsfrDataMapPopup extends LitElement {
     return this.for === layerId;
   }
 
-  /** Show content for a record. Called by the layer on feature click. */
-  showForRecord(record: Record<string, unknown>): void {
+  /**
+   * Show content for a record. Called by the layer on feature click.
+   *
+   * `staleAt` (#1288) : date du relevé quand la couche montre des points NON
+   * ACTUALISÉS (`stale-if-error` de sa source) — le volet ou la modale
+   * s'ouvrent alors sur la note « Non actualisé · Relevé aujourd’hui à
+   * 14 h 32. ». Un instant, pas du HTML : la note est écrite ici.
+   */
+  showForRecord(record: Record<string, unknown>, staleAt?: number): void {
     this._currentRecord = record;
-    this._show(this._renderTemplate(record), this._titleOf(record));
+    this._show(this._staleNote(staleAt) + this._renderTemplate(record), this._titleOf(record));
+  }
+
+  /**
+   * Note d'un relevé, en tête du corps (#1288). SEULE autre origine de ce qui
+   * entre dans les `innerHTML` de `_showPanel` et `_showModal` : une étiquette
+   * constante et une date formatée par la bibliothèque — aucune donnée.
+   */
+  private _staleNote(staleAt: number | undefined): string {
+    return typeof staleAt === 'number' && Number.isFinite(staleAt)
+      ? readingPopupNoteHtml(staleAt, Date.now())
+      : '';
   }
 
   /**
@@ -132,9 +151,12 @@ export class DsfrDataMapPopup extends LitElement {
    * (une liste), sinon un tableau des `fields` avec une ligne par
    * enregistrement — borné à GROUP_ROWS_MAX lignes, « … et N autres » au-delà.
    */
-  showForGroup(group: MapGroup, fields: string[]): void {
+  showForGroup(group: MapGroup, fields: string[], staleAt?: number): void {
     this._currentRecord = group.records[0] ?? null;
-    this._show(this._renderGroup(group, fields), this._groupTitle(group));
+    this._show(
+      this._staleNote(staleAt) + this._renderGroup(group, fields),
+      this._groupTitle(group)
+    );
   }
 
   /** Returns the popup HTML for Leaflet bindPopup (popup mode only) */

@@ -7,8 +7,12 @@ import {
   renderSourceLoading,
   renderSourceError,
   renderSourceIdle,
+  renderStaleNotice,
+  resolveStaleNotice,
   IDLE_MESSAGE_DEFAULT,
+  type StaleNoticeView,
 } from '../utils/status-templates.js';
+import { readingAccessibleSuffix, type StaleReading } from '../utils/stale-reading.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import {
   parseReferenceLines,
@@ -641,6 +645,10 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
   updated(changed: Map<string, unknown>) {
     super.updated(changed);
+    // Atténuation du relevé (#1288) : une classe sur l'HÔTE, lue par la règle
+    // de style du rendu — le conteneur du graphique est créé hors gabarit et
+    // réutilisé d'un rendu à l'autre, une classe posée dessus s'y perdrait.
+    this.classList.toggle('dsfr-data-chart--stale', this._staleNotice() !== null);
     // Redessine les overlays (lignes de reference #341, cibles #377) apres
     // chaque rendu. Chart.js rend de maniere asynchrone → le draw poll en rAF
     // jusqu'a ce que l'instance soit prete.
@@ -675,6 +683,27 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     if (this.databox) {
       this._injectDataboxTable();
     }
+  }
+
+  /**
+   * Dernier relevé (#1288). Le graphique garde `_data` à l'erreur — c'est
+   * `render()` qui refuse de le tracer — : seul un bloc monté pendant la panne
+   * a quelque chose à reprendre du relevé. À l'échéance il n'y a rien à
+   * lâcher, `render()` revient au message de panne.
+   */
+  onSourceStale(reading: StaleReading | null): void {
+    if (reading && this._data.length === 0) this.onSourceData(reading.data);
+  }
+
+  /** Ce que le graphique dit du relevé qu'il trace (#1288), ou `null`. */
+  private _staleNotice(): StaleNoticeView | null {
+    if (!this._sourceStale || this._data.length === 0) return null;
+    return resolveStaleNotice(
+      this._sourceStale,
+      this._sourceError,
+      this.source,
+      this._sourceLoading
+    );
   }
 
   // --- Data processing ---
@@ -1532,6 +1561,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     const typeName = typeLabels[this.type] || this.type;
     const count = this._data.length;
     let label = `Graphique ${typeName}, ${count} valeurs`;
+    // Dernier relevé (#1288) : la date fait partie du nom de la figure — un
+    // lecteur d'écran qui arrive sur le graphique sans passer par la mention
+    // doit entendre que ces chiffres ne sont pas ceux du moment.
+    const stale = this._staleNotice();
+    if (stale) label += `. ${readingAccessibleSuffix(stale.reading.loadedAt, stale.now)}`;
     // Repères de référence relayés a l'aria-label (overlay SVG aria-hidden, #341)
     if (this.referenceLines && isCartesianChartType(this.type)) {
       const { lines } = parseReferenceLines(this.referenceLines);
@@ -2543,6 +2577,30 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   render() {
+    // Dernier relevé (#1288, `stale-if-error`) : le graphique reste tracé,
+    // atténué, sous la mention qui le date — nouvel essai compris, il ne
+    // repasse pas par le sablier. Avant tout autre état de la source.
+    const stale = this._staleNotice();
+    if (stale) {
+      return html`
+        ${renderStaleNotice('dsfr-data-chart', stale)}${this._renderChart()}
+        <style>
+          /* Désaturé, pas pâli : l'opacité ferait passer les étiquettes d'axe
+             sous 4,5:1. Le filtre est posé sur le TRACÉ et sa légende, jamais
+             sur un conteneur : l'infobulle de DSFR Chart et la fenêtre du
+             cadre officiel sont en position fixe, et un filtre sur un ancêtre
+             les enfermerait dans sa boîte. */
+          .dsfr-data-chart--stale canvas,
+          .dsfr-data-chart--stale svg,
+          .dsfr-data-chart--stale .chart_legend,
+          .dsfr-data-chart--stale .tooltip,
+          .dsfr-data-chart--stale .dsfr-data-chart__targets-legend {
+            filter: grayscale(1);
+          }
+        </style>
+      `;
+    }
+
     if (this._sourceLoading) {
       return html`
         ${renderSourceLoading('dsfr-data-chart', 'Chargement du graphique...')}

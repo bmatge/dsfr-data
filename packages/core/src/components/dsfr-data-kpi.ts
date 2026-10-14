@@ -26,10 +26,20 @@ import {
   renderSourceErrorDetailItems,
   renderSourcePageLink,
   resolveSourceError,
+  resolveStaleNotice,
+  renderReadingTime,
+  renderStaleDetailItems,
+  renderStaleRetryButton,
   IDLE_MESSAGE_DEFAULT,
   RETRY_BUTTON_STYLE,
   RETRY_LABEL,
+  type StaleNoticeView,
 } from '../utils/status-templates.js';
+import {
+  formatReadingMomentShort,
+  readingKpiAccessible,
+  type StaleReading,
+} from '../utils/stale-reading.js';
 import { requestSourceRetry } from '../utils/data-bridge.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { parseKpiLines, resolveKpiLines, type ResolvedKpiLine } from '../utils/kpi-lines.js';
@@ -822,6 +832,17 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
       const phrase = this._unavailablePhrase();
       return nom ? `${nom}: ${phrase}` : phrase;
     }
+    // Dernier relevé (#1288) : la date est lue AVEC le chiffre — sans elle, le
+    // lecteur d'écran entendrait un chiffre d'il y a une heure comme courant.
+    // Ni état de seuil ni lignes complémentaires : la tuile ne les montre pas.
+    const stale = this._staleNotice();
+    if (stale) {
+      const dated = readingKpiAccessible(stale.reading.loadedAt, stale.now);
+      if (this.description) return `${this.description}, ${dated}`;
+      const shown = this._formatDisplay(this._computeValue());
+      const nom = this.heading ? `${this.heading} — ${this.label}` : this.label;
+      return `${nom}: ${shown}, ${dated}`;
+    }
     if (this.description) return this.description;
     // Chargement (#1272) : la tuile ne montre aucun chiffre, la figure ne doit
     // pas en nommer un — le dernier reçu serait lu au lecteur d'écran comme la
@@ -1018,7 +1039,60 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
 
   /** La source est en panne, et aucune erreur de configuration ne prime (#1222). */
   private _isUnavailable(): boolean {
-    return !this._blockingConfigError && !this._sourceLoading && Boolean(this._sourceError);
+    return (
+      !this._blockingConfigError &&
+      !this._sourceStale &&
+      !this._sourceLoading &&
+      Boolean(this._sourceError)
+    );
+  }
+
+  /**
+   * Bloc monté pendant la panne (#1288) : il n'a jamais reçu de lignes, il
+   * les prend du relevé. Sinon `_sourceData` porte déjà ces mêmes lignes — le
+   * mixin ne le vide pas à l'erreur, et rien ne le lit hors relevé.
+   */
+  onSourceStale(reading: StaleReading | null): void {
+    if (reading) this._sourceData = reading.data;
+  }
+
+  /** Ce que la tuile dit du relevé qu'elle montre (#1288), ou `null`. */
+  private _staleNotice(): StaleNoticeView | null {
+    if (this._blockingConfigError || !this._sourceStale) return null;
+    return resolveStaleNotice(
+      this._sourceStale,
+      this._sourceError,
+      this.source,
+      this._sourceLoading
+    );
+  }
+
+  /**
+   * Ligne du relevé (#1288), sous le libellé : « Relevé à 14 h 32 · non
+   * actualisé ». Même place et même corps que la phrase de panne de la forme
+   * compacte : la tuile garde ses 140 px. Sans bandeau, « Détails » replié.
+   */
+  private _renderStaleLine(notice: StaleNoticeView): TemplateResult {
+    const { reading, now, covered, extra } = notice;
+    return html`
+      <div class="dsfr-data-kpi__cause dsfr-data-kpi__stale-line">
+        <span class="dsfr-data-status__title"
+          >Relevé
+          ${renderReadingTime(reading.loadedAt, formatReadingMomentShort(reading.loadedAt, now))} ·
+          non actualisé${extra ? html`. ${extra}` : nothing}</span
+        >
+        ${
+          covered
+            ? nothing
+            : html`<details class="dsfr-data-status__details">
+                <summary>Détails</summary>
+                <ul class="dsfr-data-status__details-list">
+                  ${renderStaleDetailItems(notice)}
+                </ul>
+              </details>`
+        }
+      </div>
+    `;
   }
 
   /** Phrase courte de la panne : celle de l'intégrateur, sinon celle du barème. */
@@ -1106,8 +1180,15 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     const tendance = this._getTendanceInfo();
     const resolvedLines = this._resolveLines();
 
+    // Dernier relevé (#1288) : la tuile garde son chiffre, daté — nouvel essai
+    // compris, elle ne repasse pas par le sablier.
+    const stale = this._staleNotice();
     const dataState =
-      !this._blockingConfigError && !this._sourceLoading && !this._sourceError && !this._sourceIdle;
+      Boolean(stale) ||
+      (!this._blockingConfigError &&
+        !this._sourceLoading &&
+        !this._sourceError &&
+        !this._sourceIdle);
 
     // --- habillage --------------------------------------------------------
     const pictoName = this._pictoName();
@@ -1126,6 +1207,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     const tintShade = this._tintShade();
 
     const cardClasses = ['dsfr-data-kpi', colorClass];
+    if (stale) cardClasses.push('dsfr-data-kpi--stale');
     if (borderMode !== 'left') cardClasses.push(`dsfr-data-kpi--border-${borderMode}`);
     if (vertical) cardClasses.push('dsfr-data-kpi--vertical');
     if (vertical && (hasMedia || imageUrl)) cardClasses.push('dsfr-data-kpi--centered');
@@ -1138,7 +1220,10 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
     }
 
     const cardStyle: string[] = [];
-    if (illustrative) cardStyle.push(`--dsfr-data-kpi-accent: var(--border-plain-${color})`);
+    // Relevé : ni couleur de seuil ni couleur illustrative sur le filet
+    if (illustrative && !stale) {
+      cardStyle.push(`--dsfr-data-kpi-accent: var(--border-plain-${color})`);
+    }
     if (tintShade) cardStyle.push(`--dsfr-data-kpi-tint: ${this._tintVar(color, tintShade)}`);
 
     const media = pictoName
@@ -1173,17 +1258,19 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
         ${
           this._blockingConfigError
             ? renderConfigError('dsfr-data-kpi', this._blockingConfigError)
-            : this._sourceLoading
+            : !stale && this._sourceLoading
               ? renderSourceLoading('dsfr-data-kpi')
-              : this._sourceError
+              : !stale && this._sourceError
                 ? this._renderUnavailable()
-                : this._sourceIdle
+                : !stale && this._sourceIdle
                   ? renderSourceIdle('dsfr-data-kpi', this.idleMessage)
                   : html`
                       <div
                         class="dsfr-data-kpi__content${
                           iconPosition === 'right' ? ' dsfr-data-kpi__content--icon-right' : ''
-                        }"
+                        }${stale ? ' dsfr-data-kpi__stale dsfr-data-status--stale' : ''}"
+                        role=${stale && !stale.covered ? 'status' : nothing}
+                        data-cause=${stale ? stale.reading.cause : nothing}
                       >
                         ${iconPosition === 'top' ? media : ''}
                         ${
@@ -1192,10 +1279,24 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
                             : ''
                         }
                         ${iconPosition === 'label' ? media : ''}
-                        <div class="dsfr-data-kpi__value-wrapper">
-                          <span class="dsfr-data-kpi__value">${formattedValue}</span>
+                        <div
+                          class="dsfr-data-kpi__value-wrapper${
+                            stale ? ' dsfr-data-kpi__unavailable-row' : ''
+                          }"
+                        >
+                          <span
+                            class="dsfr-data-kpi__value${
+                              stale ? ' dsfr-data-kpi__value--stale' : ''
+                            }"
+                            >${formattedValue}</span
+                          >
                           ${
-                            tendance
+                            stale?.showRetry
+                              ? renderStaleRetryButton(stale, 'tertiary', 'dsfr-data-kpi__retry')
+                              : nothing
+                          }
+                          ${
+                            tendance && !stale
                               ? html`
                                   <span
                                     class="dsfr-data-kpi__tendance dsfr-data-kpi__tendance--${tendance.direction}"
@@ -1221,7 +1322,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
                               : ''
                           }
                         </div>
-                        ${resolvedLines.map(
+                        ${(stale ? [] : resolvedLines).map(
                           (line) => html`
                             <span
                               class="dsfr-data-kpi__line"
@@ -1231,6 +1332,7 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
                           `
                         )}
                         <span class="dsfr-data-kpi__label">${this.label}</span>
+                        ${stale ? this._renderStaleLine(stale) : nothing}
                         ${iconPosition === 'right' ? media : ''}
                       </div>
                     `
@@ -1578,6 +1680,33 @@ export class DsfrDataKpi extends SourceSubscriberMixin(LitElement) {
         .dsfr-data-kpi--tint .dsfr-data-kpi__value--unavailable,
         .dsfr-data-kpi--tint .dsfr-data-kpi__cause {
           color: var(--text-default-grey);
+        }
+
+        /* ------------------------------------------------------------------
+           Dernier relevé (issue 1288, stale-if-error) : la tuile garde son
+           chiffre, en gris de TEXTE (pas le gris de mention : 4,5:1 au moins),
+           et un filet pointillé gris. Ni couleur de seuil ni tendance. La
+           ligne datée tient la place de la phrase de panne : 140 px.
+           ------------------------------------------------------------------ */
+        .dsfr-data-kpi.dsfr-data-kpi--stale {
+          border-left-style: dashed;
+          border-left-color: var(--text-mention-grey);
+          --dsfr-data-kpi-accent: var(--text-mention-grey);
+        }
+        /* Le pointillé suit le liseré choisi. Jamais border-style tout court :
+           les côtés sans liseré ont une largeur (medium) que seul leur style
+           none retient — la tuile prendrait 6 px. */
+        .dsfr-data-kpi--stale.dsfr-data-kpi--border-top {
+          border-top-style: dashed;
+        }
+        .dsfr-data-kpi--stale.dsfr-data-kpi--border-outline {
+          border-style: dashed;
+        }
+        .dsfr-data-kpi__value--stale {
+          color: var(--text-default-grey);
+        }
+        .dsfr-data-kpi__stale-line time {
+          color: var(--text-default-grey) !important;
         }
       </style>
     `;

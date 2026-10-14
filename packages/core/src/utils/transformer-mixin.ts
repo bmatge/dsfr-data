@@ -41,6 +41,7 @@ import {
   getDataMeta,
   getLastKnownData,
   isDataStale,
+  markStaleSuperseded,
   setDataMeta,
   dispatchDataLoaded,
   dispatchDataError,
@@ -78,7 +79,7 @@ export interface TransformerInterface {
   _transformerIdle: boolean;
   reinitTransformer(): void;
   emitTransformedData(data: unknown): void;
-  emitTransformerError(error: Error, relayedFrom?: string): void;
+  emitTransformerError(error: Error, relayedFrom?: string, superseded?: boolean): void;
   emitTransformerLoading(): void;
   emitTransformerIdle(): void;
   /** L'élément amont s'il est dans le DOM, null sinon (délégation #274) */
@@ -348,14 +349,46 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
      * l'ancien chiffre. L'étape reste (ou repasse) en erreur, origine relayée.
      */
     private _refuseStaleEmission(inputId: string): void {
+      // Dernier relevé (#1288) : ce que l'étape garde est la réponse à la
+      // demande d'AVANT. Un calcul refusé hors de l'arrivée d'une entrée — un
+      // attribut, une commande, un filtre a changé — veut dire qu'on lui
+      // demande autre chose : son ancien résultat ne s'affiche plus comme
+      // « relevé ». Le rechargement d'une autre entrée (jointure) ne change
+      // pas la question : il ne marque rien.
+      const supersede = !this._deliveringInput;
       const failed = getDataErrorState(inputId);
+      // `newly` : l'aval a pu afficher le relevé — il doit être prévenu.
+      const newly = supersede && this.id ? markStaleSuperseded(this.id) : false;
+      if (!failed && newly) this.emitTransformerLoading();
       // Nouvel essai en cours sur l'entrée : rien à dire, son issue arrive.
       if (!failed) return;
       this._transformerError = failed.error;
-      if (this.id && !getDataErrorState(this.id)) {
-        this.emitTransformerError(failed.error, inputId);
+      if (this.id && (newly || !getDataErrorState(this.id))) {
+        // La marque part AVEC l'erreur : l'aval lit le registre dans
+        // l'événement, il ne doit pas y trouver un relevé à afficher.
+        this.emitTransformerError(failed.error, inputId, supersede);
       }
     }
+
+    /**
+     * La demande faite à cette étape vient de changer pendant la panne de son
+     * amont (#1288) : l'aval, qui affichait peut-être son dernier résultat
+     * comme « relevé », est prévenu — par l'erreur relayée, ou par un
+     * chargement si un nouvel essai est en vol.
+     */
+    private _notifySuperseded(): void {
+      const inputId = this._unusableInput();
+      if (inputId === undefined) return;
+      const failed = getDataErrorState(inputId);
+      if (failed) this.emitTransformerError(failed.error, inputId, true);
+      else this.emitTransformerLoading();
+    }
+
+    /**
+     * Une entrée est en train d'être livrée à l'hôte (#1288) : l'émission
+     * qu'il tente alors répond à la même demande, sur des lignes neuves.
+     */
+    private _deliveringInput = false;
 
     /**
      * Note l'état d'une entrée et en dérive celui du nœud (#897).
@@ -442,7 +475,12 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
           const cached = getDataCache(sourceId);
           if (cached !== undefined) {
             this._noteInputState(index, 'loaded');
-            this.onTransformerData(cached, sourceId, index);
+            this._deliveringInput = true;
+            try {
+              this.onTransformerData(cached, sourceId, index);
+            } finally {
+              this._deliveringInput = false;
+            }
           }
         }
 
@@ -455,7 +493,12 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
               // le faisait jamais (#280)
               this._transformerError = null;
               this._transformerIdle = false;
-              this.onTransformerData(data, sourceId, index);
+              this._deliveringInput = true;
+              try {
+                this.onTransformerData(data, sourceId, index);
+              } finally {
+                this._deliveringInput = false;
+              }
               // Une entrée chargée qui ne suffit pas à produire le résultat
               // (jointure à deux entrées dont l'autre attend ou charge) ne doit
               // pas laisser l'aval sur un chargement qui ne finira pas (#897).
@@ -543,12 +586,15 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
      * `relayedFrom` (#1203) : id de l'étape amont quand l'erreur n'est que
      * relayée. Absent, l'erreur est celle de CE transformateur.
      */
-    public emitTransformerError(error: Error, relayedFrom?: string): void {
+    public emitTransformerError(error: Error, relayedFrom?: string, superseded?: boolean): void {
       this._transformerError = error;
       this._transformerLoading = false;
       this._transformerIdle = false;
       if (this.id) {
-        dispatchDataError(this.id, error, undefined, relayedFrom ? { relayedFrom } : {});
+        dispatchDataError(this.id, error, undefined, {
+          ...(relayedFrom ? { relayedFrom } : {}),
+          ...(superseded ? { superseded: true } : {}),
+        });
       }
       this.requestUpdate();
     }
@@ -603,14 +649,19 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
         return;
       }
 
-      if (this.transformerReinitProps().some((p) => changedProperties.has(p))) {
-        this.reinitTransformer();
-        return;
-      }
+      const reinit = this.transformerReinitProps().some((p) => changedProperties.has(p));
+      const reprocess = this.transformerReprocessProps().some((p) => changedProperties.has(p));
+      // Un attribut qui change la demande PENDANT la panne de l'amont (#1288) :
+      // ce que l'étape garde en mémoire répond à l'ancienne — son dernier
+      // résultat ne s'affichera plus comme « relevé ». Sans effet hors panne.
+      const superseded = (reinit || reprocess) && Boolean(this.id) && markStaleSuperseded(this.id);
 
-      if (this.transformerReprocessProps().some((p) => changedProperties.has(p))) {
+      if (reinit) {
+        this.reinitTransformer();
+      } else if (reprocess) {
         this.onTransformerReprocess();
       }
+      if (superseded) this._notifySuperseded();
     }
 
     /**

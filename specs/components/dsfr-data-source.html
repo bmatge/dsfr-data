@@ -1003,6 +1003,7 @@
               <tr><td><code>dsfr-data-list</code>, <code>dsfr-data-display</code> en pagination serveur</td><td>Un <strong>changement de page refusé</strong> garde la page précédente et le dit ; la pagination et l'adresse (<code>url-sync</code>) reviennent sur la page affichée, et redemander la page refusée relance la source. Tout autre échec (rafraîchissement, tri, filtre) rend le message de panne, sans aucune ligne.</td><td>La page 4 n'a pas pu être chargée. Vous consultez toujours la page 3.</td></tr>
               <tr><td><code>dsfr-data-facets</code>, <code>dsfr-data-search</code></td><td>Les filtres sont désactivés (<code>aria-disabled</code>, toujours atteignables au clavier) ; leurs compteurs et le compte de résultats ne sont plus affichés. La sélection et le terme déjà posés sont gardés et s'appliquent de nouveau au retour des données. « Réinitialiser les filtres » et la touche Échap restent actifs.</td><td>Filtres momentanément indisponibles.</td></tr>
               <tr><td>Export de <code>dsfr-data-list</code> (<code>export</code>)</td><td>Aucun fichier tant que la liste est en panne.</td><td>—</td></tr>
+              <tr><td><code>dsfr-data-repeat</code></td><td>Les lignes estampées depuis le dernier chargement sont retirées — texte du gabarit et blocs qu'il contient —, avec les sources scopées (<code>scopes</code>) qu'elles servaient. Elles sont recréées au chargement réussi.</td><td>Données momentanément indisponibles (message à la place des lignes)</td></tr>
             </tbody>
           </table>
         </div>
@@ -1029,6 +1030,83 @@
           chargement ; le tableau équivalent, la carte et les filtres gardent leur rendu de panne, phrase
           comprise, jusqu'au résultat — rien ne clignote. Au chargement réussi, tout revient sans
           rechargement de la page.
+        </p>
+
+        <h3 id="dernier-releve" class="fr-mt-3w">Le dernier relevé, sur demande : <code>stale-if-error</code></h3>
+        <p>
+          Par défaut, une source en panne ne laisse aucun de ses anciens chiffres à l'écran. Pour un jeu
+          qui change peu — un recensement, un budget voté, un référentiel —, un trou fait croire la
+          page cassée alors que le chiffre d'il y a dix minutes est encore le chiffre du jour. Posez
+          <code>stale-if-error</code> sur la source, avec une durée en secondes : pendant une panne
+          passagère, les blocs branchés dessus <strong>gardent leurs derniers chiffres</strong>,
+          atténués, sous l'étiquette « Non actualisé » et l'heure de leur relevé.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Attribut</th><th>Type</th><th>Défaut</th><th>Description</th></tr></thead>
+            <tbody>
+              <!-- ATTRS:dsfr-data-source fields="stale-if-error" -->
+                <tr><td><code>stale-if-error</code></td><td>Number</td><td><code>0</code></td><td>Garder à l'écran le DERNIER RELEVÉ pendant une panne passagère (#1288) : durée, en secondes, pendant laquelle les derniers chiffres reçus restent affichables. Absent ou <code>0</code> (défaut) : une source en panne ne laisse aucun ancien chiffre à l'écran, chaque bloc dit la panne. <code>stale-if-error="3600"</code> : si la source échoue après avoir livré, les blocs branchés dessus (KPI, graphique, liste, fiches, podium, carte, tableau équivalent) gardent leurs chiffres, atténués, sous l'étiquette « Non actualisé » et la phrase « Chiffres relevés aujourd’hui à 14 h 32. » — l'heure est celle où la page a reçu ces chiffres. L'export CSV reste possible, daté dans son libellé et dans le nom du fichier. Passé la durée (comptée depuis le relevé), les blocs reviennent d'eux-mêmes au message de panne. C'est à l'intégrateur de le décider, jeu par jeu : un chiffre d'il y a une heure a un sens pour un recensement, pas pour un stock ou des places libres. La valeur EST la borne : il n'existe pas de relevé sans durée. Le relevé n'est jamais affiché, quelle que soit la valeur, quand : la cause n'est pas passagère (données introuvables 404 / 410, accès restreint 401 / 403, page mal réglée) ; l'appel en échec n'est pas celui qui a produit les chiffres (filtre, page, tri ou emprise changés) ; rien n'a encore été reçu. Les filtres (<code>dsfr-data-facets</code>, <code>dsfr-data-search</code>) restent désactivés pendant la panne. Mémoire : celle de la page. Une page OUVERTE pendant la panne n'a rien à montrer. <code>getData()</code> et <code>getDataCache</code> rendent toujours vide pendant la panne : seuls les afficheurs de la bibliothèque lisent le relevé, par <code>getLastKnownData()</code>.</td></tr>
+              <!-- /ATTRS -->
+            </tbody>
+          </table>
+        </div>
+        <div class="code-block">
+          <pre>&lt;!-- Pendant une panne passagère, les derniers chiffres restent une heure, datés --&gt;
+&lt;dsfr-data-source id="aides" api-type="opendatasoft"
+  base-url="https://data.economie.gouv.fr" dataset-id="aides-industrie"
+  stale-if-error="3600"&gt;
+&lt;/dsfr-data-source&gt;
+
+&lt;dsfr-data-kpi source="aides" value="beneficiaires:sum" label="Bénéficiaires"&gt;&lt;/dsfr-data-kpi&gt;
+&lt;dsfr-data-chart source="aides" type="bar" label-field="region" value-field="beneficiaires"&gt;&lt;/dsfr-data-chart&gt;</pre>
+        </div>
+        <p>
+          C'est à vous de le décider, jeu par jeu : la bibliothèque ne sait pas si un chiffre est un
+          recensement ou un nombre de places libres. Ne le posez pas sur une donnée que l'usager
+          utilise pour agir tout de suite (prix, stock, file d'attente, alerte) : un tiret y est moins
+          dangereux qu'une valeur d'il y a une heure. La valeur <strong>est</strong> la borne — il
+          n'existe pas de relevé sans durée —, comptée depuis le relevé et non depuis la panne.
+        </p>
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Bloc</th><th>Pendant la panne, avec <code>stale-if-error</code></th><th>Texte</th></tr></thead>
+            <tbody>
+              <tr><td><code>dsfr-data-kpi</code></td><td>Le chiffre reste, en gris de texte ; le filet devient pointillé ; ni couleur de seuil, ni tendance, ni lignes complémentaires. La tuile garde sa hauteur. Son nom accessible porte la date avec le chiffre.</td><td>Relevé à 14 h 32 · non actualisé</td></tr>
+              <tr><td><code>dsfr-data-chart</code> (cadre officiel compris)</td><td>Le tracé reste, désaturé, sous une mention. Le nom accessible du graphique porte la date. <code>databox-date</code> n'est pas touché : c'est la date de la donnée, pas celle du relevé.</td><td>« Non actualisé » — Chiffres relevés aujourd'hui à 14 h 32.</td></tr>
+              <tr><td><code>dsfr-data-list</code>, <code>dsfr-data-display</code>, <code>dsfr-data-podium</code>, <code>dsfr-data-repeat</code></td><td>Les lignes restent, sous la même mention. Recherche, filtres de colonne, tri et pagination <strong>locaux</strong> répondent. En pagination ou en tri <strong>serveur</strong>, la page affichée reste et les autres sont neutralisées (<code>aria-disabled</code>) : une autre page serait une autre requête.</td><td>Chiffres relevés aujourd'hui à 14 h 32. Les autres pages reviendront avec les données.</td></tr>
+              <tr><td><code>dsfr-data-a11y</code></td><td>Le tableau reste ; sa légende devient visible et porte l'étiquette et la date. Le téléchargement reste <strong>possible</strong> : le libellé du bouton et le <strong>nom du fichier</strong> portent la date du relevé, le contenu reste brut.</td><td>Données du graphique — « Non actualisé » chiffres relevés aujourd'hui à 14 h 32<br>Télécharger en CSV (chiffres relevés à 14 h 32)<br><code>données_relevé-2026-10-13-14h32.csv</code></td></tr>
+              <tr><td>Export de <code>dsfr-data-list</code></td><td>Permis lui aussi, daté de la même façon.</td><td>Exporter CSV (chiffres relevés à 14 h 32)<br><code>export_relevé-2026-10-13-14h32.csv</code></td></tr>
+              <tr><td><code>dsfr-data-map</code>, <code>dsfr-data-map-layer</code></td><td>Les formes restent tracées. <strong>Toute la carte</strong> est atténuée dès qu'une couche est périmée — formes grises, contours en pointillé, légende comprise — et une ligne en bas de carte la date ; avec plusieurs couches, elle nomme celle qui n'est pas à jour. Une bulle ouverte sur un point porte la même note.</td><td>Points relevés aujourd'hui à 14 h 32.<br>Couche « Bornes de recharge » : points relevés aujourd'hui à 14 h 32.</td></tr>
+              <tr><td><code>dsfr-data-facets</code>, <code>dsfr-data-search</code></td><td>Inchangé : désactivés pendant la panne, comme sans l'attribut.</td><td>Filtres momentanément indisponibles.</td></tr>
+              <tr><td><code>dsfr-data-source-status</code></td><td>Le bandeau ne promet plus que les blocs « s'afficheront » : il dit qu'ils n'ont pas été actualisés. Il ne dit pas l'heure — chaque bloc dit la sienne, deux sources pouvant ne pas dater du même instant.</td><td>Une partie des chiffres de cette page n'a pas pu être actualisée</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Un autre jour que celui du relevé, la date est écrite en entier — « Chiffres relevés le
+          12 octobre à 18 h 05. » —, jamais « hier » ni « il y a 3 min ». Hors connexion, la mention
+          ajoute « Vous semblez hors connexion. » ; <code>error-message</code> s'y ajoute aussi.
+        </p>
+        <p><strong>Le relevé n'est jamais affiché</strong>, quelle que soit la durée, et le bloc rend le message de panne décrit plus haut, quand :</p>
+        <ul>
+          <li>la source ne porte pas <code>stale-if-error</code>, ou sa valeur n'est pas une durée strictement positive (elle est alors ignorée, avec un avertissement en console) ;</li>
+          <li>la cause n'est pas passagère : données introuvables (HTTP 404, 410), accès restreint (401, 403), page mal réglée — le producteur a retiré ou fermé ces données, les remontrer serait les republier ;</li>
+          <li>l'appel en échec n'est pas celui qui a produit les chiffres : un filtre, une page, un tri ou l'emprise d'une carte en <code>bbox</code> a changé — les lignes gardées répondent à une autre question. Il en va de même quand un attribut d'une requête branchée sur la source change pendant la panne ;</li>
+          <li>le relevé est plus vieux que la durée donnée : le bloc bascule de lui-même, sans geste de l'usager ;</li>
+          <li>rien n'a encore été reçu — une page ouverte <strong>pendant</strong> la panne n'a rien à montrer, la mémoire est celle de la page.</li>
+        </ul>
+        <p>
+          <strong>Pendant un nouvel essai</strong>, les chiffres relevés restent en place — pas de retour à
+          l'indicateur de chargement, une source en <code>refresh</code> ne fait pas clignoter la page — et
+          le bouton dit « Nouvel essai en cours… ». Au chargement réussi, l'étiquette disparaît et les
+          nouveaux chiffres s'affichent. Sans bandeau, chaque mention porte « Réessayer » et
+          « Détails techniques » ; avec un bandeau, il les porte seul.
+        </p>
+        <p>
+          Pour un script de la page, rien ne change : <code>getData()</code> et
+          <code>getDataCache(id)</code> rendent toujours vide pendant la panne. Le relevé n'est lu que par
+          les composants d'affichage.
         </p>
 
         <h3 id="source-status" class="fr-mt-3w">dsfr-data-source-status : le bandeau qui dit la panne une fois</h3>
@@ -1072,7 +1150,9 @@
         <p>
           Une source qui échoue <strong>après avoir déjà livré</strong> ne jette pas ses lignes, mais
           elles ne passent plus pour à jour. Les composants n'en affichent aucune : ils gardent le
-          message de panne décrit plus haut — tableau équivalent, carte et export compris. Pour un script de la page, la règle est la même :
+          message de panne décrit plus haut — tableau équivalent, carte et export compris —, sauf quand
+          la source le demande par <a href="#dernier-releve"><code>stale-if-error</code></a>, et alors
+          datées. Pour un script de la page, la règle est la même, avec ou sans cet attribut :
         </p>
         <div class="fr-table">
           <table class="attr-table">
@@ -1081,7 +1161,7 @@
               <tr><td><code>element.getData()</code></td><td>les lignes</td><td><code>null</code> (<code>[]</code> sur une requête, une jointure, un empilement, un pivot)</td></tr>
               <tr><td><code>DsfrData.getDataCache(id)</code></td><td>les lignes</td><td><code>undefined</code></td></tr>
               <tr><td><code>element.isStale()</code></td><td><code>false</code></td><td><code>true</code>, jusqu'au prochain chargement réussi — nouvel essai en cours compris</td></tr>
-              <tr><td><code>element.getLastKnownData()</code><br><code>DsfrData.getLastKnownData(id)</code></td><td><code>{ data, loadedAt }</code></td><td><code>{ data, loadedAt, stale: { since, cause, originId } }</code></td></tr>
+              <tr><td><code>element.getLastKnownData()</code><br><code>DsfrData.getLastKnownData(id)</code></td><td><code>{ data, loadedAt }</code></td><td><code>{ data, loadedAt, stale: { since, cause, originId, staleIfError?, sameRequest? } }</code></td></tr>
             </tbody>
           </table>
         </div>
@@ -1091,6 +1171,9 @@
           (<code>service-indisponible</code>, <code>hors-connexion</code>, <code>service-sollicite</code>,
           <code>donnees-introuvables</code>, <code>acces-restreint</code>, <code>page-mal-reglee</code>,
           <code>reponse-bloquee</code>) et <code>originId</code> la source qui a réellement échoué.
+          Quand la source porte <code>stale-if-error</code>, <code>staleIfError</code> en rend la durée
+          (en secondes) et <code>sameRequest</code> dit si l'appel en échec est celui qui avait produit
+          ces lignes.
           Les lignes et leur date sont rendues ensemble : on ne peut pas obtenir les unes sans l'autre.
           Le marquage se lève au premier chargement réussi ; une source remise en attente d'un filtre
           (<code>require-where</code>) ou retirée de la page n'en garde aucune.

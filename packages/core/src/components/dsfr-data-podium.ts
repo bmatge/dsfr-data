@@ -13,9 +13,13 @@ import {
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
 import { sanitizeTemplateUrl } from '../utils/template-expression.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
+import { readingAccessibleSuffix, type StaleReading } from '../utils/stale-reading.js';
 import {
   renderSourceLoading,
   renderSourceError,
+  renderStaleNotice,
+  resolveStaleNotice,
+  type StaleNoticeView,
   renderSourceIdle,
   IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
@@ -456,6 +460,26 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
     this._data = Array.isArray(data) ? data : [];
   }
 
+  /**
+   * Dernier relevé (#1288). Le podium garde `_data` à l'erreur — c'est
+   * `render()` qui refuse de le montrer — : seul un bloc monté pendant la
+   * panne a quelque chose à reprendre du relevé.
+   */
+  onSourceStale(reading: StaleReading | null): void {
+    if (reading && this._data.length === 0) this.onSourceData(reading.data);
+  }
+
+  /** Ce que le podium dit du relevé qu'il montre (#1288), ou `null`. */
+  private _staleNotice(): StaleNoticeView | null {
+    if (!this._sourceStale) return null;
+    return resolveStaleNotice(
+      this._sourceStale,
+      this._sourceError,
+      this.source,
+      this._sourceLoading
+    );
+  }
+
   /** `true` des qu'une vignette (image, picto ou icone) est configuree. */
   private get _hasMedia(): boolean {
     return Boolean(this.imageField || this.iconField || this.icon || this.picto || this.pictoField);
@@ -640,10 +664,39 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
   private _getAriaLabel(): string {
     const items = this._processItems();
     if (!items.length) return 'Classement vide';
-    return `Classement : ${items.map((i) => `${i.rank}. ${i.label}, ${this._formatValue(i.value)}`).join(' ; ')}`;
+    const label = `Classement : ${items.map((i) => `${i.rank}. ${i.label}, ${this._formatValue(i.value)}`).join(' ; ')}`;
+    // Dernier relevé (#1288) : la date est lue avec les chiffres
+    const stale = this._staleNotice();
+    return stale
+      ? `${label}. ${readingAccessibleSuffix(stale.reading.loadedAt, stale.now)}`
+      : label;
   }
 
   render() {
+    // Dernier relevé (#1288, `stale-if-error`) : le classement reste, sous la
+    // mention qui le date — nouvel essai compris. Avant tout autre état.
+    const stale = this._staleNotice();
+    const staleItems = stale ? this._processItems() : [];
+    if (stale && staleItems.length > 0) {
+      return html`
+        ${renderStaleNotice('dsfr-data-podium', stale)}
+        <ol
+          class="${this._listClasses()} dsfr-data-podium--stale"
+          role="list"
+          aria-label="${this._getAriaLabel()}"
+        >
+          ${staleItems.map((item) => this._renderItem(item))}
+        </ol>
+        ${this._renderStyles()}
+        <style>
+          /* Désaturé, pas pâli : les barres gardent leur contraste (3:1). */
+          .dsfr-data-podium--stale {
+            filter: grayscale(1);
+          }
+        </style>
+      `;
+    }
+
     if (this._sourceLoading) {
       return html`
         <div class="dsfr-data-podium">${renderSourceLoading('dsfr-data-podium')}</div>

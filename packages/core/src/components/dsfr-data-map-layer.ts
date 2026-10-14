@@ -23,6 +23,15 @@ import { SourceSubscriberMixin } from '../utils/source-subscriber.js';
 import { SelectionFilterMixin } from '../utils/selection-filter.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
+import {
+  READING_POINTS,
+  READING_ZONES,
+  STALE_LABEL,
+  formatReadingMoment,
+  readingPopupNoteHtml,
+  type ReadingSubject,
+  type StaleReading,
+} from '../utils/stale-reading.js';
 import { getByPath } from '../utils/json-path.js';
 import { parseGeoValue } from '../utils/geo-value.js';
 import { parseColorMap } from '../utils/color-map.js';
@@ -801,6 +810,16 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
    * La carte hôte est prévenue par `updated()`, qui suit ce hook.
    */
   onSourceError(_error: Error): void {
+    // Dernier relevé demandé (#1288, `stale-if-error`) : les formes tracées
+    // SONT celles du relevé — elles restent, la carte les atténue et les date.
+    // Le mixin a déjà jugé le relevé (`_sourceStale`) ; un échec qui le refuse
+    // (emprise déplacée en `bbox`, cause durable) retombe sur la suite.
+    if (this._sourceStale) return;
+    this._dropRows();
+  }
+
+  /** Lâche les lignes et ce qu'elles avaient tracé (panne sans relevé, relevé échu). */
+  private _dropRows(): void {
     this._data = [];
     if (this._timeSteps.length > 0) {
       this._currentFrameIndex = -1;
@@ -810,21 +829,77 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
   }
 
   /**
+   * Dernier relevé (#1288). Une couche montée pendant la panne (ou vidée par
+   * un échec précédent, sans relevé) reprend les lignes du relevé ; à
+   * l'échéance, elle les lâche comme pour toute panne. La carte hôte est
+   * prévenue par `updated()`, qui suit ce hook.
+   */
+  onSourceStale(reading: StaleReading | null): void {
+    if (!reading) {
+      this._dropRows();
+      return;
+    }
+    if (this._data.length === 0) this.onSourceData(reading.data);
+  }
+
+  /**
    * Panne de la source de cette couche (#1288), ou `null` : vrai de l'échec au
    * prochain chargement réussi, nouvel essai compris. Lu par la carte hôte,
-   * qui pose le message.
+   * qui pose le message. `null` aussi quand la couche montre son dernier
+   * relevé : elle trace, et se dit par `getSourceStale`.
    */
   getSourceFailure(): { error: Error; sourceId: string } | null {
+    if (this._sourceStale) return null;
     return this._sourceError ? { error: this._sourceError, sourceId: this.source } : null;
   }
 
-  /** Dernière panne signalée à la carte : elle n'est prévenue que d'un changement. */
-  private _errorNotified: Error | null = null;
+  /**
+   * Le relevé que cette couche trace (#1288), ou `null`. Lu par la carte
+   * hôte, qui atténue ses formes et pose la ligne d'état datée.
+   */
+  getSourceStale(): {
+    reading: StaleReading;
+    error: Error | null;
+    sourceId: string;
+    loading: boolean;
+    subject: ReadingSubject;
+  } | null {
+    if (!this._sourceStale) return null;
+    return {
+      reading: this._sourceStale,
+      error: this._sourceError,
+      sourceId: this.source,
+      loading: this._sourceLoading,
+      subject: this.type === 'geoshape' ? READING_ZONES : READING_POINTS,
+    };
+  }
 
-  /** Signale à la carte hôte que la panne de cette couche a changé (#1288). */
+  /** Dernier état signalé à la carte : elle n'est prévenue que d'un changement. */
+  private _errorNotified: Error | null = null;
+  private _staleNotified: StaleReading | null = null;
+  private _staleLoadingNotified = false;
+
+  /**
+   * Signale à la carte hôte que la panne de cette couche a changé (#1288) :
+   * erreur, relevé affiché ou échu, nouvel essai en vol sur un relevé.
+   */
   private _syncErrorWithMap(): void {
-    if (this._sourceError === this._errorNotified) return;
+    const staleLoading = this._sourceStale !== null && this._sourceLoading;
+    if (
+      this._sourceError === this._errorNotified &&
+      this._sourceStale === this._staleNotified &&
+      staleLoading === this._staleLoadingNotified
+    ) {
+      return;
+    }
+    // Une bulle ouverte AVANT la panne ne portait pas la note : elle la
+    // prend ici, comme elle la perd au retour.
+    if (this._openPopup && this._sourceStale !== this._staleNotified) {
+      this._markPopupStale(this._openPopup);
+    }
     this._errorNotified = this._sourceError;
+    this._staleNotified = this._sourceStale;
+    this._staleLoadingNotified = staleLoading;
     const map = this.closest('dsfr-data-map') as DsfrDataMap | null;
     map?._onLayerErrorChange?.();
   }
@@ -1212,8 +1287,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     // Une couche retirée n'est plus en panne pour la carte (#1288). Le mixin
     // garde `_sourceError` : `getSourceFailure` ne doit plus compter, et la
     // carte relit ses couches — celle-ci n'y est plus.
-    if (this._errorNotified) {
+    if (this._errorNotified || this._staleNotified) {
       this._errorNotified = null;
+      this._staleNotified = null;
+      this._staleLoadingNotified = false;
       (
         this._mapParent ?? (this.closest('dsfr-data-map') as DsfrDataMap | null)
       )?._onLayerErrorChange?.();
@@ -2248,7 +2325,7 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       } else {
         // Panel/modal: open on click, no Leaflet popup
         layer.on('click', () => {
-          companion.showForRecord(record);
+          companion.showForRecord(record, this._sourceStale?.loadedAt);
         });
       }
       return;
@@ -2283,7 +2360,9 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
         layer.bindPopup(companion.getGroupPopupHtml(group, columns));
         this._bindPopupA11y(layer, group.records[0] ?? {});
       } else {
-        layer.on('click', () => companion.showForGroup(group, columns));
+        layer.on('click', () =>
+          companion.showForGroup(group, columns, this._sourceStale?.loadedAt)
+        );
       }
       return;
     }
@@ -2310,7 +2389,9 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
     // A11y: on popup open, announce to screen reader + focus close button
     layer.on('popupopen', (e: LeafletPopupEvent) => {
       const popup = e.popup;
-      const plainText = this._getPopupPlainText(record);
+      this._openPopup = popup;
+      const staleNote = this._markPopupStale(popup);
+      const plainText = staleNote + this._getPopupPlainText(record);
       this._mapParent?.announceToScreenReader(plainText);
       const closeBtn = popup
         .getElement()
@@ -2323,11 +2404,37 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
     // A11y: on popup close, return focus to the marker/layer
     layer.on('popupclose', () => {
+      this._openPopup = null;
       const el = (layer as LeafletLayer & { getElement?: () => HTMLElement | null }).getElement?.();
       if (el) {
         setTimeout(() => el.focus(), 50);
       }
     });
+  }
+
+  /**
+   * Une bulle s'ouvre sur un point RELEVÉ (#1288) : elle porte la même
+   * mention que la carte, en tête. Le contenu d'une bulle est lié au tracé —
+   * avant la panne — : la note se pose (ou se retire) à CHAQUE ouverture,
+   * selon l'état de la couche à cet instant. Rend le texte à annoncer.
+   */
+  /** Bulle de cette couche actuellement ouverte : sa note suit l'état du relevé. */
+  private _openPopup: LeafletPopupEvent['popup'] | null = null;
+
+  private _markPopupStale(popup: LeafletPopupEvent['popup']): string {
+    const content = popup.getElement()?.querySelector('.leaflet-popup-content');
+    content?.querySelector('.dsfr-data-map__popup-stale')?.remove();
+    const reading = this._sourceStale;
+    if (!reading) return '';
+    const now = Date.now();
+    if (content) {
+      const holder = document.createElement('div');
+      // Étiquette constante et date formatée par la bibliothèque : aucune donnée
+      holder.innerHTML = readingPopupNoteHtml(reading.loadedAt, now);
+      const note = holder.firstElementChild;
+      if (note) content.prepend(note);
+    }
+    return `${STALE_LABEL}, relevé ${formatReadingMoment(reading.loadedAt, now)}. `;
   }
 
   private _interpolateTemplate(template: string, record: Record<string, unknown>): string {

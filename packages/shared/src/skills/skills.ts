@@ -98,7 +98,8 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 - \`getData()\` : retourne les données ACTUELLES (tableau d'objets). \`null\` avant le premier
   chargement et PENDANT UNE PANNE : les lignes d'avant la panne ne sont jamais rendues comme à jour.
 - \`getLastKnownData()\` : \`{ data, loadedAt, stale? }\` — les lignes du dernier chargement réussi et
-  leur date. Pendant une panne, \`stale\` vaut \`{ since, cause, originId }\` ; absent sinon.
+  leur date. Pendant une panne, \`stale\` vaut \`{ since, cause, originId }\` (plus \`staleIfError\` et
+  \`sameRequest\` quand la source porte \`stale-if-error\`) ; absent sinon.
 - \`isStale()\` : \`true\` de la panne jusqu'au prochain chargement réussi (nouvel essai compris).
 
 ### Exemples
@@ -275,8 +276,8 @@ La phrase dépend de la cause :
 - Sans bandeau, chaque bloc en erreur porte son propre « Réessayer » (dans une tuile de KPI : un
   bouton compact, et « Détails » replié à la suite de la phrase). Avec le bandeau, la tuile de KPI
   n'a ni bouton, ni lien, ni détail.
-- AUCUN bloc ne garde à l'écran une ligne du dernier chargement (#1288) — sans date, elle serait
-  prise pour le chiffre du jour :
+- PAR DÉFAUT, aucun bloc ne garde à l'écran une ligne du dernier chargement (#1288) — sans date,
+  elle serait prise pour le chiffre du jour :
   - \`dsfr-data-a11y\` retire son tableau et désactive « Télécharger en CSV » (aucun fichier ne
     sort) : « Données momentanément indisponibles. Le tableau et le téléchargement reviendront avec
     les données. » ;
@@ -291,9 +292,34 @@ La phrase dépend de la cause :
   - \`dsfr-data-facets\` et \`dsfr-data-search\` sont désactivés (« Filtres momentanément
     indisponibles. »), compteurs et compte de résultats masqués ; la sélection et le terme posés
     sont gardés et s'appliquent de nouveau au retour des données. Ils restent actifs sur un HTTP 400
-    (le filtre posé peut être la cause du refus).
+    (le filtre posé peut être la cause du refus) ;
+  - \`dsfr-data-repeat\` retire ses lignes (et les sources scopées de \`scopes\`) et rend le
+    message de panne à leur place ; elles sont recréées au chargement réussi.
   Ces phrases suivent la cause du tableau ci-dessus et \`error-message\`. Pendant un nouvel essai,
   tableau équivalent, carte et filtres gardent leur rendu de panne jusqu'au résultat.
+- LE DERNIER RELEVÉ, SUR DEMANDE (#1288) : \`stale-if-error="<secondes>"\` sur la source. Pendant
+  une panne PASSAGÈRE (service indisponible, hors connexion, service très sollicité, réponse
+  bloquée), les blocs gardent leurs derniers chiffres, atténués, sous l'étiquette « Non actualisé »
+  et l'heure de leur relevé — celle où la page les a reçus :
+  - KPI : le chiffre reste, « Relevé à 14 h 32 · non actualisé » sous le libellé, filet pointillé,
+    ni couleur de seuil ni tendance ; graphique (cadre officiel compris), liste, fiches, podium :
+    mention « Chiffres relevés aujourd'hui à 14 h 32. » au-dessus ; carte : formes grises à contour
+    pointillé sur TOUTE la carte, ligne « Points relevés aujourd'hui à 14 h 32. » (avec plusieurs
+    couches : « Couche « Bornes de recharge » : points relevés… » — poser \`label\` sur chaque
+    couche) ; tableau équivalent : légende visible et datée, export CSV PERMIS avec un bouton et un
+    nom de fichier datés (\`données_relevé-2026-10-13-14h32.csv\`), contenu brut inchangé ;
+  - un autre jour que celui du relevé : « le 12 octobre à 18 h 05 », jamais « hier » ;
+  - la valeur EST la durée maximale, comptée depuis le relevé : passé ce délai, le bloc revient de
+    lui-même au message de panne. Pas de valeur par défaut, pas de relevé sans durée ;
+  - JAMAIS de relevé quand : l'attribut est absent ; les données sont introuvables (404, 410),
+    l'accès restreint (401, 403) ou la page mal réglée ; l'appel en échec n'est pas celui qui a
+    produit les chiffres (filtre, page, tri ou emprise \`bbox\` changés) ; rien n'a encore été reçu
+    (page ouverte pendant la panne). Les filtres restent désactivés pendant la panne ;
+  - en pagination ou tri SERVEUR, la page affichée reste et les autres sont neutralisées ;
+  - le bandeau dit alors « Une partie des chiffres de cette page n'a pas pu être actualisée » ;
+  - À POSER sur un jeu qui change peu (recensement, budget voté, référentiel). À NE PAS POSER sur
+    une donnée qui sert à agir tout de suite (prix, stock, places libres, alerte) : un tiret y
+    trompe moins qu'une valeur d'il y a une heure.
 - L'événement \`dsfr-data-error\` et la trace console ne changent pas : le code HTTP reste dans
   \`error.message\`.
 - PENDANT la panne, les lignes du dernier chargement réussi ne sont pas jetées, mais elles ne
@@ -305,7 +331,9 @@ La phrase dépend de la cause :
   \`{ data, loadedAt, stale: { since, cause, originId } }\`. \`cause\` est celle du tableau ci-dessus
   (\`service-indisponible\`, \`hors-connexion\`, \`service-sollicite\`, \`donnees-introuvables\`,
   \`acces-restreint\`, \`page-mal-reglee\`, \`reponse-bloquee\`). Le marquage se lève au premier
-  chargement réussi. Aucun composant n'affiche ces lignes périmées : rien ne change à l'écran.
+  chargement réussi. Sans \`stale-if-error\`, aucun composant n'affiche ces lignes périmées ; avec,
+  seuls les composants d'affichage les lisent — \`getData()\` et \`getDataCache\` rendent toujours
+  vide pendant la panne.
 
 \`\`\`html
 <dsfr-data-source-status source="prix"></dsfr-data-source-status>
@@ -314,6 +342,12 @@ La phrase dépend de la cause :
   source-page="https://data.economie.gouv.fr/explore/dataset/prix-carburants/">
 </dsfr-data-source>
 <dsfr-data-kpi source="prix" valeur="avg:prix" label="Prix moyen"></dsfr-data-kpi>
+
+<!-- Un jeu qui change peu : ses derniers chiffres restent une heure, datés, pendant une panne -->
+<dsfr-data-source id="recensement" api-type="opendatasoft" base-url="https://data.economie.gouv.fr"
+  dataset-id="populations-legales" stale-if-error="3600">
+</dsfr-data-source>
+<dsfr-data-kpi source="recensement" value="population:sum" label="Population"></dsfr-data-kpi>
 \`\`\`` +
       reference('dsfr-data-source') +
       reference('dsfr-data-source-status'),

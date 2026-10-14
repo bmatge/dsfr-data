@@ -95,6 +95,13 @@
             leurs attributs sont mis à jour en place ; les clés disparues sont retirées, les nouvelles insérées à leur
             rang, l'ordre du DOM suit les données. Mesuré : 119 graphiques ré-émis en ~110 ms sans un canvas détruit
             (contre ~4,7 s de recréation totale avec <code>display</code>).</li>
+          <li><strong>La source en panne.</strong> Quand la source du répéteur échoue, ses lignes sont
+            <strong>retirées</strong> et le message de panne les remplace : estampées depuis le dernier chargement,
+            elles montreraient des chiffres sans date. Elles sont recréées au chargement réussi. Si la source porte
+            <code>stale-if-error</code>, elles restent pendant une panne passagère, sous l'étiquette « Non
+            actualisé » et l'heure de leur relevé, puis sont retirées passé la durée. Un bloc du gabarit branché sur
+            une source scopée (<code>scopes</code>) suit la panne de CETTE source, pas celle du répéteur. Voir
+            <a href="dsfr-data-source.html#dernier-releve">Le dernier relevé, sur demande</a>.</li>
           <li><strong>L'imbrication.</strong> Un <code>&lt;template&gt;</code> intérieur n'est pas parcouru : un
             <code>dsfr-data-display</code> ou un second <code>dsfr-data-repeat</code> dans le gabarit rend ses propres
             placeholders.</li>
