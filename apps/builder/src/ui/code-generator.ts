@@ -20,8 +20,7 @@ import {
   CDN_URLS,
   DSFR_TAG_MAP,
   filterToOdsql,
-  splitFilterForOdsql,
-  tabularCanExpress,
+  splitFilterForServer,
   applyLocalFilter,
   detectProvider,
   extractResourceIds,
@@ -501,6 +500,9 @@ function dsfrDeferredScript(tagName: string): string {
 
 // filterToOdsql and applyLocalFilter imported from @dsfr-data/shared
 
+/** Fournisseurs dont le code généré partage lui-même le filtre (voir {@link filterSplit}). */
+const EXPORT_FILTER_SPLIT_PROVIDERS: ReadonlySet<string> = new Set(['opendatasoft', 'tabular']);
+
 /**
  * Le filtre avancé, partagé entre ce qui est confié à l'API du fournisseur
  * (`server`) et ce qui est calculé dans le navigateur (`client`) — #1285,
@@ -515,25 +517,17 @@ function dsfrDeferredScript(tagName: string): string {
  *
  * Tabular (lot 2) : « ne contient pas » écarterait côté API les lignes dont la
  * valeur est absente, et un `*` dans « contient » y serait un joker — ces
- * clauses sont `client` aussi (`tabularCanExpress`). Les autres fournisseurs
- * ne sont pas concernés ici : tout leur filtre reste `server`, et la
- * bibliothèque partage elle-même ce qu'elle reçoit.
+ * clauses sont `client` aussi. La règle est celle des adaptateurs
+ * (`splitFilterForServer`, `shared/query/server-clause.ts`). Les autres
+ * fournisseurs ne sont pas concernés ici : tout leur filtre reste `server`, et
+ * la bibliothèque partage elle-même ce qu'elle reçoit.
  */
 function filterSplit(providerId: string): { server: string; client: string } {
   if (!state.advancedMode || !state.queryFilter) return { server: '', client: '' };
-  if (providerId === 'tabular') {
-    const clauses = state.queryFilter
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean);
-    return {
-      server: clauses.filter((c) => tabularCanExpress(c)).join(', '),
-      client: clauses.filter((c) => !tabularCanExpress(c)).join(', '),
-    };
+  if (!EXPORT_FILTER_SPLIT_PROVIDERS.has(providerId)) {
+    return { server: state.queryFilter, client: '' };
   }
-  if (providerId !== 'opendatasoft') return { server: state.queryFilter, client: '' };
-  const { server, client } = splitFilterForOdsql(state.queryFilter);
-  return { server, client };
+  return splitFilterForServer(providerId, state.queryFilter);
 }
 
 /** Commentaire du code généré quand un filtre Tabular est calculé dans le navigateur (#1285). */

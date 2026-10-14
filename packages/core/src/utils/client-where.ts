@@ -20,7 +20,7 @@
  * Même chemin pour une RECHERCHE que la source calcule elle-même (ADR-159,
  * lot 3) : le terme qu'un visiteur a saisi dans une `dsfr-data-search` en mode
  * `context`, quand l'API de la source n'a aucun moteur de recherche. La
- * comparaison est alors celle, tolérante, de `utils/search-match.ts`.
+ * comparaison est alors celle, tolérante, de `shared/query/text-match.ts`.
  *
  * Coût : le jeu que laisse passer le reste du filtre, au lieu des seules
  * lignes gardées, dans la limite de `max-records` — aucun autre plafond. Si
@@ -28,9 +28,13 @@
  * `truncated`, et c'est dit.
  */
 
-import { applyLocalFilter, splitColonFields } from '@dsfr-data/shared/lib';
+import {
+  applyLocalFilter,
+  applySearches,
+  describeSearch,
+  splitColonFields,
+} from '@dsfr-data/shared/lib';
 import type { ContextSearch } from '@dsfr-data/shared/lib';
-import { applySearches, describeSearch } from './search-match.js';
 import type { AdapterParams, ApiAdapter, FetchResult } from '../adapters/api-adapter.js';
 import { parseOrderBy } from './where.js';
 import { sortRows } from './sort.js';

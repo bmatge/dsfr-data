@@ -48,7 +48,7 @@ import type { ProviderConfig } from '@dsfr-data/shared/lib';
 import {
   GRIST_CONFIG,
   escapeLikePattern,
-  gristCanExpress,
+  canServerExpress,
   resolveTransportUrl,
   transportFetch,
 } from '@dsfr-data/shared/lib';
@@ -377,7 +377,7 @@ export class GristAdapter implements ApiAdapter {
    * (`needsClientProcessing`).
    */
   supportsServerClause(clause: string): boolean {
-    return gristCanExpress(clause);
+    return canServerExpress(GRIST_CONFIG.id, clause);
   }
 
   buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {

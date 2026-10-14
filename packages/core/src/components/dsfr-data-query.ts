@@ -1,7 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { getByPath, setByPath } from '../utils/json-path.js';
-import { isUnsafeKey, toNumber, looseEquals, looseNotEquals } from '@dsfr-data/shared/lib';
+import {
+  isUnsafeKey,
+  toNumber,
+  looseEquals,
+  looseNotEquals,
+  filterTextContains,
+} from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { dispatchSourceCommand, getDataCache, getDataMeta } from '../utils/data-bridge.js';
 import type { PaginationMeta } from '../utils/data-bridge.js';
@@ -2035,17 +2041,14 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
         return cmp !== null && cmp <= 0;
       }
       case 'contains':
-        // null ne contient rien (String(undefined)="undefined" matchait, #278)
+        // null ne contient rien (String(undefined)="undefined" matchait, #278).
+        // La comparaison est celle de `shared/query/text-match.ts` (ADR-159).
         return (
-          value !== null &&
-          value !== undefined &&
-          String(value).toLowerCase().includes(String(filter.value).toLowerCase())
+          value !== null && value !== undefined && filterTextContains(value, String(filter.value))
         );
       case 'notcontains':
         return (
-          value === null ||
-          value === undefined ||
-          !String(value).toLowerCase().includes(String(filter.value).toLowerCase())
+          value === null || value === undefined || !filterTextContains(value, String(filter.value))
         );
       case 'in':
         // Meme semantique lache que eq sur chaque valeur (#278) —

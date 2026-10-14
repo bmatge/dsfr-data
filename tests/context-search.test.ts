@@ -34,7 +34,7 @@ import {
   subscribeToSourceCommands,
 } from '@/utils/data-bridge.js';
 import { buildSearchClause, contextSearchTemplateOf } from '@/utils/search-clause.js';
-import { applySearches, matchesSearch, normalizeSearchText } from '@/utils/search-match.js';
+import { applySearches, matchesSearch, normalizeSearchText } from '@dsfr-data/shared/lib';
 import { describeClientFilter, fetchAllWithClientWhere } from '@/utils/client-where.js';
 import type { ContextSearch } from '@dsfr-data/shared';
 

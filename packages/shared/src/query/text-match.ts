@@ -1,19 +1,47 @@
 /**
- * La comparaison TOLÉRANTE d'une recherche, dans le navigateur (ADR-159).
+ * Ce que « ce texte correspond » veut dire dans le navigateur (ADR-159, lot 4,
+ * #1285). Deux contrats, une seule écriture chacun :
  *
- * Une seule écriture pour les deux endroits où une recherche est calculée
- * hors d'un serveur : `dsfr-data-search` sur les lignes qu'elle reçoit, et
- * `dsfr-data-source` quand la recherche lui arrive par le contexte et que son
- * API n'a rien pour chercher (lot 3, #1285). Casse et accents sont ignorés —
- * c'est ce qui distingue la recherche du filtre `contains`, qui respecte les
- * accents.
+ *   - le FILTRE (`contains` / `notcontains` d'un `where` ou d'un `filter`, et
+ *     `contains()` de `compute`) : SOUS-CHAÎNE, casse ignorée, accents
+ *     respectés — {@link filterTextContains}. C'est la bibliothèque qui dit ce
+ *     qu'il retient ; un serveur ne le calcule que si la structure de sa
+ *     comparaison est la même (`server-clause.ts`).
+ *   - la RECHERCHE (ce qu'un visiteur tape dans `dsfr-data-search`) :
+ *     tolérante, casse ET accents ignorés, opérateur `contains`, `starts` ou
+ *     `words` — {@link matchesSearch}. Calculée ici quand la source n'a pas de
+ *     moteur, ou quand `dsfr-data-search` filtre les lignes qu'elle reçoit.
  *
- * Le module partagé de comparaison de texte (filtre ET recherche) est le
- * lot 4 de l'ADR-159 : il reprendra ces trois règles telles quelles.
+ * Les lecteurs : `applyLocalFilter` (KPI, source, Builder, compute en `when`),
+ * `_matchesField` de `dsfr-data-query`, `contains()` de `compute`,
+ * `applyWhereFilter` des outils du Studio, `dsfr-data-search` et la source
+ * (recherche du contexte). Le test-garde `tests/text-match-guard.test.ts`
+ * refuse une nouvelle écriture de la sous-chaîne hors de ce module.
+ *
+ * Ce module ne décide pas du sort d'une valeur ABSENTE : chaque lecteur garde
+ * le sien, écrit chez lui (voir l'écart du Studio dans `ia/data-tools.ts`).
+ * Il est pur, sans DOM ni réseau : lib-safe, exporté par les DEUX barrels.
  */
 
-import { stripAccents } from '@dsfr-data/shared/lib';
-import type { ContextSearch } from '@dsfr-data/shared/lib';
+import { stripAccents } from '../utils/strip-accents.js';
+import type { ContextSearch } from './context-filter.js';
+
+// ---------------------------------------------------------------------------
+// Le filtre : exact
+// ---------------------------------------------------------------------------
+
+/**
+ * Le texte `value` porte-t-il `needle` n'importe où, casse ignorée, accents
+ * respectés ? La comparaison du filtre `contains`, et rien d'autre : une
+ * valeur absente est l'affaire de l'appelant (`null` devient ici « null »).
+ */
+export function filterTextContains(value: unknown, needle: string): boolean {
+  return String(value).toLowerCase().includes(needle.toLowerCase());
+}
+
+// ---------------------------------------------------------------------------
+// La recherche : tolérante
+// ---------------------------------------------------------------------------
 
 /** `contains` sous-chaîne · `starts` début d'un mot · `words` tous les mots du terme. */
 export type SearchOperator = ContextSearch['operator'];

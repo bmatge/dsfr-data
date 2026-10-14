@@ -175,7 +175,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
   portail Opendatasoft compare des MOTS (`like "%aliment%"` : 0 ligne pour 14 366 « alimentation »,
   mesuré le 2026-10-12 ; mot entier, ou début de mot avec `like "alim*"`, jamais de milieu de mot).
   Ces deux opérateurs n'ont donc **aucune traduction ODSQL** : `filterToOdsql` les écarte avec un
-  avertissement, `odsqlCanExpress` / `splitFilterForOdsql` (lib-safe, `filter-translator.ts`) disent
+  avertissement, `odsqlCanExpress` (`server-clause.ts`) / `splitFilterForOdsql` (`filter-translator.ts`), lib-safe, disent
   ce qui part et ce qui reste, et les exports des applications passent par eux. Côté composants,
   l'adaptateur le dit par la méthode optionnelle `supportsServerClause(clause)`
   (`OpenDataSoftAdapter`, et depuis le lot 2 `TabularAdapter` et `GristAdapter` ; le dialecte
@@ -204,14 +204,27 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
   `escapeLikePattern` (`shared/query/sql-like.ts`, lib-safe : `\` puis `%` et `_`, précédés de
   `\`). PostgREST prend `\` comme échappement par défaut ; SQLite seulement avec `ESCAPE '\'`,
   que `_sqlClause` de Grist écrit (sans elle, `\%` n'échappe rien — mesuré). Une valeur à `*`
-  reste au navigateur sur Tabular (`tabularCanExpress`) : PostgREST lit tout `*` du motif comme
+  reste au navigateur sur Tabular (`tabularCanExpress`, `server-clause.ts`) : PostgREST lit tout `*` du motif comme
   `%`, et `\*` comme un « % » littéral. `notcontains` reste au navigateur sur les deux
   (`NOT LIKE` écarte les valeurs absentes : 498 élus sur 34 826 par l'API, tous par le navigateur).
   La recherche (`server-search`, recherche du contexte) partage la clause `champ:contains:q` :
   l'échappement la corrige aussi, et `supportsServerWhere` de Tabular refuse une clause que
   `supportsServerClause` refuse — un terme à `*` est cherché dans le navigateur. Les mesures sont
   en tête de `sql-like.ts` ; les faux portails les lisent (`tests/builder-e2e/sql-like.ts`).
-  **Reste** : la comparaison de texte du FILTRE est écrite à plusieurs endroits (lot 4).
+  **Lot 4 : une règle, une comparaison.** Ce que chaque serveur calcule comme le navigateur est
+  écrit une fois, `shared/query/server-clause.ts` (lib-safe, deux barrels) : `canServerExpress(fournisseur,
+  clause)` et `splitFilterForServer`, sur les règles `odsqlCanExpress`, `tabularCanExpress`,
+  `gristCanExpress` (`SERVER_CLAUSE_RULES`). Lecteurs : `supportsServerClause` des trois adaptateurs, le
+  dialecte ODSQL par défaut (`where-dialect.ts`), `splitFilterForOdsql`, `filterSplit` du Builder,
+  `computedInBrowser` du tableau de bord. La comparaison elle-même est écrite une fois,
+  `shared/query/text-match.ts` : `filterTextContains` pour le filtre (lu par `applyLocalFilter`,
+  `_matchesField` de `dsfr-data-query`, `contains()` de `compute`, `applyWhereFilter` du Studio) et
+  `matchesSearch` / `normalizeSearchText` / `applySearches` pour la recherche (ex-`core/utils/search-match.ts`,
+  lue par `dsfr-data-search` et la source). Le sort d'une valeur absente reste écrit chez chaque lecteur :
+  le Studio compare `String(null)` (« null ») là où les deux autres disent « ne contient rien » — écart
+  gardé, commenté dans `ia/data-tools.ts`. `tests/text-match-guard.test.ts` refuse toute nouvelle
+  écriture de `….toLowerCase().includes(` hors du module (exceptions déclarées : interfaces d'apps,
+  valeurs d'une facette, recherche intégrée de `dsfr-data-list`).
 - **Une recherche n'est pas un filtre : le contexte la porte, chaque source la traduit (#1285,
   ADR-159, lot 3)**. `dsfr-data-search context="id"` n'émet plus de `champ:contains:terme`. Son
   filtre (`SearchContextFilter`) rend une clause colon VIDE et une recherche par la méthode
@@ -237,7 +250,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
     (champ de `dsfr-data-source-command`, à côté de `clientWhere`) ; la source la garde dans
     `_clientSearchOverlays`, la rend par `getClientSearches()` et la calcule dans
     `fetchAllWithClientWhere`, après la clause colon, avec la comparaison tolérante de
-    `utils/search-match.ts` — la MÊME que `dsfr-data-search` applique à ses lignes (`contains`,
+    `shared/query/text-match.ts` — la MÊME que `dsfr-data-search` applique à ses lignes (`contains`,
     `starts`, `words` ; casse et accents ignorés). Mêmes erreurs de configuration que pour une
     clause cliente : `server-side`, agrégat posé sur la source, `server-facets`.
   - `ignored` — source sans adaptateur : elle refuse la commande et le dit (#288), comme avant.
@@ -253,6 +266,35 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
   chaîne). Il laisse passer lignes et meta, comme en `server-search`, n'émet rien entre la frappe
   et la réponse de la source, et son compteur lit `meta.total`.
 
+#### Comparaison de texte par fournisseur (ADR-159)
+
+Tableau de référence, source unique : le guide (`packages/shared/src/skills/skills.ts`, section
+`dsfrDataQuery`) et la spec `specs/components/dsfr-data-query.html` (`#capacites-texte`) le reprennent à
+l'identique, et `tests/server-clause-capacites.test.ts` le compare à la règle du code
+(`canServerExpress`, `ProviderConfig.query.contextSearchTemplate`) et à ses deux copies. Changer une
+règle sans le tableau, ou le tableau sans la règle, fait échouer le test.
+
+<!-- CAPACITES-TEXTE:debut -->
+| Clause ou usage | Opendatasoft | Tabular | Grist |
+|---|---|---|---|
+| `contains` (`champ:contains:aliment`) | navigateur : le `like` du portail compare des mots | serveur : `ilike`, `\` `%` `_` échappés | serveur : `LIKE ? ESCAPE '\'`, `\` `%` `_` échappés |
+| `contains`, valeur à étoile (`champ:contains:a*b`) | navigateur | navigateur : l'API lit `*` comme un joker | serveur |
+| `notcontains` (`champ:notcontains:aliment`) | navigateur | navigateur : `NOT ILIKE` écarte les valeurs absentes | navigateur : `NOT LIKE` écarte les valeurs absentes |
+| `eq` `neq` `gt` `gte` `lt` `lte` `in` `notin` `isnull` `isnotnull` | serveur | serveur | serveur |
+| casse, clause confiée | sans objet | ignorée | ignorée pour les lettres ASCII seulement (`É` n'est pas `é`) |
+| accents, clause confiée | sans objet | respectés | respectés |
+| recherche de `dsfr-data-search` en mode `context` | serveur : `search(champ, "q")`, début de mot, casse et accents ignorés | serveur : `champ:contains:q`, sous-chaîne, accents respectés ; terme à étoile : navigateur | serveur : `champ:contains:q`, sous-chaîne, casse ASCII ignorée, accents respectés |
+<!-- CAPACITES-TEXTE:fin -->
+
+**serveur** : la clause part à l'API, et c'est sa comparaison qui s'applique (lignes casse et accents).
+**navigateur** : la source la calcule sur les lignes que le reste du filtre laisse passer, sous
+`max-records` — sous-chaîne, casse ignorée pour toutes les lettres, accents respectés
+(`filterTextContains`) ; une source en `server-side`, un `group-by` / `aggregate` / `select` calculé posé
+sur la source ou des `dsfr-data-facets server-facets` voisines passent alors en **erreur de
+configuration**. INSEE Melodi ne filtre qu'en égalité de dimension (`_applyDimensionFilters`) : les
+autres clauses sont calculées par la `dsfr-data-query` en aval, et la recherche du contexte par la
+source. Un adaptateur tiers sans `supportsServerClause` confie toute clause à son API.
+
 #### Capacités des adapters
 
 | Capacite | OpenDataSoft | Tabular | Grist | INSEE (Melodi) | Generic |
@@ -260,7 +302,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | serverFetch | oui | oui | oui | oui | non |
 | serverFacets | oui | non | oui | non | non |
 | serverSearch | oui | oui, multi-colonnes `or=(…)` (#1026) | non | non | non |
-| recherche du contexte (`query.contextSearchTemplate`, ADR-159 lot 3) | `search(champ, "q")` : moteur du portail, début de mot, casse et accents ignorés, champs texte | `champ:contains:q` : sous-chaîne, casse ignorée, accents respectés, jokers échappés ; terme à `*` : navigateur | `champ:contains:q` (SQL `LIKE … ESCAPE`) : sous-chaîne, casse ignorée pour l'ASCII, accents respectés, jokers échappés | — : calculée par la source, dans le navigateur | — (pas de fetch) |
+| recherche du contexte (`query.contextSearchTemplate`, ADR-159 lot 3) | voir « Comparaison de texte par fournisseur » | idem | idem | — : calculée par la source, dans le navigateur | — (pas de fetch) |
 | serverGroupBy | oui | oui | oui | non | non |
 | serverOrderBy | oui | oui | oui | non | non |
 | serverGeo | oui | non | non | non | non |
@@ -277,8 +319,7 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
 | cles reservees de `params` (#1137) | `select where group_by order_by limit offset facet` | `page page_size columns or` + suffixes `champ__sort`, `champ__exact`… | — | — | — |
 | en-tete de cle reecrit (#655) | `apikey` → `Authorization: Apikey K` | non | non | non | non |
 | decouverte des facettes (#680) | metadonnees du jeu | — | colonnes Choice/ChoiceList | — | — |
-| `contains` confie au serveur (#1285, ADR-159) | **non** — `like` compare des mots : calcule par la source, dans le navigateur ; `server-side` / `server-facets` → erreur de configuration | oui (`__contains`, `ilike`), `\` `%` `_` echappes (lot 2) ; valeur a `*` : navigateur | oui (SQL `LIKE ? ESCAPE '\'`), `\` `%` `_` echappes (lot 2) | non (egalite seule) | n/a |
-| `notcontains` confie au serveur (#1285, ADR-159) | **non** (lot 1) | **non** (lot 2) — `not.ilike` ecarte les valeurs absentes : navigateur ; `server-side` → erreur de configuration | **non** (lot 2) — `NOT LIKE` ecarte les valeurs absentes : navigateur ; `server-side` / `server-facets` → erreur de configuration | non | n/a |
+| `contains` / `notcontains` confies au serveur (#1285, ADR-159) | voir « Comparaison de texte par fournisseur » | idem | idem | non (egalite seule) | n/a |
 | gabarit de recherche par defaut | `search("{q}")` | `{fields}:contains:{q}` → `or=(…)`, sensible aux accents | — | — | — |
 | types declares (`describeFieldTypes`, #1138) | `int`/`double`/`decimal` → `number`… | — | — | — | — |
 | export (`fetch-mode="export"`) | `/exports/json`, memes clauses | Parquet data.gouv (#1055), lignes brutes seulement | — | — | — |

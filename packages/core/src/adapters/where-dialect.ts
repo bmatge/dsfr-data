@@ -15,7 +15,7 @@
  * `tests/lib-provider-neutrality.test.ts`).
  */
 
-import { escapeColonValue, filterToOdsql, odsqlCanExpress } from '@dsfr-data/shared/lib';
+import { canServerExpress, escapeColonValue, filterToOdsql } from '@dsfr-data/shared/lib';
 import type { AdapterCapabilities, ApiAdapter } from './api-adapter.js';
 
 /**
@@ -99,9 +99,10 @@ export function whereDialectOf(adapter: WhereDialectCarrier | null | undefined):
  * ADR-159) ? Un filtre n'est confié au serveur que si la STRUCTURE de la
  * comparaison y est la même que dans le navigateur — c'est
  * `supportsServerClause` de l'adaptateur qui le dit. Sans cette méthode, tout
- * opérateur part, sauf dans le dialecte ODSQL par défaut, qui suit
- * `odsqlCanExpress` : `contains` / `notcontains` y sont refusés (une
- * sous-chaîne n'a pas d'équivalent sur un portail qui compare des mots).
+ * opérateur part, sauf dans le dialecte ODSQL par défaut, qui suit la règle
+ * d'Opendatasoft (`canServerExpress`, `shared/query/server-clause.ts`) :
+ * `contains` / `notcontains` y sont refusés (une sous-chaîne n'a pas
+ * d'équivalent sur un portail qui compare des mots).
  *
  * Ne juge PAS le transport (`supportsServerWhere`, #1026 : valeur que l'API
  * ne sait pas porter, OU entre champs qu'elle ne sait pas dire) : ce refus-là
@@ -116,7 +117,10 @@ export function canDelegateClause(
 ): boolean {
   if (!adapter) return true;
   const defaultOdsql = adapter.capabilities?.whereFormat === 'odsql' && !adapter.translateWhere;
-  return adapter.supportsServerClause?.(clause) ?? (defaultOdsql ? odsqlCanExpress(clause) : true);
+  return (
+    adapter.supportsServerClause?.(clause) ??
+    (defaultOdsql ? canServerExpress('opendatasoft', clause) : true)
+  );
 }
 
 /** Un filtre colon partagé entre l'API et le navigateur (voir {@link splitWhereFor}). */

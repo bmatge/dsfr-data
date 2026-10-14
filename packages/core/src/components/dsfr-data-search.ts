@@ -1,10 +1,14 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { escapeHtml, formatNumber } from '@dsfr-data/shared/lib';
-import type { ContextFilterLike, ContextSearch } from '@dsfr-data/shared/lib';
+import {
+  escapeHtml,
+  formatNumber,
+  matchesSearch,
+  normalizeSearchText,
+} from '@dsfr-data/shared/lib';
+import type { ContextFilterLike, ContextSearch, SearchOperator } from '@dsfr-data/shared/lib';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import { buildSearchClause } from '../utils/search-clause.js';
-import { matchesSearch, normalizeSearchText, type SearchOperator } from '../utils/search-match.js';
 import { dispatchSourceCommand, getDataMeta } from '../utils/data-bridge.js';
 import { TransformerMixin } from '../utils/transformer-mixin.js';
 import {
@@ -743,7 +747,7 @@ export class DsfrDataSearch extends ContextBindingMixin(TransformerMixin(LitElem
     );
   }
 
-  /** Comparaison tolerante, partagee avec la source (`utils/search-match.ts`). */
+  /** Comparaison tolerante, partagee avec la source (`shared/query/text-match.ts`). */
   _matchRecord(
     record: Record<string, unknown>,
     normTerm: string,

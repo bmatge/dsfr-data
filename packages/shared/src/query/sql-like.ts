@@ -28,7 +28,8 @@
  *
  * D'où : `\`, `%` et `_` sont échappés par `\` ({@link escapeLikePattern}) ;
  * PostgreSQL prend `\` comme caractère d'échappement par défaut, SQLite
- * seulement avec `ESCAPE '\'`. Une valeur qui porte `*` ne part pas à Tabular.
+ * seulement avec `ESCAPE '\'`. Une valeur qui porte `*` ne part pas à Tabular
+ * (la règle de chaque serveur : `server-clause.ts`).
  *
  * `notcontains` ne part à aucun des deux : `NOT ILIKE` / `NOT LIKE` écartent
  * les valeurs absentes (logique SQL à trois valeurs), que le navigateur garde.
@@ -42,8 +43,6 @@
  * seules lettres ASCII ; tous deux respectent les accents.
  */
 
-import { unescapeColonValue } from '../utils/colon-escape.js';
-
 /**
  * La valeur d'un `contains`, échappée pour un motif `LIKE` dont le caractère
  * d'échappement est `\` : `\` d'abord (sinon les `\` ajoutés seraient
@@ -51,32 +50,4 @@ import { unescapeColonValue } from '../utils/colon-escape.js';
  */
 export function escapeLikePattern(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-}
-
-/** Opérateur et valeur (décodée) d'une clause colon `champ:op:valeur`. */
-function opAndValue(clause: string): { op: string; value: string } {
-  const parts = clause.trim().split(':');
-  return { op: parts[1] ?? '', value: unescapeColonValue(parts.slice(2).join(':')) };
-}
-
-/**
- * Une clause colon peut-elle être confiée à l'API Tabular avec la même
- * structure que dans le navigateur (ADR-159) ? Non pour `notcontains` (les
- * valeurs absentes) ni pour un `contains` dont la valeur porte `*`, que
- * PostgREST lit comme un joker sans échappement possible. Tout le reste part.
- */
-export function tabularCanExpress(clause: string): boolean {
-  const { op, value } = opAndValue(clause);
-  if (op === 'notcontains') return false;
-  if (op === 'contains') return !value.includes('*');
-  return true;
-}
-
-/**
- * Une clause colon peut-elle être confiée au SQL de Grist avec la même
- * structure que dans le navigateur (ADR-159) ? Non pour `notcontains` (les
- * valeurs absentes) ; `contains` part, jokers échappés par `ESCAPE '\'`.
- */
-export function gristCanExpress(clause: string): boolean {
-  return opAndValue(clause).op !== 'notcontains';
 }

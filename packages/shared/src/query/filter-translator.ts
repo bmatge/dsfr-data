@@ -14,13 +14,15 @@
  * 14 366 valent « alimentation » (mesuré le 2026-10-12, data.economie.gouv.fr ;
  * le `%` n'est pas un joker, « aliment » n'est pas un mot entier). Une
  * sous-chaîne quelconque n'a aucun équivalent en ODSQL : ces deux opérateurs
- * sont calculés côté client, sur les lignes chargées — {@link odsqlCanExpress}
- * et {@link splitFilterForOdsql} disent ce qui part et ce qui reste (ADR-159 :
- * un filtre n'est confié au serveur que si la STRUCTURE de la comparaison y
- * est la même).
+ * sont calculés côté client, sur les lignes chargées — `odsqlCanExpress`
+ * (`server-clause.ts`, la règle de chaque serveur) et {@link splitFilterForOdsql}
+ * disent ce qui part et ce qui reste (ADR-159 : un filtre n'est confié au
+ * serveur que si la STRUCTURE de la comparaison y est la même).
  */
 
 import { splitColonFields, unescapeColonValue } from '../utils/colon-escape.js';
+import { filterTextContains } from './text-match.js';
+import { odsqlCanExpress, splitFilterForServer } from './server-clause.js';
 
 /**
  * Échappe une chaîne destinée à être interpolée dans une string ODSQL (`"…"`).
@@ -142,18 +144,6 @@ function odsqlClause(field: string, op: string, rawVal: string, hasValue: boolea
 }
 
 /**
- * Une clause colon a-t-elle une traduction ODSQL qui retient LES MÊMES lignes
- * que son calcul côté client (#1285, ADR-139) ? Faux pour `contains` et
- * `notcontains` (sous-chaîne, sans équivalent sur un portail qui compare des
- * mots). Une clause mal formée ou d'opérateur inconnu rend vrai : ce n'est pas à cette fonction
- * de la refuser, elle est écartée par la validation.
- */
-export function odsqlCanExpress(clause: string): boolean {
-  const op = clause.trim().split(':')[1];
-  return op !== 'contains' && op !== 'notcontains';
-}
-
-/**
  * Partage un filtre colon entre ce qu'un portail Opendatasoft sait calculer et
  * ce qui reste au client (#1285) :
  *
@@ -173,19 +163,8 @@ export function splitFilterForOdsql(filterExpr: string): {
   client: string;
   odsql: string;
 } {
-  const server: string[] = [];
-  const client: string[] = [];
-  for (const part of filterExpr
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean)) {
-    (odsqlCanExpress(part) ? server : client).push(part);
-  }
-  return {
-    server: server.join(', '),
-    client: client.join(', '),
-    odsql: filterToOdsql(server.join(', ')),
-  };
+  const { server, client } = splitFilterForServer('opendatasoft', filterExpr);
+  return { server, client, odsql: filterToOdsql(server) };
 }
 
 const odsqlInexpressibleWarned = new Set<string>();
@@ -550,12 +529,11 @@ function passeClause(v: unknown, f: { field: string; op: string; rawValue: strin
       return cmp !== null && cmp <= 0;
     }
     case 'contains':
-      // null ne contient rien (String(undefined)="undefined" matchait, #278)
-      return v !== null && v !== undefined && String(v).toLowerCase().includes(value.toLowerCase());
+      // null ne contient rien (String(undefined)="undefined" matchait, #278).
+      // La comparaison elle-même est celle de `text-match.ts` (ADR-159).
+      return v !== null && v !== undefined && filterTextContains(v, value);
     case 'notcontains':
-      return (
-        v === null || v === undefined || !String(v).toLowerCase().includes(value.toLowerCase())
-      );
+      return v === null || v === undefined || !filterTextContains(v, value);
     case 'in':
       // Même sémantique lâche que eq, sur chaque token (#315/#278)
       return (

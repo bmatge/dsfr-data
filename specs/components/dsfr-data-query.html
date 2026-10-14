@@ -295,6 +295,31 @@
           <code>contains</code> dont la valeur porte <code>*</code>, qu'il lirait comme un joker (#1285, lot 2).
         </p>
 
+        <h3 id="capacites-texte" class="fr-mt-3w">Qui calcule chaque clause de texte, par fournisseur</h3>
+        <p>
+          « serveur » : la clause part à l'API, qui la calcule avec sa casse et ses accents. « navigateur » : la
+          source la calcule (sous-chaîne, casse ignorée, accents respectés) sur les lignes que le reste du filtre
+          laisse passer, dans la limite de <code>max-records</code> ; une source en <code>server-side</code>, un
+          agrégat posé sur la source ou des <code>server-facets</code> voisines passent alors en erreur de
+          configuration. Tableau tenu par un test contre la règle de la bibliothèque (ADR-159).
+        </p>
+        <!-- CAPACITES-TEXTE:debut -->
+        <div class="fr-table">
+          <table class="attr-table">
+            <thead><tr><th>Clause ou usage</th><th>Opendatasoft</th><th>Tabular</th><th>Grist</th></tr></thead>
+            <tbody>
+              <tr><td><code>contains</code> (<code>champ:contains:aliment</code>)</td><td>navigateur : le <code>like</code> du portail compare des mots</td><td>serveur : <code>ilike</code>, <code>\</code> <code>%</code> <code>_</code> échappés</td><td>serveur : <code>LIKE ? ESCAPE '\'</code>, <code>\</code> <code>%</code> <code>_</code> échappés</td></tr>
+              <tr><td><code>contains</code>, valeur à étoile (<code>champ:contains:a*b</code>)</td><td>navigateur</td><td>navigateur : l'API lit <code>*</code> comme un joker</td><td>serveur</td></tr>
+              <tr><td><code>notcontains</code> (<code>champ:notcontains:aliment</code>)</td><td>navigateur</td><td>navigateur : <code>NOT ILIKE</code> écarte les valeurs absentes</td><td>navigateur : <code>NOT LIKE</code> écarte les valeurs absentes</td></tr>
+              <tr><td><code>eq</code> <code>neq</code> <code>gt</code> <code>gte</code> <code>lt</code> <code>lte</code> <code>in</code> <code>notin</code> <code>isnull</code> <code>isnotnull</code></td><td>serveur</td><td>serveur</td><td>serveur</td></tr>
+              <tr><td>casse, clause confiée</td><td>sans objet</td><td>ignorée</td><td>ignorée pour les lettres ASCII seulement (<code>É</code> n'est pas <code>é</code>)</td></tr>
+              <tr><td>accents, clause confiée</td><td>sans objet</td><td>respectés</td><td>respectés</td></tr>
+              <tr><td>recherche de <code>dsfr-data-search</code> en mode <code>context</code></td><td>serveur : <code>search(champ, "q")</code>, début de mot, casse et accents ignorés</td><td>serveur : <code>champ:contains:q</code>, sous-chaîne, accents respectés ; terme à étoile : navigateur</td><td>serveur : <code>champ:contains:q</code>, sous-chaîne, casse ASCII ignorée, accents respectés</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- CAPACITES-TEXTE:fin -->
+
         <h2 id="exemples" class="fr-mt-4w">Exemples</h2>
 
         <section class="demo-section">

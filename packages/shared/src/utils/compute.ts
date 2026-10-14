@@ -102,6 +102,7 @@
 import { toNumber, looksLikeNumber } from './number-parser.js';
 import { isUnsafeKey } from './security.js';
 import { looseEquals, warnNeqNullTransition } from '../query/filter-translator.js';
+import { filterTextContains } from '../query/text-match.js';
 
 type Row = Record<string, unknown>;
 
@@ -414,9 +415,10 @@ const FUNCTIONS: Record<string, FunctionSpec> = {
       // #953, which now walk the array too. `contains()` remains distinct on
       // TEXT, where it is a case-insensitive substring search.
       if (Array.isArray(haystack)) return haystack.some((v) => looseEquals(v, a[1]));
-      // Text: case-insensitive substring (same as `where` `contains`).
+      // Text: case-insensitive substring — the very comparison of `where`
+      // `contains` (`query/text-match.ts`, ADR-159).
       if (isNil(a[1])) return false;
-      return String(haystack).toLowerCase().includes(String(a[1]).toLowerCase());
+      return filterTextContains(haystack, String(a[1]));
     },
   },
   // Elements of an array (#1237) — 1-based ranks, see the header.
