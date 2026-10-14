@@ -1954,6 +1954,46 @@ describe('generateDynamicCodeForApi', () => {
     expect(code).toContain('pagination="20"');
   });
 
+  it('#1285 lot 2 — Tabular, « ne contient pas » : pas de pagination serveur, la query filtre', () => {
+    state.savedSource = {
+      id: '1',
+      name: 'Tabular',
+      type: 'api',
+      apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
+    };
+    state.chartType = 'datalist';
+    state.labelField = 'region';
+    state.fields = [{ name: 'region', type: 'string', sample: 'Bretagne' }];
+    state.advancedMode = true;
+    state.queryFilter = 'annee:eq:2024, region:notcontains:Bre, nom:contains:code_a';
+    generateDynamicCodeForApi();
+    const code = document.getElementById('generated-code')!.textContent!;
+    expect(code).not.toContain('server-side');
+    expect(code).not.toContain('server-sort');
+    // Ce que l'API calcule comme le navigateur part sur la source, le reste à la query
+    expect(code).toContain('where="annee:eq:2024, nom:contains:code_a"');
+    expect(code).toContain('where="region:notcontains:Bre"');
+    expect(code).toContain('pagination="20"');
+  });
+
+  it('#1285 lot 2 — Tabular, « contient » seul : la pagination serveur reste', () => {
+    state.savedSource = {
+      id: '1',
+      name: 'Tabular',
+      type: 'api',
+      apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc-123/data/',
+    };
+    state.chartType = 'datalist';
+    state.labelField = 'region';
+    state.fields = [{ name: 'region', type: 'string', sample: 'Bretagne' }];
+    state.advancedMode = true;
+    state.queryFilter = 'region:contains:50%';
+    generateDynamicCodeForApi();
+    const code = document.getElementById('generated-code')!.textContent!;
+    expect(code).toContain('server-side');
+    expect(code).toContain('where="region:contains:50%"');
+  });
+
   it('n’émet pas de recherche ni de filtres locaux en pagination serveur', () => {
     // La recherche et les filtres de `dsfr-data-list` sont LOCAUX : en
     // pagination serveur ils n'operent que sur la page chargee — compteurs

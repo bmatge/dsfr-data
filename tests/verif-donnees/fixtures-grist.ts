@@ -34,6 +34,7 @@
  * `tests/oracle/guard.test.ts`) : une URL ou un corps, une réponse.
  */
 import type { Row } from '../../tools/oracle/manifest.js';
+import { likeSql } from '../builder-e2e/sql-like.js';
 
 /** Une ligne de table Grist : son identifiant, et ses colonnes. */
 export interface LigneGrist {
@@ -174,38 +175,16 @@ function agreger(col: Extract<Colonne, { sorte: 'agregat' }>, lignes: Row[]): Va
 }
 
 /**
- * Le `LIKE` de SQLite, tel que Grist le sert (mesuré le 2026-10-13 sur
+ * Le `LIKE` de SQLite, tel que Grist le sert (mesuré les 2026-10-13 et 14 sur
  * grist.numerique.gouv.fr, ADR-159) : `%` vaut toute suite de caractères, `_`
  * un caractère ; la casse n'est ignorée que pour les lettres ASCII (`É` n'est
- * pas `é`) et les accents sont respectés. Aucune clause `ESCAPE` : la
- * bibliothèque n'en émet pas (lot 2 de l'ADR-159).
+ * pas `é`) et les accents sont respectés. `\` n'échappe un joker qu'avec une
+ * clause `ESCAPE '\'` — sans elle, c'est un caractère comme un autre
+ * (`'%Co\_se%'` -> 0, `'%Co_se%'` -> 2). La bibliothèque l'écrit depuis le
+ * lot 2 de l'ADR-159.
  */
-function likeSqlite(valeur: string, motif: string): boolean {
-  const ascii = (t: string) => t.replace(/[A-Z]/g, (c) => c.toLowerCase());
-  const v = ascii(valeur);
-  const m = ascii(motif);
-  // Parcours à deux curseurs avec retour sur le dernier `%` : pas d'expression
-  // régulière construite depuis une valeur.
-  let i = 0;
-  let j = 0;
-  let etoile = -1;
-  let repere = 0;
-  while (i < v.length) {
-    if (j < m.length && (m[j] === '_' || m[j] === v[i])) {
-      i++;
-      j++;
-    } else if (j < m.length && m[j] === '%') {
-      etoile = j++;
-      repere = i;
-    } else if (etoile !== -1) {
-      j = etoile + 1;
-      i = ++repere;
-    } else {
-      return false;
-    }
-  }
-  while (j < m.length && m[j] === '%') j++;
-  return j === m.length;
+function likeSqlite(valeur: unknown, motif: string, echappement: string | null): boolean | null {
+  return likeSql(valeur, motif, { casse: 'ascii', echappement });
 }
 
 /** `WHERE` : des clauses `"col" op ?` reliées par `AND`. */
@@ -228,15 +207,16 @@ function filtrer(where: string, args: unknown[], lignes: Row[]): Row[] | null {
       reste = reste.filter((l) => valeurs.includes(String(l[champ])) === !liste[2]);
       continue;
     }
-    const semblable = new RegExp(`^${IDENT} (NOT )?LIKE \\?$`).exec(clause);
+    const semblable = new RegExp(`^${IDENT} (NOT )?LIKE \\?(?: ESCAPE '(.)')?$`).exec(clause);
     if (semblable) {
       const champ = nu(semblable[1]);
       const motif = String(args[rang++]);
+      const echappement = semblable[3] ?? null;
       // `NOT LIKE` écarte les valeurs absentes (mesuré : 89 lignes sur 101
       // quand 12 valeurs sont nulles) — logique SQL à trois valeurs.
       reste = reste.filter((l) => {
-        if (l[champ] === null || l[champ] === undefined) return false;
-        return likeSqlite(String(l[champ]), motif) === !semblable[2];
+        const lu = likeSqlite(l[champ], motif, echappement);
+        return lu !== null && lu === !semblable[2];
       });
       continue;
     }

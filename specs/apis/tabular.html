@@ -180,8 +180,8 @@
                 <tr><td><code>gte</code></td><td><code>greater</code></td><td>Superieur ou egal</td></tr>
                 <tr><td><code>lt</code></td><td><code>strictly_less</code></td><td>Strictement inférieur</td></tr>
                 <tr><td><code>lte</code></td><td><code>less</code></td><td>Inférieur ou egal</td></tr>
-                <tr><td><code>contains</code></td><td><code>contains</code></td><td>Contient la valeur</td></tr>
-                <tr><td><code>notcontains</code></td><td><code>notcontains</code></td><td>Ne contient pas</td></tr>
+                <tr><td><code>contains</code></td><td><code>contains</code></td><td>Contient la valeur (<code>ilike</code>) ; <code>%</code>, <code>_</code> et <code>\</code> de la valeur échappés. Une valeur qui porte <code>*</code> : calculée dans le navigateur</td></tr>
+                <tr><td><code>notcontains</code></td><td>—</td><td>Ne contient pas : calculé dans le navigateur, jamais confié à l'API</td></tr>
                 <tr><td><code>in</code></td><td><code>in</code></td><td>Dans la liste</td></tr>
                 <tr><td><code>notin</code></td><td><code>notin</code></td><td>Pas dans la liste</td></tr>
                 <tr><td><code>isnull</code></td><td><code>isnull</code></td><td>Est null</td></tr>
@@ -189,6 +189,26 @@
               </tbody>
             </table>
           </div>
+
+          <h3 class="fr-mt-2w"><code>contains</code> et <code>notcontains</code> (#1285, ADR-159)</h3>
+          <p>
+            L'API traduit <code>champ__contains=valeur</code> en <code>ilike.*valeur*</code> (PostgREST) :
+            <code>%</code> et <code>_</code> y sont des jokers, <code>\</code> un échappement, et PostgREST
+            lit chaque <code>*</code> du motif comme <code>%</code>. Mesuré le 2026-10-14 sur les communes
+            de l'Ariège : <code>LIBELLE__contains=Saint</code> → 25, <code>S%nt</code> → 32,
+            <code>S*nt</code> → 32, <code>Sain\_</code> → 0. L'adaptateur échappe donc <code>\</code>,
+            <code>%</code> et <code>_</code> de la valeur ; une valeur qui porte <code>*</code>, qu'aucune
+            écriture ne garde telle quelle (<code>\*</code> devient un « % » littéral), est calculée dans
+            le navigateur.
+          </p>
+          <p>
+            <code>champ__notcontains</code> part en <code>not.ilike</code>, qui écarte les valeurs
+            <strong>absentes</strong> : sur les élus municipaux, une colonne nulle sur 34 328 lignes de
+            34 826, <code>__notcontains=zzz</code> rend 498 lignes. Le filtre de la bibliothèque les
+            garde : <code>notcontains</code> n'est jamais confié à l'API. La source le calcule sur les
+            lignes chargées (sous <code>max-records</code>) ; derrière <code>server-side</code>, c'est une
+            erreur de configuration, qui dit de retirer <code>server-side</code>.
+          </p>
 
           <h3 class="fr-mt-2w">Separateur WHERE</h3>
           <p>Les clauses WHERE multiples sont jointes par <code>, </code> (virgule + espace).</p>

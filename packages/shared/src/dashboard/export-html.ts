@@ -21,6 +21,7 @@
 import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
 import { escapeColonValue, splitColonFields } from '../utils/colon-escape.js';
 import { filterToOdsql, splitFilterForOdsql } from '../query/filter-translator.js';
+import { tabularCanExpress } from '../query/sql-like.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
 import type {
@@ -184,6 +185,24 @@ function supportsServerPagination(source: DashboardSource): boolean {
   const resourceIds = (source.resourceIds ?? {}) as Record<string, unknown>;
   if (provider === 'opendatasoft') return typeof resourceIds.datasetId === 'string';
   if (provider === 'tabular') return typeof resourceIds.resourceId === 'string';
+  return false;
+}
+
+/**
+ * Le filtre colon d'un consommateur porte-t-il une clause que l'API de la
+ * source ne calcule pas comme le navigateur (#1285, ADR-159) ? Meme regle que
+ * `supportsServerClause` des adaptateurs, pour les deux fournisseurs dont
+ * l'export pagine au serveur.
+ */
+function computedInBrowser(source: DashboardSource, where: string): boolean {
+  if (source.provider === 'opendatasoft') return splitFilterForOdsql(where).client !== '';
+  if (source.provider === 'tabular') {
+    return where
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .some((c) => !tabularCanExpress(c));
+  }
   return false;
 }
 
@@ -957,12 +976,13 @@ interface SourceConsumer {
    */
   search?: boolean;
   /**
-   * Le filtre propre du consommateur porte une clause qu'un portail
-   * Opendatasoft ne calcule pas (`contains` / `notcontains`, #1285) : elle est
-   * calculee dans le navigateur, sur le jeu charge — incompatible avec une
-   * source qui ne livre qu'une page.
+   * Le filtre propre du consommateur (grammaire colon). Une clause que l'API
+   * de la source ne calcule pas comme le navigateur (#1285, ADR-159 :
+   * `contains` / `notcontains` sur Opendatasoft, `notcontains` sur Tabular)
+   * est calculee dans le navigateur, sur le jeu charge — incompatible avec une
+   * source qui ne livre qu'une page (`computedInBrowser`).
    */
-  substringFilter?: boolean;
+  filterWhere?: string;
 }
 
 /** Champ d'une entree `champ:Libellé` de `columns`, telle que la liste la decoupe. */
@@ -1139,7 +1159,7 @@ function builderChartConsumer(c: ChartConfig): SourceConsumer {
     ...(columns ? { columns } : {}),
     // `search` est emis des que la source ne pagine pas cote serveur.
     search: true,
-    ...(c.where && splitFilterForOdsql(c.where).client ? { substringFilter: true } : {}),
+    ...(c.where ? { filterWhere: c.where } : {}),
   };
 }
 
@@ -1283,11 +1303,11 @@ export function serverPaginatedSources(dashboard: DashboardData): Map<string, nu
     if (only.need !== 'liste-paginee') continue;
     const source = byId.get(id);
     if (!source || !supportsServerPagination(source)) continue;
-    // `contains` sur Opendatasoft (#1285, ADR-159) : la clause est calculee
-    // dans le navigateur, sur le jeu charge. Derriere `server-side`, la
-    // bibliotheque la refuse (erreur de configuration) : la source charge
-    // donc le jeu, et la liste pagine dans le navigateur.
-    if (only.substringFilter && source.provider === 'opendatasoft') continue;
+    // `contains` sur Opendatasoft, `notcontains` sur Tabular (#1285, ADR-159) :
+    // la clause est calculee dans le navigateur, sur le jeu charge. Derriere
+    // `server-side`, la bibliotheque la refuse (erreur de configuration) : la
+    // source charge donc le jeu, et la liste pagine dans le navigateur.
+    if (only.filterWhere && computedInBrowser(source, only.filterWhere)) continue;
     paginated.set(id, only.pageSize);
   }
   return paginated;
