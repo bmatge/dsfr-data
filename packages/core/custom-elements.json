@@ -21996,7 +21996,7 @@
                   }
                 }
               ],
-              "description": "Comparaison tolerante, partagee avec la source (`utils/search-match.ts`)."
+              "description": "Comparaison tolerante, partagee avec la source (`shared/query/text-match.ts`)."
             },
             {
               "kind": "method",

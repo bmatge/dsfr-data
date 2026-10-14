@@ -34,7 +34,7 @@ import {
   resolveTransportUrl,
   transportFetch,
   normalizeProviderAuthHeaders,
-  odsqlCanExpress,
+  canServerExpress,
 } from '@dsfr-data/shared/lib';
 import { httpError, releaseBody } from '../utils/http-error.js';
 
@@ -1110,7 +1110,7 @@ export class OpenDataSoftAdapter implements ApiAdapter {
    * chargées. Tous les autres opérateurs restent confiés au portail.
    */
   supportsServerClause(clause: string): boolean {
-    return odsqlCanExpress(clause);
+    return canServerExpress(ODS_CONFIG.id, clause);
   }
 
   /** Clauses ODSQL jointes par ` AND ` (#271, #1135). */

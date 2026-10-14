@@ -21,7 +21,7 @@ import {
   looseEquals,
   TABULAR_CONFIG,
   escapeLikePattern,
-  tabularCanExpress,
+  canServerExpress,
 } from '@dsfr-data/shared/lib';
 import { getByPath } from '../utils/json-path.js';
 import { parseAggregates } from '../utils/aggregates.js';
@@ -1921,7 +1921,7 @@ export class TabularAdapter implements ApiAdapter {
    * Tous les autres operateurs partent comme avant.
    */
   supportsServerClause(clause: string): boolean {
-    return tabularCanExpress(clause);
+    return canServerExpress(TABULAR_CONFIG.id, clause);
   }
 
   /** Tri serveur instable deja signale (une fois par adaptateur). */

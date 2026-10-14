@@ -16,6 +16,7 @@
 import { toNumber, looksLikeNumber } from '../utils/number-parser.js';
 import { maxOf, minOf } from '../utils/extremum.js';
 import { isIsoDateString } from '../utils/iso-date.js';
+import { filterTextContains } from '../query/text-match.js';
 import type { ChartConfig, AggregatedResult } from '../dashboard/chart-config.js';
 
 export type Row = Record<string, unknown>;
@@ -201,10 +202,17 @@ export function applyWhereFilter(data: Row[], where: string): Row[] {
           return Number(itemValue) < Number(rawValue);
         case 'lte':
           return Number(itemValue) <= Number(rawValue);
+        // La comparaison est celle du filtre (`query/text-match.ts`, ADR-159).
+        // ÉCART GARDÉ (lot 4, #1285) : ici une valeur absente est comparée en
+        // texte — `String(null)` vaut « null » —, là où `applyLocalFilter` et
+        // `dsfr-data-query` disent qu'elle ne contient rien (`contains` faux,
+        // `notcontains` vrai). `x:contains:nul` retient donc une ligne nulle,
+        // et `x:notcontains:ul` l'écarte. La valeur n'est pas non plus
+        // percent-décodée, et `a|b` n'est pas un OU entre champs.
         case 'contains':
-          return String(itemValue).toLowerCase().includes(rawValue.toLowerCase());
+          return filterTextContains(String(itemValue), rawValue);
         case 'notcontains':
-          return !String(itemValue).toLowerCase().includes(rawValue.toLowerCase());
+          return !filterTextContains(String(itemValue), rawValue);
         case 'in':
           return rawValue
             .split('|')

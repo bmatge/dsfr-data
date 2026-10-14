@@ -115,6 +115,22 @@ avec les memes consequences que sur Opendatasoft (`max-records`, erreur de confi
 Cela vaut aussi pour le `where` ecrit sur une source Tabular ou Grist. Pour paginer au serveur un
 tableau filtre par « ne contient pas », ecrire plutot la liste des valeurs gardees (`in`).
 
+**Qui calcule chaque clause de texte, par fournisseur** (ADR-159 ; meme tableau que
+docs/ARCHITECTURE.md, tenu par un test). « serveur » : l'API calcule, avec sa casse et ses accents ;
+« navigateur » : la source calcule (sous-chaine, casse ignoree, accents respectes) sur les lignes que
+le reste du filtre laisse passer, sous `max-records`, et `server-side`, un agregat pose sur la
+source ou `server-facets` voisin deviennent une ERREUR DE CONFIGURATION.
+
+| Clause ou usage | Opendatasoft | Tabular | Grist |
+|---|---|---|---|
+| `contains` (`champ:contains:aliment`) | navigateur : le `like` du portail compare des mots | serveur : `ilike`, `\` `%` `_` échappés | serveur : `LIKE ? ESCAPE '\'`, `\` `%` `_` échappés |
+| `contains`, valeur à étoile (`champ:contains:a*b`) | navigateur | navigateur : l'API lit `*` comme un joker | serveur |
+| `notcontains` (`champ:notcontains:aliment`) | navigateur | navigateur : `NOT ILIKE` écarte les valeurs absentes | navigateur : `NOT LIKE` écarte les valeurs absentes |
+| `eq` `neq` `gt` `gte` `lt` `lte` `in` `notin` `isnull` `isnotnull` | serveur | serveur | serveur |
+| casse, clause confiée | sans objet | ignorée | ignorée pour les lettres ASCII seulement (`É` n'est pas `é`) |
+| accents, clause confiée | sans objet | respectés | respectés |
+| recherche de `dsfr-data-search` en mode `context` | serveur : `search(champ, "q")`, début de mot, casse et accents ignorés | serveur : `champ:contains:q`, sous-chaîne, accents respectés ; terme à étoile : navigateur | serveur : `champ:contains:q`, sous-chaîne, casse ASCII ignorée, accents respectés |
+
 **Champs multiples — un OU entre champs (#1026)** : `"nom|commune:contains:martin"` applique le
 MÊME opérateur et la MÊME valeur à plusieurs champs ; la ligne passe dès qu'UN champ satisfait la
 clause. Les clauses entre elles restent en ET : `where="nom|commune:contains:martin, dept:eq:75"`.

@@ -21,7 +21,7 @@
 import { escapeHtml, jsonAttr } from '../utils/escape-html.js';
 import { escapeColonValue, splitColonFields } from '../utils/colon-escape.js';
 import { filterToOdsql, splitFilterForOdsql } from '../query/filter-translator.js';
-import { tabularCanExpress } from '../query/sql-like.js';
+import { splitFilterForServer } from '../query/server-clause.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
 import type {
@@ -190,20 +190,14 @@ function supportsServerPagination(source: DashboardSource): boolean {
 
 /**
  * Le filtre colon d'un consommateur porte-t-il une clause que l'API de la
- * source ne calcule pas comme le navigateur (#1285, ADR-159) ? Meme regle que
- * `supportsServerClause` des adaptateurs, pour les deux fournisseurs dont
- * l'export pagine au serveur.
+ * source ne calcule pas comme le navigateur (#1285, ADR-159) ? La regle est
+ * celle de `supportsServerClause` des adaptateurs (`splitFilterForServer`,
+ * `query/server-clause.ts`), pour les deux fournisseurs dont l'export pagine
+ * au serveur.
  */
 function computedInBrowser(source: DashboardSource, where: string): boolean {
-  if (source.provider === 'opendatasoft') return splitFilterForOdsql(where).client !== '';
-  if (source.provider === 'tabular') {
-    return where
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean)
-      .some((c) => !tabularCanExpress(c));
-  }
-  return false;
+  if (source.provider !== 'opendatasoft' && source.provider !== 'tabular') return false;
+  return splitFilterForServer(source.provider, where).client !== '';
 }
 
 /** Ids des sources pilotees par un bloc de filtres (toutes par defaut). */

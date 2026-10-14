@@ -115,13 +115,32 @@ export type { DSFRChartType } from './charts/chart-types.js';
 // Query / Filters
 export {
   filterToOdsql,
-  odsqlCanExpress,
   splitFilterForOdsql,
   applyLocalFilter,
   validateColonFilter,
   COLON_FILTER_OPERATORS,
 } from './query/filter-translator.js';
-export { escapeLikePattern, tabularCanExpress, gristCanExpress } from './query/sql-like.js';
+export { escapeLikePattern } from './query/sql-like.js';
+// Ce que chaque serveur calcule comme le navigateur (ADR-159, lot 4) : une règle par fournisseur.
+export {
+  odsqlCanExpress,
+  tabularCanExpress,
+  gristCanExpress,
+  SERVER_CLAUSE_RULES,
+  hasServerClauseRule,
+  canServerExpress,
+  splitFilterForServer,
+} from './query/server-clause.js';
+export type { ServerClauseProvider } from './query/server-clause.js';
+// La comparaison de texte du navigateur (ADR-159, lot 4) : filtre exact, recherche tolérante.
+export {
+  filterTextContains,
+  normalizeSearchText,
+  matchesSearch,
+  applySearches,
+  describeSearch,
+} from './query/text-match.js';
+export type { SearchOperator } from './query/text-match.js';
 export type { ContextFilterLike, ContextSearch } from './query/context-filter.js';
 
 // API / Proxy

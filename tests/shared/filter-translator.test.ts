@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   filterToOdsql,
   applyLocalFilter,
-  odsqlCanExpress,
   splitFilterForOdsql,
 } from '../../packages/shared/src/query/filter-translator';
+import { odsqlCanExpress } from '../../packages/shared/src/query/server-clause';
 import { escapeColonValue } from '../../packages/shared/src/utils/colon-escape';
 
 /**
