@@ -124,6 +124,7 @@ export {
   validateColonFilter,
   COLON_FILTER_OPERATORS,
 } from './query/filter-translator.js';
+export { escapeLikePattern, tabularCanExpress, gristCanExpress } from './query/sql-like.js';
 export type { ContextFilterLike, ContextSearch } from './query/context-filter.js';
 
 // Constantes DSFR

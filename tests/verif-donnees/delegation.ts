@@ -27,12 +27,15 @@ import {
   GRIST_EX_AEQUO,
   GRIST_TABLE_EX_AEQUO,
   HOTE_ODS,
+  JOKERS,
   MESURES,
   RELAIS,
   RESSOURCE_TABULAR,
   RESSOURCE_TABULAR_EX_AEQUO,
+  RESSOURCE_TABULAR_JOKERS,
   TERRITOIRES,
   URL_GRIST_EX_AEQUO,
+  URL_GRIST_JOKERS,
   urlJeu,
   urlJeuPagine,
 } from './fixtures.js';
@@ -3142,6 +3145,317 @@ const RECHERCHE_PAR_LE_CONTEXTE: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 21. Tabular et Grist : jokers échappés, `notcontains` au navigateur (ADR-159, lot 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Tabular et Grist confient `contains` à un `LIKE` SQL : sous-chaîne, la même
+ * structure que dans le navigateur — à deux conditions, mesurées le
+ * 2026-10-14 sur les vraies API. Les jokers de la valeur (`%`, `_`, et `*`
+ * pour Tabular) doivent y valoir pour eux-mêmes ; et `notcontains`, dont
+ * `NOT LIKE` écarte les valeurs absentes, ne part pas. Les faux portails
+ * lisent `ilike` et `LIKE … ESCAPE` comme les vrais
+ * (`tests/builder-e2e/sql-like.ts`) : sans quoi ces contrôles seraient verts
+ * sur une valeur partie telle quelle.
+ *
+ * Le jeu (`jeux/delegation-jokers.json`) porte chaque joker pour de vrai, et à
+ * côté le voisin qu'un joker resté actif retiendrait en plus : « 50% » et
+ * « Taux 50 atteint », « code_a » et « codexa », « étoile* » et « étoile »,
+ * « chemin\dossier » et « chemindossier ». Trois libellés sont absents, un
+ * est vide.
+ */
+const sourceTabularJokers = (id: string, attrs = ''): string =>
+  `<dsfr-data-source id="${id}" api-type="tabular" resource="${RESSOURCE_TABULAR_JOKERS}"${attrs ? ` ${attrs}` : ''}></dsfr-data-source>`;
+const sourceGristJokers = (id: string, attrs = ''): string =>
+  `<dsfr-data-source id="${id}" api-type="grist" base-url="${URL_GRIST_JOKERS}"${attrs ? ` ${attrs}` : ''}></dsfr-data-source>`;
+const DATA_JOKERS = `/api/resources/${RESSOURCE_TABULAR_JOKERS}/data/`;
+
+const libelle = (op: 'contains' | 'notcontains', value: string): Step[] => [
+  { op: 'filter', filters: [{ field: 'libelle', op, value }] },
+];
+const kpiSomme = (id: string, source: string): string => `
+  <dsfr-data-kpi id="${id}" source="${source}" value="nombre:sum" format="nombre" label="${id}"></dsfr-data-kpi>`;
+
+/** Une query seule lectrice de sa source, et ses deux KPI : lignes et somme. */
+const filtreJokers = (
+  source: (id: string, attrs?: string) => string,
+  suffixe: string,
+  where: string,
+  attrs = ''
+): string => `
+  ${source(`s-${suffixe}`, attrs)}
+  <dsfr-data-query id="q-${suffixe}" source="s-${suffixe}" where="${where}"></dsfr-data-query>${kpiLignes(`k-${suffixe}`, `q-${suffixe}`)}${kpiSomme(`k-${suffixe}-somme`, `q-${suffixe}`)}`;
+
+const attendus = (suffixe: string, pipeline: Step[]): Expect[] => [
+  { kind: 'kpi', id: `k-${suffixe}`, agg: 'count', pipeline },
+  { kind: 'kpi', id: `k-${suffixe}-somme`, agg: 'sum', field: 'nombre', pipeline },
+];
+
+const JOKERS_SQL: Check[] = [
+  {
+    id: 'contains-tabular-jokers-echappes',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 lot 2 — Tabular reçoit `contains` en `ilike.*valeur*` (PostgREST). Avant, la valeur partait telle quelle : `%` et `_` y étaient des jokers, `\\` un échappement. Mesuré le 2026-10-14 sur les communes de l’Ariège : `LIBELLE__contains=S%nt` → 32 lignes, `Saint` → 25, `Sain_` → 25 ; `Sain\\_` → 0. « 50% » retenait les quatre libellés qui portent « 50 » au lieu d’un ; « code_a » retenait « codexa » et « Code A » ; « n\\d » retenait « chemindossier » à la place de « chemin\\dossier » (même nombre de lignes, autre somme). La valeur part désormais échappée (`50\\%`, `code\\_a`, `n\\\\d`) : la clause reste confiée à l’API, y compris derrière `server-side`, et rend les lignes du navigateur. Les contrôles d’URL vérifient qu’elle part, et échappée.',
+    feed: { kind: 'fixture', datasets: { main: JOKERS } },
+    markup:
+      filtreJokers(sourceTabularJokers, 'tab-pourcent', 'libelle:contains:50%') +
+      filtreJokers(sourceTabularJokers, 'tab-souligne', 'libelle:contains:code_a') +
+      filtreJokers(sourceTabularJokers, 'tab-barre', 'libelle:contains:n\\d') +
+      filtreJokers(
+        sourceTabularJokers,
+        'tab-page',
+        'libelle:contains:code_a',
+        `server-side page-size="${TAILLE_PAGE}"`
+      ),
+    expects: [
+      ...attendus('tab-pourcent', libelle('contains', '50%')),
+      ...attendus('tab-souligne', libelle('contains', 'code_a')),
+      ...attendus('tab-barre', libelle('contains', 'n\\d')),
+      // Derrière `server-side`, `contains` reste confié : pas d'erreur, mêmes lignes
+      ...attendus('tab-page', libelle('contains', 'code_a')),
+      { kind: 'diagnostic', id: 's-tab-page', expect: 'silence', contains: 'server-side' },
+      {
+        kind: 'urls',
+        id: 'pourcent-echappe',
+        among: DATA_JOKERS,
+        contains: 'libelle__contains=50\\%',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'souligne-echappe',
+        among: DATA_JOKERS,
+        contains: 'libelle__contains=code\\_a',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'barre-echappee',
+        among: DATA_JOKERS,
+        contains: 'libelle__contains=n\\\\d',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'contains-tabular-etoile-au-navigateur',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 lot 2 — PostgREST lit chaque `*` du motif comme `%`, celui de la valeur compris, et `\\*` comme un « % » littéral : mesuré le 2026-10-14, `LIBELLE__contains=S*nt` → 32 comme `S%nt`, `S\\*nt` → 0. Aucune écriture ne garde une étoile telle quelle. Un `contains` dont la valeur porte `*` est donc calculé dans le navigateur, sur les lignes chargées : « oile* » ne retient que « étoile* », là où l’API retiendrait aussi « étoile » et « étoile filante ». Aucune clause `__contains` ne part.',
+    feed: { kind: 'fixture', datasets: { main: JOKERS } },
+    markup: filtreJokers(sourceTabularJokers, 'tab-etoile', 'libelle:contains:oile*'),
+    expects: [
+      ...attendus('tab-etoile', libelle('contains', 'oile*')),
+      {
+        kind: 'urls',
+        id: 'etoile-jamais-confiee',
+        among: DATA_JOKERS,
+        contains: '__contains',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'notcontains-tabular-garde-les-absents',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 lot 2 — `notcontains` partait à Tabular en `not.ilike`, qui écarte les valeurs ABSENTES (logique SQL à trois valeurs) ; le navigateur les garde. Mesuré le 2026-10-14 sur les élus municipaux : une colonne nulle sur 34 328 lignes de 34 826, `__notcontains=zzz` → 498. Ici, « sans Taux » doit garder les trois libellés absents et le libellé vide : 17 lignes, 14 par l’API. La clause est désormais calculée dans le navigateur, qu’elle vienne d’une query ou du `where` écrit sur la source (partagé depuis le lot 2 comme celui d’une query) ; l’autre clause du filtre part toujours. Aucun `__notcontains` ne part.',
+    feed: { kind: 'fixture', datasets: { main: JOKERS } },
+    markup: `${filtreJokers(sourceTabularJokers, 'tab-sans', 'libelle:notcontains:Taux')}
+  ${sourceTabularJokers('s-tab-sans-propre', 'where="categorie:neq:autre, libelle:notcontains:Taux"')}${kpiLignes('k-tab-sans-propre', 's-tab-sans-propre')}${kpiSomme('k-tab-sans-propre-somme', 's-tab-sans-propre')}`,
+    expects: [
+      ...attendus('tab-sans', libelle('notcontains', 'Taux')),
+      ...attendus('tab-sans-propre', [
+        { op: 'filter', filters: [{ field: 'categorie', op: 'neq', value: 'autre' }] },
+        ...libelle('notcontains', 'Taux'),
+      ]),
+      {
+        kind: 'urls',
+        id: 'notcontains-jamais-confie',
+        among: DATA_JOKERS,
+        contains: '__notcontains',
+        verdict: 'none',
+      },
+      {
+        kind: 'urls',
+        id: 'autre-clause-confiee',
+        among: DATA_JOKERS,
+        contains: 'categorie__differs=autre',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'notcontains-tabular-server-side-refuse',
+    mode: 'deterministic',
+    origin:
+      '#1285, règle de #1242 — un `notcontains` calculé dans le navigateur derrière une source Tabular en `server-side` ne filtrerait qu’une page. La source passe en ERREUR DE CONFIGURATION : elle nomme la clause, dit pourquoi l’API ne la calcule pas (elle écarterait les valeurs absentes) et ce qu’il faut faire (retirer `server-side`). Même règle pour la clause écrite sur la source elle-même.',
+    feed: { kind: 'fixture', datasets: { main: JOKERS } },
+    markup: `
+  ${sourceTabularJokers('s-tab-neg-page', `server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-query id="q-tab-neg-page" source="s-tab-neg-page" where="libelle:notcontains:Taux"></dsfr-data-query>
+  <dsfr-data-list id="l-tab-neg-page" source="q-tab-neg-page" columns="libelle:Libellé"></dsfr-data-list>
+  ${sourceTabularJokers('s-tab-neg-propre', `where="libelle:notcontains:Taux" server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-list id="l-tab-neg-propre" source="s-tab-neg-propre" columns="libelle:Libellé"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 's-tab-neg-page',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-tab-neg-page"',
+      },
+      {
+        kind: 'diagnostic',
+        id: 's-tab-neg-page',
+        expect: 'config-error',
+        contains: 'valeur est absente',
+      },
+      {
+        kind: 'diagnostic',
+        id: 's-tab-neg-propre',
+        expect: 'config-error',
+        contains: 'la clause "libelle:notcontains:Taux"',
+      },
+    ],
+  },
+
+  {
+    id: 'contains-grist-jokers-echappes',
+    mode: 'deterministic',
+    origin:
+      "#1285, ADR-159 lot 2 — Grist reçoit `contains` en SQL `LIKE`. Avant, la valeur partait telle quelle : `%` et `_` y étaient des jokers (mesuré le 2026-10-14 : `nom_dept LIKE '%Co_se%'` → 2 départements). Échapper ne suffit pas : sans clause `ESCAPE`, SQLite lit `\\` comme un caractère (`'%Co\\_se%'` → 0). La clause part désormais en `LIKE ? ESCAPE '\\'`, jokers échappés : « 50% », « code_a », « n\\d » et « oile* » retiennent les lignes du navigateur — l'étoile n'est pas un joker en SQLite, elle reste confiée. Le faux Grist lit `ESCAPE` comme SQLite : sans elle, « code_a » échappé ne trouverait rien.",
+    feed: { kind: 'fixture', datasets: { main: JOKERS } },
+    markup:
+      filtreJokers(sourceGristJokers, 'gri-pourcent', 'libelle:contains:50%') +
+      filtreJokers(sourceGristJokers, 'gri-souligne', 'libelle:contains:code_a') +
+      filtreJokers(sourceGristJokers, 'gri-barre', 'libelle:contains:n\\d') +
+      filtreJokers(sourceGristJokers, 'gri-etoile', 'libelle:contains:oile*'),
+    expects: [
+      ...attendus('gri-pourcent', libelle('contains', '50%')),
+      ...attendus('gri-souligne', libelle('contains', 'code_a')),
+      ...attendus('gri-barre', libelle('contains', 'n\\d')),
+      ...attendus('gri-etoile', libelle('contains', 'oile*')),
+      {
+        kind: 'urls',
+        id: 'grist-contains-par-sql',
+        among: 'docExAequo',
+        contains: '/sql',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'notcontains-grist-garde-les-absents',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 lot 2 — `notcontains` partait à Grist en `NOT LIKE`, qui écarte les valeurs absentes (89 lignes sur 101 quand 12 sont nulles, mesuré pour l’ADR-159). Ici, « sans Taux » doit garder les trois libellés absents et le libellé vide : 17 lignes, 14 par le serveur. La clause est calculée dans le navigateur, qu’elle vienne d’une query ou du `where` de la source.',
+    feed: { kind: 'fixture', datasets: { main: JOKERS } },
+    markup: `${filtreJokers(sourceGristJokers, 'gri-sans', 'libelle:notcontains:Taux')}
+  ${sourceGristJokers('s-gri-sans-propre', 'where="libelle:notcontains:Taux"')}${kpiLignes('k-gri-sans-propre', 's-gri-sans-propre')}${kpiSomme('k-gri-sans-propre-somme', 's-gri-sans-propre')}`,
+    expects: [
+      ...attendus('gri-sans', libelle('notcontains', 'Taux')),
+      ...attendus('gri-sans-propre', libelle('notcontains', 'Taux')),
+    ],
+  },
+
+  {
+    id: 'notcontains-grist-server-side-refuse',
+    mode: 'deterministic',
+    origin:
+      '#1285, règle de #1242 — le même `notcontains` derrière une source Grist en `server-side` : erreur de configuration qui nomme la clause et dit de retirer `server-side`, plutôt qu’une page filtrée sous un total qui l’ignore.',
+    feed: { kind: 'fixture', datasets: { main: JOKERS } },
+    markup: `
+  ${sourceGristJokers('s-gri-neg-page', `server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-query id="q-gri-neg-page" source="s-gri-neg-page" where="libelle:notcontains:Taux"></dsfr-data-query>
+  <dsfr-data-list id="l-gri-neg-page" source="q-gri-neg-page" columns="libelle:Libellé"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 's-gri-neg-page',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-gri-neg-page"',
+      },
+    ],
+  },
+
+  {
+    id: 'recherche-tabular-grist-jokers-echappes',
+    mode: 'deterministic',
+    origin:
+      '#1285, ADR-159 lots 2 et 3 — la recherche du contexte (et `server-search`) partage la clause du filtre sur Tabular et Grist : `champ:contains:terme`. L’échappement la corrige donc aussi. « code_a » saisi par le visiteur retenait « codexa » et « Code A » ; il ne retient plus que les deux libellés qui le portent, par l’API. « 50% » en `server-search` : une ligne, compteur lu sur le total du serveur. Sur Tabular, un terme à étoile ne peut pas partir : la recherche est calculée dans le navigateur (comparaison tolérante de la recherche, casse et accents ignorés), et aucune clause ne part pour lui.',
+    feed: { kind: 'fixture', datasets: { main: JOKERS } },
+    markup: `
+  ${sourceTabularJokers('s-r-tab-j')}
+  <dsfr-data-context id="ctx-tab-j" sources="s-r-tab-j"></dsfr-data-context>
+  ${recherche('r-tab-j', 's-r-tab-j', 'ctx-tab-j', 'libelle')}${kpiLignes('k-r-tab-j', 's-r-tab-j')}
+  ${sourceTabularJokers('s-r-tab-srv', `server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-search id="r-tab-srv" source="s-r-tab-srv" fields="libelle" server-search count
+    debounce="0" min-length="0" label="Rechercher"></dsfr-data-search>
+  ${sourceTabularJokers('s-r-tab-etoile')}
+  <dsfr-data-context id="ctx-tab-etoile" sources="s-r-tab-etoile"></dsfr-data-context>
+  ${recherche('r-tab-etoile', 's-r-tab-etoile', 'ctx-tab-etoile', 'libelle')}${kpiLignes('k-r-tab-etoile', 's-r-tab-etoile')}
+  ${sourceGristJokers('s-r-gri-j')}
+  <dsfr-data-context id="ctx-gri-j" sources="s-r-gri-j"></dsfr-data-context>
+  ${recherche('r-gri-j', 's-r-gri-j', 'ctx-gri-j', 'libelle')}${kpiLignes('k-r-gri-j', 's-r-gri-j')}`,
+    actions: [
+      { kind: 'fill', selector: '#r-tab-j input', value: 'code_a' },
+      { kind: 'fill', selector: '#r-tab-srv input', value: '50%' },
+      { kind: 'fill', selector: '#r-tab-etoile input', value: 'oile*' },
+      { kind: 'fill', selector: '#r-gri-j input', value: 'code_a' },
+    ],
+    expects: [
+      { kind: 'kpi', id: 'k-r-tab-j', agg: 'count', pipeline: libelle('contains', 'code_a') },
+      {
+        kind: 'text',
+        id: 'r-tab-srv',
+        selector: '.dsfr-data-search-count',
+        numeric: true,
+        agg: 'count',
+        pipeline: libelle('contains', '50%'),
+      },
+      {
+        kind: 'kpi',
+        id: 'k-r-tab-etoile',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [{ field: 'libelle', op: 'contains', value: 'oile*', fold: true }],
+          },
+        ],
+      },
+      { kind: 'kpi', id: 'k-r-gri-j', agg: 'count', pipeline: libelle('contains', 'code_a') },
+      {
+        kind: 'urls',
+        id: 'recherche-souligne-echappe',
+        among: DATA_JOKERS,
+        contains: 'libelle__contains=code\\_a',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'recherche-pourcent-echappe',
+        among: DATA_JOKERS,
+        contains: 'libelle__contains=50\\%',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'recherche-etoile-jamais-confiee',
+        among: DATA_JOKERS,
+        contains: 'oile',
+        verdict: 'none',
+      },
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -3165,5 +3479,6 @@ export const DELEGATION: Manifest = {
     ...TRI_SUR_COLONNE_CLIENT,
     ...CONTAINS_NON_DELEGUE,
     ...RECHERCHE_PAR_LE_CONTEXTE,
+    ...JOKERS_SQL,
   ],
 };

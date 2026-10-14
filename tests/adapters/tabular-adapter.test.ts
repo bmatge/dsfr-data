@@ -212,6 +212,32 @@ describe('TabularAdapter', () => {
     });
   });
 
+  describe('contains : jokers échappés (#1285, ADR-159 lot 2)', () => {
+    const params = (url: string) => new URL(url).searchParams;
+
+    it('échappe `\\`, `%` et `_` de la valeur, dans cet ordre', () => {
+      const url = adapter.buildUrl(makeParams({ filter: 'nom:contains:50%_a\\b' }));
+      expect(params(url).get('nom__contains')).toBe('50\\%\\_a\\\\b');
+    });
+
+    it('les autres opérateurs gardent leur valeur', () => {
+      const url = adapter.buildUrl(makeParams({ filter: 'nom:eq:50%_a' }));
+      expect(params(url).get('nom__exact')).toBe('50%_a');
+    });
+
+    it('dans un groupe or=(…) aussi', () => {
+      const url = adapter.buildUrl(makeParams({ filter: 'a|b:contains:x_y' }));
+      expect(params(url).get('or')).toBe('(a__contains.x\\_y,b__contains.x\\_y)');
+    });
+
+    it('notcontains et un contains à étoile restent au navigateur', () => {
+      expect(adapter.supportsServerClause('nom:notcontains:x')).toBe(false);
+      expect(adapter.supportsServerClause('nom:contains:a*b')).toBe(false);
+      expect(adapter.supportsServerClause('nom:contains:a%_b')).toBe(true);
+      expect(adapter.supportsServerClause('nom:eq:a*b')).toBe(true);
+    });
+  });
+
   describe('Server-side URL building', () => {
     const overlay = (overrides: Partial<ServerSideOverlay> = {}): ServerSideOverlay => ({
       page: 1,

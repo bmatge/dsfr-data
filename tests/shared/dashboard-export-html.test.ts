@@ -509,22 +509,26 @@ describe('export-html — strategie de chargement (ADR-109, #717)', () => {
     // Une egalite, elle, garde la pagination serveur.
     const egal = generateDashboardHTML(dashboardWith([filtre('region:eq:Bretagne')], [ODS]));
     expect(egal).toContain('server-side page-size="25"');
-    // Et Tabular n'est pas concerne (lot 2 de l'ADR-159).
+    // Tabular (lot 2 de l'ADR-159) : `contains` reste confié, jokers échappés
+    // par la bibliothèque ; `notcontains` est calculé dans le navigateur.
+    const TABULAR = {
+      id: 'ods',
+      name: 'Jeu Tabular',
+      provider: 'tabular',
+      apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc/data/',
+      resourceIds: { resourceId: 'abc' },
+    };
     const tabular = generateDashboardHTML(
-      dashboardWith(
-        [filtre('region:contains:erritoire')],
-        [
-          {
-            id: 'ods',
-            name: 'Jeu Tabular',
-            provider: 'tabular',
-            apiUrl: 'https://tabular-api.data.gouv.fr/api/resources/abc/data/',
-            resourceIds: { resourceId: 'abc' },
-          },
-        ]
-      )
+      dashboardWith([filtre('region:contains:50%_')], [TABULAR])
     );
     expect(tabular).toContain('server-side page-size="25"');
+    const sans = generateDashboardHTML(
+      dashboardWith([filtre('region:notcontains:erritoire')], [TABULAR])
+    );
+    expect(sans).not.toContain('server-side');
+    expect(sans).toContain('where="region:notcontains:erritoire"');
+    const etoile = generateDashboardHTML(dashboardWith([filtre('region:contains:a*b')], [TABULAR]));
+    expect(etoile).not.toContain('server-side');
   });
 
   it('une source a consommateur unique et paginant pagine cote serveur', () => {

@@ -45,7 +45,13 @@ import {
   isMultiFieldClause,
 } from '../utils/where.js';
 import type { ProviderConfig } from '@dsfr-data/shared/lib';
-import { GRIST_CONFIG, resolveTransportUrl, transportFetch } from '@dsfr-data/shared/lib';
+import {
+  GRIST_CONFIG,
+  escapeLikePattern,
+  gristCanExpress,
+  resolveTransportUrl,
+  transportFetch,
+} from '@dsfr-data/shared/lib';
 import { httpError, releaseBody } from '../utils/http-error.js';
 
 /** Construit les options fetch avec headers optionnels */
@@ -351,6 +357,27 @@ export class GristAdapter implements ApiAdapter {
 
   getProviderConfig(): ProviderConfig {
     return GRIST_CONFIG;
+  }
+
+  /**
+   * Ce qui peut etre confie a Grist (#1285, ADR-159, lot 2) : une clause dont
+   * la STRUCTURE de comparaison y est la meme que dans le navigateur.
+   *
+   * - `contains` part en SQL, `LIKE ? ESCAPE '\'`, jokers de la valeur
+   *   echappes (`_sqlClause`) : sous-chaine, casse ignoree pour les seules
+   *   lettres ASCII (`É` n'est pas `é`), accents respectes — l'ecart de casse
+   *   est celui du serveur, admis par l'ADR-159 (point 3).
+   * - `notcontains` reste au navigateur : `NOT LIKE` ecarte les valeurs
+   *   absentes, que le navigateur garde (89 lignes sur 101 quand 12 sont
+   *   nulles, ADR-159).
+   *
+   * Le mode Records ne sait filtrer que `eq` / `in` : une clause `contains`
+   * fait passer en SQL (`_hasAdvancedOperators`) ; sans endpoint SQL, la
+   * clause n'est pas appliquee par le serveur et la reponse le dit
+   * (`needsClientProcessing`).
+   */
+  supportsServerClause(clause: string): boolean {
+    return gristCanExpress(clause);
   }
 
   buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {
@@ -799,13 +826,19 @@ export class GristAdapter implements ApiAdapter {
         sub.push(`${col} <= ?`);
         args.push(this._toNumberOrString(value));
         break;
+      // Sous-chaine (#1285, ADR-159) : `%`, `_` et `\` de la valeur sont
+      // echappes, et SQLite ne lit `\` comme echappement qu'avec la clause
+      // `ESCAPE` (sans elle, `\%` n'echappe rien — mesure du 2026-10-14).
+      // `notcontains` n'est pas confie a Grist (`supportsServerClause`) ; sa
+      // traduction reste juste pour un appelant qui l'enverrait quand meme,
+      // aux valeurs absentes pres.
       case 'contains':
-        sub.push(`${col} LIKE ?`);
-        args.push(`%${value}%`);
+        sub.push(`${col} LIKE ? ESCAPE '\\'`);
+        args.push(`%${escapeLikePattern(value)}%`);
         break;
       case 'notcontains':
-        sub.push(`${col} NOT LIKE ?`);
-        args.push(`%${value}%`);
+        sub.push(`${col} NOT LIKE ? ESCAPE '\\'`);
+        args.push(`%${escapeLikePattern(value)}%`);
         break;
       case 'in': {
         const vals = rest.join(':').split('|').map(unescapeColonValue);

@@ -55,11 +55,42 @@ describe('#1285 — splitWhere : ce qui part, ce qui reste', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("n'a pas d'équivalent ODSQL"));
   });
 
-  it('Tabular, Grist, INSEE, generic : rien ne change (lots suivants de l’ADR-159)', () => {
+  it('Tabular, Grist (lot 2) : contains part, notcontains reste ; Tabular garde aussi un contains à étoile', () => {
+    const filtre = 'a:eq:1, a:contains:x, b:notcontains:y, c|d:contains:z, e:contains:5%_\\';
+    for (const adapter of [tabular, grist]) {
+      expect(splitWhere(adapter, filtre)).toEqual({
+        server: 'a:eq:1, a:contains:x, c|d:contains:z, e:contains:5%_\\',
+        client: 'b:notcontains:y',
+      });
+    }
+    // `*` : PostgREST le lit comme un joker, sans échappement possible
+    expect(splitWhere(tabular, 'a:contains:x*y, b:eq:1')).toEqual({
+      server: 'b:eq:1',
+      client: 'a:contains:x*y',
+    });
+    expect(splitWhere(grist, 'a:contains:x*y').server).toBe('a:contains:x*y');
+    // La recherche lit `supportsServerWhere` : une étoile la renvoie au navigateur
+    expect(tabular.supportsServerWhere('a|b:contains:x*y')).toBe(false);
+    expect(tabular.supportsServerWhere('a|b:contains:x_y')).toBe(true);
+  });
+
+  it('INSEE, generic : rien ne change', () => {
     const filtre = 'a:eq:1, a:contains:x, b:notcontains:y, c|d:contains:z';
-    for (const adapter of [tabular, grist, insee, generic]) {
+    for (const adapter of [insee, generic]) {
       expect(splitWhere(adapter, filtre)).toEqual({ server: filtre, client: '' });
     }
+  });
+
+  it('describeClientWhere dit pourquoi Tabular et Grist gardent une clause', () => {
+    const neg = describeClientWhere(tabular, 'nom:notcontains:x');
+    expect(neg.cause).toContain('valeur est absente');
+    // Une recherche ne remplace pas une négation
+    expect(neg.alternatives).toBe('');
+    const etoile = describeClientWhere(tabular, 'nom:contains:a*b');
+    expect(etoile.cause).toContain('joker');
+    expect(etoile.cause).not.toContain('absente');
+    expect(etoile.alternatives).not.toContain('début de mot');
+    expect(describeClientWhere(grist, 'nom:notcontains:x').cause).toContain('valeur est absente');
   });
 
   it('sans adaptateur : tout part, comme avant ; dialecte ODSQL par défaut : la règle du portail', () => {
@@ -196,12 +227,23 @@ describe('#1285 — dsfr-data-source : la part cliente du filtre', () => {
   }
   const interne = (s: DsfrDataSource) => s as unknown as SourceInternals;
 
-  it('le where propre d’une source part tel quel, quel que soit son dialecte', () => {
+  it('le where propre d’une source colon est partagé comme celui d’une query (lot 2)', () => {
     const source = new DsfrDataSource();
     source.apiType = 'tabular';
     source.where = 'dep:eq:09, nom:notcontains:saint';
-    expect(source.getEffectiveWhere()).toBe('dep:eq:09, nom:notcontains:saint');
-    expect(source.getClientWhere()).toBe('');
+    expect(source.getEffectiveWhere()).toBe('dep:eq:09');
+    expect(source.getClientWhere()).toBe('nom:notcontains:saint');
+    const g = new DsfrDataSource();
+    g.apiType = 'grist';
+    g.where = 'nom:contains:saint, dep:notcontains:9';
+    expect(g.getEffectiveWhere()).toBe('nom:contains:saint');
+    expect(g.getClientWhere()).toBe('dep:notcontains:9');
+    // Sans clause gardée, le where part tel quel
+    const t = new DsfrDataSource();
+    t.apiType = 'tabular';
+    t.where = 'dep:eq:09, nom:contains:saint';
+    expect(t.getEffectiveWhere()).toBe('dep:eq:09, nom:contains:saint');
+    expect(t.getClientWhere()).toBe('');
   });
 
   it('un where ODSQL n’est jamais découpé', () => {

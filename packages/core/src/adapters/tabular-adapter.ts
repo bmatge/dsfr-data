@@ -20,6 +20,8 @@ import {
   transportFetch,
   looseEquals,
   TABULAR_CONFIG,
+  escapeLikePattern,
+  tabularCanExpress,
 } from '@dsfr-data/shared/lib';
 import { getByPath } from '../utils/json-path.js';
 import { parseAggregates } from '../utils/aggregates.js';
@@ -78,6 +80,16 @@ const TABULAR_RESERVED_FIELD_CHARS = /[,:|]/;
  * decodage ; un `"` y est passe tel quel a PostgREST.
  */
 const TABULAR_OR_UNSAFE_VALUE = /[,.()"&]/;
+
+/**
+ * Valeur d'une clause telle qu'elle part a l'API : celle d'un `contains`,
+ * que l'API entoure de jokers (`ilike.*valeur*`), a ses `\`, `%` et `_`
+ * echappes — sinon « 50% » ou « a_b » y seraient des motifs (#1285,
+ * ADR-159). Les autres operateurs gardent leur valeur.
+ */
+function likeValue(op: string | undefined, value: string): string {
+  return op === 'contains' ? escapeLikePattern(value) : value;
+}
 
 /** Parentheses equilibrees : le groupe `or=(…)` est decoupe par profondeur. */
 function parenthesesBalanced(text: string): boolean {
@@ -1815,7 +1827,7 @@ export class TabularAdapter implements ApiAdapter {
                 .map(unescapeColonValue)
                 .map((v) => (quoteIn ? quoteInValue(v) : v))
                 .join(',')
-            : unescapeColonValue(raw);
+            : likeValue(parts[1], unescapeColonValue(raw));
         // Liste nue alors qu'une valeur devait etre citee (#1233) : l'API a
         // refuse les guillemets. `fetchAll` ne passe plus ici avec cette
         // clause (il la calcule) ; reste la pagination serveur, ou elle part
@@ -1856,8 +1868,9 @@ export class TabularAdapter implements ApiAdapter {
     const native = this._mapOperator(op);
     const noValue = op === 'isnull' || op === 'isnotnull';
     if (!noValue && parts.length < 3) return null;
-    const value = unescapeColonValue(parts.slice(2).join(':'));
-    if (!noValue && TABULAR_OR_UNSAFE_VALUE.test(value)) return null;
+    const raw = unescapeColonValue(parts.slice(2).join(':'));
+    if (!noValue && TABULAR_OR_UNSAFE_VALUE.test(raw)) return null;
+    const value = likeValue(op, raw);
     const members: string[] = [];
     for (const field of splitColonFields(fieldPart)) {
       if (field.includes('"') || !parenthesesBalanced(field)) return null;
@@ -1877,13 +1890,38 @@ export class TabularAdapter implements ApiAdapter {
     // PG-034 : une liste `in` / `notin` a parenthese ou a virgule est
     // traduisible — elle part entre guillemets (#1233), et `fetchAll` la
     // calcule lui-meme si l'API refuse cette forme.
-    const multi = where
+    const clauses = where
       .split(',')
       .map((c) => c.trim())
-      .filter((c) => c && isMultiFieldClause(c));
+      .filter(Boolean);
+    // Une clause que l'API ne calcule pas comme le navigateur (#1285) ne peut
+    // pas partir non plus : c'est ce que lit la recherche (`server-search`,
+    // recherche du contexte), qui la calcule alors dans le navigateur. Un
+    // filtre, lui, a deja ete partage par `supportsServerClause`.
+    if (clauses.some((c) => !this.supportsServerClause(c))) return false;
+    const multi = clauses.filter((c) => isMultiFieldClause(c));
     if (multi.length === 0) return true;
     if (multi.length > 1) return false;
     return this._orGroup(multi[0].split(':')) !== null;
+  }
+
+  /**
+   * Ce qui peut etre confie a l'API (#1285, ADR-159, lot 2) : une clause dont
+   * la STRUCTURE de comparaison y est la meme que dans le navigateur.
+   *
+   * - `contains` part en `ilike`, sous-chaine, casse ignoree, accents
+   *   respectes ; `%`, `_` et `\` de la valeur y sont echappes
+   *   (`likeValue`). Une valeur qui porte `*` reste au navigateur : PostgREST
+   *   lit `*` comme `%`, et `\*` comme un « % » litteral — aucune ecriture ne
+   *   la garde telle quelle (mesure du 2026-10-14, `shared/query/sql-like.ts`).
+   * - `notcontains` reste au navigateur : `not.ilike` ecarte les valeurs
+   *   absentes, que le navigateur garde (498 lignes au lieu de 34 826 sur les
+   *   elus municipaux, mesure du 2026-10-14).
+   *
+   * Tous les autres operateurs partent comme avant.
+   */
+  supportsServerClause(clause: string): boolean {
+    return tabularCanExpress(clause);
   }
 
   /** Tri serveur instable deja signale (une fois par adaptateur). */

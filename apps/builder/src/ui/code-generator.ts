@@ -21,6 +21,7 @@ import {
   DSFR_TAG_MAP,
   filterToOdsql,
   splitFilterForOdsql,
+  tabularCanExpress,
   applyLocalFilter,
   detectProvider,
   extractResourceIds,
@@ -510,15 +511,38 @@ function dsfrDeferredScript(tagName: string): string {
  * « contient » rendait zéro ligne dès que la valeur n'était pas un mot entier.
  * Quand `client` n'est pas vide, le code généré ne peut donc plus confier le
  * filtre, le regroupement ni la pagination au serveur : la source charge le
- * jeu, une `dsfr-data-query` filtre et regroupe. Les autres fournisseurs ne
- * sont pas concernés : tout leur filtre reste `server`.
+ * jeu, une `dsfr-data-query` filtre et regroupe.
+ *
+ * Tabular (lot 2) : « ne contient pas » écarterait côté API les lignes dont la
+ * valeur est absente, et un `*` dans « contient » y serait un joker — ces
+ * clauses sont `client` aussi (`tabularCanExpress`). Les autres fournisseurs
+ * ne sont pas concernés ici : tout leur filtre reste `server`, et la
+ * bibliothèque partage elle-même ce qu'elle reçoit.
  */
 function filterSplit(providerId: string): { server: string; client: string } {
   if (!state.advancedMode || !state.queryFilter) return { server: '', client: '' };
+  if (providerId === 'tabular') {
+    const clauses = state.queryFilter
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean);
+    return {
+      server: clauses.filter((c) => tabularCanExpress(c)).join(', '),
+      client: clauses.filter((c) => !tabularCanExpress(c)).join(', '),
+    };
+  }
   if (providerId !== 'opendatasoft') return { server: state.queryFilter, client: '' };
   const { server, client } = splitFilterForOdsql(state.queryFilter);
   return { server, client };
 }
+
+/** Commentaire du code généré quand un filtre Tabular est calculé dans le navigateur (#1285). */
+const TABULAR_CLIENT_FILTER_NOTE =
+  "<!-- « ne contient pas » garde les lignes sans valeur, que l'API Tabular écarterait " +
+  '(et une « * » dans « contient » y serait un joker) : ' +
+  'cette clause est calculée dans le navigateur, sur les lignes chargées. ' +
+  'La source charge 1 000 lignes au plus par défaut et signale la troncature : ' +
+  'pour un jeu plus long, ajoutez max-records="…" (le nombre de lignes du jeu) sur dsfr-data-source. -->';
 
 /**
  * Attribut d'une source Opendatasoft dont le filtre est calculé dans le
@@ -2303,6 +2327,58 @@ export function generateDynamicCodeForApi(): void {
   <dsfr-data-source
     id="table-data"
     ${identity}>
+  </dsfr-data-source>
+  <dsfr-data-query
+    id="table-query"
+    source="table-data"
+    where="${escapeHtml(split.client)}">
+  </dsfr-data-query>
+${facets.element}
+  <dsfr-data-list
+    id="my-datalist"
+    source="${datalistSource}"
+    columns="${colonnes}"${buildDatalistAttrs()}${triAttr}
+    pagination="20">
+  </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
+</div>`;
+      displayGeneratedCode(code);
+      return;
+    }
+
+    // Tabular, même règle (#1285, lot 2) : une clause que l'API ne calcule pas
+    // comme le navigateur interdit la pagination serveur (la bibliothèque la
+    // refuserait). La source charge le jeu filtré par le reste du filtre, une
+    // query applique la clause, la liste pagine dans le navigateur. Pas de
+    // `select` : la colonne filtrée doit être lue.
+    if (split.client && provider.id === 'tabular' && resourceIds?.resourceId) {
+      const whereAttr = split.server ? `\n    where="${escapeHtml(split.server)}"` : '';
+      const staticVals = computeStaticFacetValues();
+      const facets = generateFacetsElement(
+        'table-query',
+        staticVals ? { staticValues: staticVals } : undefined
+      );
+      const datalistSource = facets.element ? facets.finalSourceId : 'table-query';
+      const code = `<!-- Tableau dynamique généré avec dsfr-data Builder -->
+<!-- Doc des composants : ${PROXY_BASE_URL_EMBED}/specs/ -->
+<!-- Source : ${escapeHtml(source.name)} (jeu chargé, filtré et paginé dans le navigateur) -->
+
+<!-- Dépendances CSS (DSFR) -->
+<link rel="stylesheet" href="${CDN_URLS.dsfrCss}">
+<link rel="stylesheet" href="${CDN_URLS.dsfrUtilityCss}">
+
+<!-- Dépendances JS -->
+<script src="${LIB_URL}/dsfr-data.core.umd.js"></script>
+
+<div class="fr-container fr-my-4w">
+  ${state.title ? `<h2>${escapeHtml(state.title)}</h2>` : ''}
+  ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
+
+  ${TABULAR_CLIENT_FILTER_NOTE}
+  <dsfr-data-source
+    id="table-data"
+    api-type="tabular"
+    base-url="${apiBaseUrl}"
+    resource="${resourceIds.resourceId}"${whereAttr}>
   </dsfr-data-source>
   <dsfr-data-query
     id="table-query"
