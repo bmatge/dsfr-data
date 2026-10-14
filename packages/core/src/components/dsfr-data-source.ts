@@ -345,8 +345,9 @@ export class DsfrDataSource extends LitElement {
   /**
    * Clause WHERE statique, déléguée à l'API de l'adaptateur.
    *
-   * Une liste `in` ou `notin` dont une valeur porte une parenthèse ou une
-   * virgule est déléguée comme les autres (#1233). Sur l'API Tabular, qui
+   * Une liste `in` dont une valeur porte une parenthèse ou une virgule est
+   * déléguée comme les autres (#1233) — `notin`, sur Tabular, ne l'est plus
+   * du tout : il est calculé dans le navigateur (#1312, voir plus bas). Sur l'API Tabular, qui
    * écarte sans erreur une telle valeur écrite nue, l'adaptateur l'envoie
    * entre guillemets — seule forme que l'API lise —, en chargement complet
    * comme en pagination serveur ; les autres valeurs de la liste restent
@@ -376,7 +377,8 @@ export class DsfrDataSource extends LitElement {
    * du filtre a laissées passer. Sur Tabular et Grist (#1285, lot 2),
    * `contains` reste confié à leur `LIKE` SQL, jokers de la valeur échappés ;
    * `notcontains` (leur `NOT LIKE` écarterait les valeurs absentes) et, sur
-   * Tabular, un `contains` dont la valeur porte `*` sont calculés par la
+   * Tabular, un `contains` dont la valeur porte `*` et `notin` (son
+   * `not.in` écarterait aussi les absents, #1312) sont calculés par la
    * source. Cet attribut-ci suit la même règle quand il est écrit en
    * grammaire colon (Tabular, Grist) ; sur Opendatasoft il est écrit en ODSQL
    * et part tel quel (y écrire un `like` reste possible, avec sa sémantique

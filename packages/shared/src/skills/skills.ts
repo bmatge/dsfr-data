@@ -71,7 +71,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 | base-url | String | \`""\` | non | URL de base de l'API (mode adapter). Ex: \`"https://data.iledefrance.fr"\` |
 | dataset-id | String | \`""\` | non | ID du dataset (ODS). |
 | resource | String | \`""\` | non | ID de la ressource (Tabular). |
-| where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). Tabular : une liste \`in\`/\`notin\` dont une valeur porte une parenthese ou une virgule est deleguee, la valeur entre guillemets (#1233) ; si l'API refuse cette forme, la clause est calculee sur les lignes chargees. |
+| where | String | \`""\` | non | Clause WHERE statique (ODSQL ou colon syntax). Tabular : une liste \`in\` dont une valeur porte une parenthese ou une virgule est deleguee, la valeur entre guillemets (#1233) ; si l'API refuse cette forme, la clause est calculee sur les lignes chargees. |
 | select | String | \`""\` | non | Clause SELECT serveur (ODS). Ex: \`"count(*) as total, region"\`. Tabular : liste de NOMS de colonnes, envoyee en \`columns=\` (ex. \`"nom_station, lat, lon"\`) — seules ces colonnes reviennent ; ignore avec group-by/aggregate. |
 | group-by | String | \`""\` | non | Group-by serveur (si supporte par le provider). ODS : accepte une expression aliasee, ex. \`"year(date) as annee"\` |
 | aggregate | String | \`""\` | non | Agrégation serveur. Ex: \`"population:sum"\` |
@@ -180,7 +180,7 @@ tableau de données depuis la reponse. Le resultat DOIT etre un tableau d'objets
 > mesure est stable, rien ne le garantit, et la source ne peut pas l'imposer. Elle verifie donc apres coup qu'aucune
 > observation n'est revenue d'une page a l'autre ; si c'est le cas, le volet Diagnostic affiche « lignes revenues
 > d'une page a l'autre » — resserrer alors le \`where\` pour tenir en une page, ou recharger.
-> Tabular, \`where\` avec \`in\`/\`notin\` et une valeur a parenthese ou a virgule (#1233) : la clause part au serveur,
+> Tabular, \`where\` avec \`in\` et une valeur a parenthese ou a virgule (#1233 ; \`notin\` y est calcule dans le navigateur, #1312) : la clause part au serveur,
 > la valeur ENTRE GUILLEMETS (nue, l'API l'ecarterait sans erreur) — une requete filtree, sur la source comme sur une
 > dsfr-data-query, en chargement complet comme en \`server-side\`. Si l'API refuse cette forme : en chargement complet
 > la source charge les lignes des autres clauses et filtre sur place (resultat juste, jeu entier charge, un \`group-by\`
@@ -444,7 +444,7 @@ Multiples filtres separes par virgule (logique ET) :
 | Operateur | Description | Exemple |
 |-----------|-------------|---------|
 | eq | Egal | \`"status:eq:active"\` |
-| neq | Different | \`"type:neq:brouillon"\` |
+| neq | Different (une valeur absente n'est ni egale ni differente : ecartee) | \`"type:neq:brouillon"\` |
 | gt | Strictement superieur | \`"prix:gt:100"\` |
 | gte | Superieur ou egal | \`"population:gte:10000"\` |
 | lt | Strictement inferieur | \`"score:lt:50"\` |
@@ -452,8 +452,8 @@ Multiples filtres separes par virgule (logique ET) :
 | contains | Contient : SOUS-CHAINE, n'importe ou dans la valeur (casse ignoree, accents respectes) | \`"nom:contains:paris"\` |
 | notcontains | Ne contient pas (meme sous-chaine ; garde les valeurs absentes) | \`"email:notcontains:spam"\` |
 | in | Dans la liste (separateur \\|) | \`"region:in:IDF\\|OCC\\|BRE"\` |
-| notin | Pas dans la liste | \`"status:notin:archive\\|supprime"\` |
-| isnull | Est vide/null | \`"email:isnull"\` |
+| notin | Pas dans la liste (garde les valeurs absentes) | \`"status:notin:archive\\|supprime"\` |
+| isnull | Valeur absente (null ou champ manquant ; une chaine vide est une valeur) | \`"email:isnull"\` |
 | isnotnull | N'est pas vide | \`"telephone:isnotnull"\` |
 
 **\`contains\` / \`notcontains\` sont une SOUS-CHAINE, partout (#1285)** : \`nom:contains:tation\`
@@ -491,6 +491,14 @@ avec les memes consequences que sur Opendatasoft (\`max-records\`, erreur de con
 Cela vaut aussi pour le \`where\` ecrit sur une source Tabular ou Grist. Pour paginer au serveur un
 tableau filtre par « ne contient pas », ecrire plutot la liste des valeurs gardees (\`in\`).
 
+**Negations et valeurs absentes (#1312)** : \`neq\` ECARTE une valeur absente (null, champ
+manquant), \`notin\` et \`notcontains\` la GARDENT ; une chaine vide est une valeur. Une negation
+n'est confiee au serveur que s'il fait le meme sort aux absents. Sur Tabular, \`notin\` est donc
+calcule dans le navigateur (le \`not.in\` de l'API ecarte les absents) — memes consequences que
+\`notcontains\`, erreur de configuration derriere \`server-side\` : pour paginer au serveur, ecrire la
+liste des valeurs gardees (\`in\`). \`neq\` y part en \`__differs\` + \`__isnotnull\`, et sur Grist
+\`notin\` part en \`(champ IS NULL OR champ NOT IN (…))\`.
+
 **Qui calcule chaque clause de texte, par fournisseur** (ADR-159 ; meme tableau que
 docs/ARCHITECTURE.md, tenu par un test). « serveur » : l'API calcule, avec sa casse et ses accents ;
 « navigateur » : la source calcule (sous-chaine, casse ignoree, accents respectes) sur les lignes que
@@ -502,7 +510,9 @@ source ou \`server-facets\` voisin deviennent une ERREUR DE CONFIGURATION.
 | \`contains\` (\`champ:contains:aliment\`) | navigateur : le \`like\` du portail compare des mots | serveur : \`ilike\`, \`\\\` \`%\` \`_\` échappés | serveur : \`LIKE ? ESCAPE '\\'\`, \`\\\` \`%\` \`_\` échappés |
 | \`contains\`, valeur à étoile (\`champ:contains:a*b\`) | navigateur | navigateur : l'API lit \`*\` comme un joker | serveur |
 | \`notcontains\` (\`champ:notcontains:aliment\`) | navigateur | navigateur : \`NOT ILIKE\` écarte les valeurs absentes | navigateur : \`NOT LIKE\` écarte les valeurs absentes |
-| \`eq\` \`neq\` \`gt\` \`gte\` \`lt\` \`lte\` \`in\` \`notin\` \`isnull\` \`isnotnull\` | serveur | serveur | serveur |
+| \`neq\` (\`champ:neq:archive\`) | serveur : \`!=\` écarte les valeurs absentes, comme le navigateur | serveur : \`__differs\` et \`__isnotnull\` (\`__differs\` seul garde les valeurs absentes) | serveur : \`!=\` écarte les valeurs absentes, comme le navigateur |
+| \`notin\` (\`champ:notin:archive\`) | serveur : \`NOT … in (…)\` garde les valeurs absentes, comme le navigateur | navigateur : \`not.in\` écarte les valeurs absentes | serveur : \`(champ IS NULL OR champ NOT IN (…))\` garde les valeurs absentes |
+| \`eq\` \`gt\` \`gte\` \`lt\` \`lte\` \`in\` \`isnull\` \`isnotnull\` | serveur | serveur | serveur |
 | casse, clause confiée | sans objet | ignorée | ignorée pour les lettres ASCII seulement (\`É\` n'est pas \`é\`) |
 | accents, clause confiée | sans objet | respectés | respectés |
 | recherche de \`dsfr-data-search\` en mode \`context\` | serveur : \`search(champ, "q")\`, début de mot, casse et accents ignorés | serveur : \`champ:contains:q\`, sous-chaîne, accents respectés ; terme à étoile : navigateur | serveur : \`champ:contains:q\`, sous-chaîne, casse ASCII ignorée, accents respectés |

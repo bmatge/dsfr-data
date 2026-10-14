@@ -169,9 +169,15 @@ export function describeClientWhere(
   // ADR-159) : un portail Opendatasoft compare des mots ; un `LIKE` SQL
   // (Tabular, Grist) écarte les valeurs absentes sous une négation, et
   // PostgREST lit `*` comme un joker (Tabular).
+  // `notin` (#1312) : le `not.in` de Tabular écarte lui aussi les absents.
+  const negations = [
+    /:notcontains:/.test(clientWhere) ? 'notcontains' : '',
+    /:notin:/.test(clientWhere) ? 'notin' : '',
+  ].filter(Boolean);
   const sql = [
-    /:notcontains:/.test(clientWhere)
-      ? `notcontains y écarterait les lignes dont la valeur est absente, que le navigateur garde`
+    negations.length > 0
+      ? `${negations.join(' et ')} y écarterai${negations.length > 1 ? 'en' : ''}t les lignes ` +
+        `dont la valeur est absente, que le navigateur garde`
       : '',
     /:contains:[^,]*\*/.test(clientWhere)
       ? `un * dans la valeur de contains y serait un joker`

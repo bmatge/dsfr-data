@@ -846,9 +846,14 @@ export class GristAdapter implements ApiAdapter {
         args.push(...vals);
         break;
       }
+      // `NOT IN` ecarte les valeurs absentes (logique a trois valeurs), que le
+      // navigateur garde : `IS NULL OR` les rend (#1312, mesure du 2026-10-14
+      // sur grist.numerique.gouv.fr, 101 lignes dont 12 nulles :
+      // `NOT IN ('zzz')` → 89, `(c IS NULL OR c NOT IN ('zzz'))` → 101).
+      // `neq` (`!=`) les ecarte, comme le navigateur (89) : il reste tel quel.
       case 'notin': {
         const vals = rest.join(':').split('|').map(unescapeColonValue);
-        sub.push(`${col} NOT IN (${vals.map(() => '?').join(',')})`);
+        sub.push(`(${col} IS NULL OR ${col} NOT IN (${vals.map(() => '?').join(',')}))`);
         args.push(...vals);
         break;
       }

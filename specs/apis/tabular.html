@@ -175,7 +175,7 @@
               </thead>
               <tbody>
                 <tr><td><code>eq</code></td><td><code>exact</code></td><td>Egal a</td></tr>
-                <tr><td><code>neq</code></td><td><code>differs</code></td><td>Different de</td></tr>
+                <tr><td><code>neq</code></td><td><code>differs</code> + <code>isnotnull</code></td><td>Différent de ; une valeur absente est écartée (<code>differs</code> seul la garderait)</td></tr>
                 <tr><td><code>gt</code></td><td><code>strictly_greater</code></td><td>Strictement superieur</td></tr>
                 <tr><td><code>gte</code></td><td><code>greater</code></td><td>Superieur ou egal</td></tr>
                 <tr><td><code>lt</code></td><td><code>strictly_less</code></td><td>Strictement inférieur</td></tr>
@@ -183,7 +183,7 @@
                 <tr><td><code>contains</code></td><td><code>contains</code></td><td>Contient la valeur (<code>ilike</code>) ; <code>%</code>, <code>_</code> et <code>\</code> de la valeur échappés. Une valeur qui porte <code>*</code> : calculée dans le navigateur</td></tr>
                 <tr><td><code>notcontains</code></td><td>—</td><td>Ne contient pas : calculé dans le navigateur, jamais confié à l'API</td></tr>
                 <tr><td><code>in</code></td><td><code>in</code></td><td>Dans la liste</td></tr>
-                <tr><td><code>notin</code></td><td><code>notin</code></td><td>Pas dans la liste</td></tr>
+                <tr><td><code>notin</code></td><td>—</td><td>Pas dans la liste : calculé dans le navigateur, jamais confié à l'API (<code>not.in</code> écarterait les valeurs absentes)</td></tr>
                 <tr><td><code>isnull</code></td><td><code>isnull</code></td><td>Est null</td></tr>
                 <tr><td><code>isnotnull</code></td><td><code>isnotnull</code></td><td>N'est pas null</td></tr>
               </tbody>
@@ -208,6 +208,25 @@
             garde : <code>notcontains</code> n'est jamais confié à l'API. La source le calcule sur les
             lignes chargées (sous <code>max-records</code>) ; derrière <code>server-side</code>, c'est une
             erreur de configuration, qui dit de retirer <code>server-side</code>.
+          </p>
+
+          <h3 class="fr-mt-2w">Négations et valeurs absentes (#1312)</h3>
+          <p>
+            Le filtre de la bibliothèque écarte une valeur absente sous <code>neq</code> et la garde sous
+            <code>notin</code> et <code>notcontains</code>. L'API fait l'inverse sur les deux premiers.
+            Mesuré le 2026-10-14 sur les élus municipaux (34 826 lignes ; « Libellé de la collectivité à
+            statut particulier » nulle sur 34 328, « Corse » sur 359) : <code>__differs=Corse</code> → 34 467
+            (<code>isdistinct</code> garde les absents), <code>__notin=Corse</code> → 139 (<code>not.in</code>
+            les écarte). Le navigateur rend 139 pour <code>neq</code> et 34 467 pour <code>notin</code>.
+          </p>
+          <p>
+            <code>neq</code> part donc en <code>__differs</code> <strong>et</strong> <code>__isnotnull</code>
+            (139, mesuré ; dans un groupe <code>or=(…)</code>, un <code>and(…)</code> par champ).
+            <code>notin</code>, qu'aucune écriture d'une liste ne sait dire en gardant les absents, est
+            calculé dans le navigateur, comme <code>notcontains</code> : derrière <code>server-side</code>,
+            erreur de configuration ; pour paginer au serveur, écrire la liste des valeurs gardées
+            (<code>in</code>). <code>isnull</code> / <code>isnotnull</code> partent en
+            <code>champ__isnull=</code>.
           </p>
 
           <h3 class="fr-mt-2w">Separateur WHERE</h3>

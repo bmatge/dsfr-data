@@ -390,6 +390,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * délégué à Opendatasoft (#1285) ; calculé dans le navigateur, il garde
    * les valeurs absentes partout.
    *
+   * Les serveurs SQL sont jugés sur ce même sort des absents (#1312) :
+   * Tabular reçoit `neq` en `__differs` + `__isnotnull` (`__differs` seul
+   * les garde : 34 467 élus au lieu de 139, mesuré) et calcule `notin` dans
+   * le navigateur (`not.in` les écarte : 139 au lieu de 34 467) ; Grist
+   * reçoit `notin` en `(champ IS NULL OR champ NOT IN (…))`.
+   *
    * ⚠️ `tags:contains:urgent` n'est toujours PAS un équivalent d'`eq` : il
    * cherche une sous-chaîne dans `String(tableau)`, donc « non-urgent » y
    * matche « urgent », et la recherche traverse la virgule entre deux

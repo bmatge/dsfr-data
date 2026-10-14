@@ -459,7 +459,9 @@ export function validateColonFilter(filterExpr: string): string | null {
  * qu'applique Opendatasoft (`champ != v` -> 31 lignes là où le client en
  * rendait 52, mesuré). `notin` et `notcontains` les laissent toujours passer,
  * parce que l'adaptateur les traduit en `NOT …`, qui les garde aussi : voir
- * le tableau des deux écritures en tête de `filterToOdsql`.
+ * le tableau des deux écritures en tête de `filterToOdsql`. Les serveurs SQL
+ * (Tabular, Grist) sont jugés sur ce même sort des absents : `server-clause.ts`
+ * dit ce qui leur est confié, et sous quelle écriture (#1312).
  *
  * `getField` (#674) : résolution de la valeur d'un champ dans une ligne —
  * par défaut la clé directe `row[field]` ; un consommateur qui accepte des

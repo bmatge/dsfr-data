@@ -256,7 +256,8 @@
               <tbody>
                 <tr><td><code>eq</code></td><td class="capability-yes">Oui</td><td class="capability-yes">Oui</td><td><code>region:eq:Bretagne</code></td></tr>
                 <tr><td><code>in</code></td><td class="capability-yes">Oui</td><td class="capability-yes">Oui</td><td><code>region:in:IDF|OCC|BRE</code></td></tr>
-                <tr><td><code>neq</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>status:neq:archive</code></td></tr>
+                <tr><td><code>neq</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui — <code>!=</code>, une valeur absente est écartée, comme dans le navigateur</td><td><code>status:neq:archive</code></td></tr>
+                <tr><td><code>notin</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui — <code>(champ IS NULL OR champ NOT IN (…))</code> : une valeur absente est gardée, comme dans le navigateur (<code>NOT IN</code> seul l'écarterait, #1312)</td><td><code>status:notin:archive|brouillon</code></td></tr>
                 <tr><td><code>gt</code>, <code>gte</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>age:gt:18</code></td></tr>
                 <tr><td><code>lt</code>, <code>lte</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>prix:lt:50</code></td></tr>
                 <tr><td><code>contains</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui — <code>LIKE ? ESCAPE '\'</code>, <code>%</code> <code>_</code> <code>\</code> de la valeur échappés</td><td><code>nom:contains:Paris</code></td></tr>

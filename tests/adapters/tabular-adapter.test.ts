@@ -238,6 +238,40 @@ describe('TabularAdapter', () => {
     });
   });
 
+  describe('négations et valeurs absentes (#1312)', () => {
+    const params = (url: string) => new URL(url).searchParams;
+
+    it('neq part en `__differs` ET `__isnotnull` : `differs` seul garderait les absents', () => {
+      const url = adapter.buildUrl(makeParams({ filter: 'nom:neq:Corse' }));
+      expect(params(url).getAll('nom__differs')).toEqual(['Corse']);
+      expect(params(url).getAll('nom__isnotnull')).toEqual(['']);
+    });
+
+    it('neq multi-champs : un `and(…)` par membre du groupe or=(…)', () => {
+      const url = adapter.buildUrl(makeParams({ filter: 'a|b:neq:x' }));
+      expect(params(url).get('or')).toBe(
+        '(and(a__differs.x,a__isnotnull),and(b__differs.x,b__isnotnull))'
+      );
+    });
+
+    it('isnull / isnotnull sans valeur partent (ils étaient ignorés)', () => {
+      expect(
+        params(adapter.buildUrl(makeParams({ filter: 'nom:isnull' }))).has('nom__isnull')
+      ).toBe(true);
+      expect(
+        params(adapter.buildUrl(makeParams({ filter: 'nom:isnotnull' }))).has('nom__isnotnull')
+      ).toBe(true);
+    });
+
+    it('notin reste au navigateur (`not.in` écarte les absents), neq part', () => {
+      expect(adapter.supportsServerClause('nom:notin:a|b')).toBe(false);
+      expect(adapter.supportsServerClause('a|b:notin:x')).toBe(false);
+      expect(adapter.supportsServerClause('nom:neq:a')).toBe(true);
+      expect(adapter.supportsServerClause('a|b:neq:x')).toBe(true);
+      expect(adapter.supportsServerClause('nom:isnull')).toBe(true);
+    });
+  });
+
   describe('Server-side URL building', () => {
     const overlay = (overrides: Partial<ServerSideOverlay> = {}): ServerSideOverlay => ({
       page: 1,

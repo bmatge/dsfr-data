@@ -39,6 +39,7 @@ import territoires from './jeux/territoires.json' with { type: 'json' };
 import exAequo from './jeux/delegation-tabular-ex-aequo.json' with { type: 'json' };
 import gristExAequo from './jeux/delegation-grist-ex-aequo.json' with { type: 'json' };
 import jokers from './jeux/delegation-jokers.json' with { type: 'json' };
+import negations from './jeux/delegation-negations.json' with { type: 'json' };
 import mesures from './jeux/mesures.json' with { type: 'json' };
 import regions from './jeux/regions.json' with { type: 'json' };
 
@@ -108,9 +109,24 @@ export const JOKERS: Row[] = jokers;
 export const GRIST_TABLE_JOKERS = 'Jokers';
 export const URL_GRIST_JOKERS = `${GRIST_DOC_EX_AEQUO}/tables/${GRIST_TABLE_JOKERS}/records`;
 
+/**
+ * Le jeu des NÉGATIONS (#1312) : deux colonnes nulles et vides sur des lignes
+ * différentes, servies À L'IDENTIQUE par les trois faux serveurs — une
+ * ressource Tabular, une table du document Grist à SQL, un jeu Opendatasoft.
+ * Chacun fait aux valeurs absentes le sort que leur fait le vrai (mesuré le
+ * 2026-10-14) : Tabular `__differs` les garde et `__notin` les écarte, SQLite
+ * `!=` et `NOT IN` les écartent, ODSQL `!=` les écarte et `NOT … in` les garde.
+ */
+export const NEGATIONS: Row[] = negations;
+export const RESSOURCE_TABULAR_NEGATIONS = 'ea1b5c3d-0000-4000-8000-verifnegation';
+export const GRIST_TABLE_NEGATIONS = 'Negations';
+export const URL_GRIST_NEGATIONS = `${GRIST_DOC_EX_AEQUO}/tables/${GRIST_TABLE_NEGATIONS}/records`;
+export const DATASET_NEGATIONS = 'jeu-negations';
+
 const TABLES_GRIST = {
   [GRIST_TABLE_EX_AEQUO]: tableGrist(GRIST_EX_AEQUO),
   [GRIST_TABLE_JOKERS]: tableGrist(JOKERS),
+  [GRIST_TABLE_NEGATIONS]: tableGrist(NEGATIONS),
 };
 
 /**
@@ -242,6 +258,7 @@ function repondreJeuPagine(url: URL, jeu: Row[]): Record<string, unknown> {
 
 const PREFIXE_ODS = `/api/explore/v2.1/catalog/datasets/${DATASET}`;
 const PREFIXE_ODS_EX_AEQUO = `/api/explore/v2.1/catalog/datasets/${DATASET_EX_AEQUO}`;
+const PREFIXE_ODS_NEGATIONS = `/api/explore/v2.1/catalog/datasets/${DATASET_NEGATIONS}`;
 
 /** Un agrégat ODSQL aliasé d'un `select` : `sum(population) as population__sum`. */
 const AGREGAT_ALIAS = /^(sum|avg|min|max|count)\s*\(\s*(.*?)\s*\)\s+as\s+(.+)$/i;
@@ -348,6 +365,13 @@ export function repondre(url: URL, corps?: string | null): unknown | null {
     if (reste === '') return repondreOdsMetadonnees(EX_AEQUO);
     return null;
   }
+  if (url.origin === HOTE_ODS && url.pathname.startsWith(PREFIXE_ODS_NEGATIONS)) {
+    const reste = url.pathname.slice(PREFIXE_ODS_NEGATIONS.length);
+    if (reste === '/records') return repondreOdsRecords(url, NEGATIONS);
+    if (reste === '/exports/json') return repondreOdsExport(url, NEGATIONS);
+    if (reste === '') return repondreOdsMetadonnees(NEGATIONS);
+    return null;
+  }
   if (url.origin === HOTE_TABULAR) {
     if (url.pathname === `/api/resources/${RESSOURCE_TABULAR}/data/`) {
       return repondreTabular(url, TERRITOIRES);
@@ -357,6 +381,9 @@ export function repondre(url: URL, corps?: string | null): unknown | null {
     }
     if (url.pathname === `/api/resources/${RESSOURCE_TABULAR_JOKERS}/data/`) {
       return repondreTabular(url, JOKERS);
+    }
+    if (url.pathname === `/api/resources/${RESSOURCE_TABULAR_NEGATIONS}/data/`) {
+      return repondreTabular(url, NEGATIONS);
     }
     // La ressource Tabular du lot AFFICHAGES (#1020) : meme hote, autre chemin.
     return repondreAffichagesTabular(url);

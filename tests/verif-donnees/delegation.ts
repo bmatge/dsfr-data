@@ -29,6 +29,10 @@ import {
   HOTE_ODS,
   JOKERS,
   MESURES,
+  NEGATIONS,
+  DATASET_NEGATIONS,
+  RESSOURCE_TABULAR_NEGATIONS,
+  URL_GRIST_NEGATIONS,
   RELAIS,
   RESSOURCE_TABULAR,
   RESSOURCE_TABULAR_EX_AEQUO,
@@ -3456,6 +3460,261 @@ const JOKERS_SQL: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Les négations confiées au serveur et les valeurs absentes (#1312)
+// ---------------------------------------------------------------------------
+
+/**
+ * Dans le navigateur, `neq` ÉCARTE une valeur absente et `notin` la GARDE
+ * (#958, ADR-139). Une négation n'est confiée à un serveur que s'il leur fait
+ * le même sort (ADR-159, point 2). Mesuré le 2026-10-14 :
+ *
+ *   Tabular `__differs` (`isdistinct`) les garde : 34 467 élus au lieu de 139 ;
+ *   Tabular `__notin` (`not.in`) les écarte : 139 au lieu de 34 467 ;
+ *   SQLite (Grist) `NOT IN` les écarte : 89 lignes sur 101 au lieu de 101 ;
+ *   ODSQL `!=` les écarte et `NOT … in` les garde, comme le navigateur.
+ *
+ * Le jeu (`jeux/delegation-negations.json`, 12 lignes) a `statut` nul sur
+ * trois lignes et vide sur une, `region` nulle sur quatre et vide sur une. Les
+ * contrôles lisent un regroupement DÉLÉGUÉ (la query ne peut pas refiltrer ce
+ * que le serveur a agrégé) et le `where` écrit sur la source (que rien ne
+ * refiltre non plus) : un serveur qui garde ou écarte une ligne de trop change
+ * le chiffre.
+ */
+const DATA_NEGATIONS = `/api/resources/${RESSOURCE_TABULAR_NEGATIONS}/data/`;
+const sourceTabularNegations = (id: string, attrs = ''): string =>
+  `<dsfr-data-source id="${id}" api-type="tabular" resource="${RESSOURCE_TABULAR_NEGATIONS}"${attrs ? ` ${attrs}` : ''}></dsfr-data-source>`;
+const sourceGristNegations = (id: string, attrs = ''): string =>
+  `<dsfr-data-source id="${id}" api-type="grist" base-url="${URL_GRIST_NEGATIONS}"${attrs ? ` ${attrs}` : ''}></dsfr-data-source>`;
+const sourceOdsNegations = (id: string, attrs = ''): string =>
+  `<dsfr-data-source id="${id}" api-type="opendatasoft" base-url="${HOTE_ODS}" dataset-id="${DATASET_NEGATIONS}"${attrs ? ` ${attrs}` : ''}></dsfr-data-source>`;
+
+/** Une query seule lectrice, regroupée par `groupe` : délégable au serveur. */
+const regroupeeNegations = (
+  source: (id: string, attrs?: string) => string,
+  suffixe: string,
+  where: string
+): string => `
+  ${source(`s-${suffixe}`)}
+  <dsfr-data-query id="q-${suffixe}" source="s-${suffixe}" where="${where}" group-by="groupe"
+    aggregate="montant:sum, rang:count"></dsfr-data-query>`;
+
+/** Le `where` écrit sur la source, lu par deux KPI : lignes et somme. */
+const surLaSourceNegations = (
+  source: (id: string, attrs?: string) => string,
+  suffixe: string,
+  where: string
+): string => `
+  ${source(`s-${suffixe}`, `where="${where}"`)}${kpiLignes(`k-${suffixe}`, `s-${suffixe}`)}
+  <dsfr-data-kpi id="k-${suffixe}-somme" source="s-${suffixe}" value="montant:sum" format="nombre" label="k-${suffixe}-somme"></dsfr-data-kpi>`;
+
+const parGroupe = (suffixe: string, filtres: Step[]): Expect => ({
+  kind: 'rows',
+  id: `q-${suffixe}`,
+  key: 'groupe',
+  columns: ['montant__sum', 'rang__count'],
+  pipeline: [
+    ...filtres,
+    {
+      op: 'group-by',
+      by: 'groupe',
+      columns: {
+        montant__sum: { agg: 'sum', field: 'montant' },
+        rang__count: { agg: 'count', field: 'rang' },
+      },
+    },
+  ],
+});
+
+const surLaSource = (suffixe: string, filtres: Step[]): Expect[] => [
+  { kind: 'kpi', id: `k-${suffixe}`, agg: 'count', pipeline: filtres },
+  { kind: 'kpi', id: `k-${suffixe}-somme`, agg: 'sum', field: 'montant', pipeline: filtres },
+];
+
+const STATUT_NEQ_CLOS: Step[] = [
+  { op: 'filter', filters: [{ field: 'statut', op: 'neq', value: 'clos' }] },
+];
+const STATUT_NOTIN: Step[] = [
+  { op: 'filter', filters: [{ field: 'statut', op: 'notin', values: ['clos', 'archive'] }] },
+];
+const STATUT_OU_REGION_NEQ_IDF: Step[] = [
+  {
+    op: 'filter',
+    filters: [
+      {
+        op: 'or',
+        any: [
+          { field: 'statut', op: 'neq', value: 'IDF' },
+          { field: 'region', op: 'neq', value: 'IDF' },
+        ],
+      },
+    ],
+  },
+];
+
+const NEGATIONS_ABSENTS: Check[] = [
+  {
+    id: 'neq-tabular-ecarte-les-absents',
+    mode: 'deterministic',
+    origin:
+      '#1312 — `neq` partait à Tabular en `__differs`, que l’API traduit en `isdistinct` (IS DISTINCT FROM) : il GARDE les valeurs absentes, que le navigateur écarte (#958). Mesuré le 2026-10-14 sur les élus municipaux : `__differs=Corse` → 34 467 lignes, le navigateur 139 — l’écart de 359 de l’issue n’était pas celui de `zzz` mais les 359 « Corse » d’une colonne nulle partout ailleurs. `neq` part désormais en `__differs` ET `__isnotnull` (139, mesuré), un `and(…)` par champ dans un groupe `or=(…)` (498 contre 34 826 sans). Ici « statut ≠ clos » : 6 lignes, 9 avec les trois nulles ; « statut ou région ≠ IDF » : 11, 12 si la ligne nulle des deux côtés passe. Lus sur un regroupement délégué et sur le `where` de la source, que rien ne refiltre.',
+    feed: { kind: 'fixture', datasets: { main: NEGATIONS } },
+    markup:
+      regroupeeNegations(sourceTabularNegations, 'tab-neq', 'statut:neq:clos') +
+      surLaSourceNegations(sourceTabularNegations, 'tab-neq-propre', 'statut:neq:clos') +
+      surLaSourceNegations(sourceTabularNegations, 'tab-neq-ou', 'statut|region:neq:IDF'),
+    expects: [
+      parGroupe('tab-neq', STATUT_NEQ_CLOS),
+      ...surLaSource('tab-neq-propre', STATUT_NEQ_CLOS),
+      ...surLaSource('tab-neq-ou', STATUT_OU_REGION_NEQ_IDF),
+      {
+        kind: 'urls',
+        id: 'neq-tabular-groupby-delegue',
+        among: DATA_NEGATIONS,
+        contains: 'groupe__groupby',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'neq-tabular-isnotnull',
+        among: DATA_NEGATIONS,
+        contains: 'statut__isnotnull=',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'notin-tabular-garde-les-absents',
+    mode: 'deterministic',
+    origin:
+      '#1312 — `notin` partait à Tabular en `__notin`, que l’API traduit en `not.in` : il ÉCARTE les valeurs absentes, que le navigateur garde. Mesuré le 2026-10-14 sur les élus municipaux : `__notin=Corse` → 139 lignes, le navigateur 34 467 (`__notin=zzz` → 498 au lieu de 34 826, le constat de l’issue). Aucune écriture d’une liste ne les garde (`or=(c__notin.(a,b),c__isnull)` → 476 au lieu de 34 445, mesuré) : la clause est calculée dans le navigateur, qu’elle vienne d’une query ou du `where` de la source, et le regroupement avec elle. Ici « statut hors clos et archive » : 7 lignes, 4 par l’API. Aucun `__notin` ne part.',
+    feed: { kind: 'fixture', datasets: { main: NEGATIONS } },
+    markup:
+      regroupeeNegations(sourceTabularNegations, 'tab-notin', 'statut:notin:clos|archive') +
+      surLaSourceNegations(sourceTabularNegations, 'tab-notin-propre', 'statut:notin:clos|archive'),
+    expects: [
+      parGroupe('tab-notin', STATUT_NOTIN),
+      ...surLaSource('tab-notin-propre', STATUT_NOTIN),
+      {
+        kind: 'urls',
+        id: 'notin-tabular-jamais-confie',
+        among: DATA_NEGATIONS,
+        contains: '__notin',
+        verdict: 'none',
+      },
+    ],
+  },
+
+  {
+    id: 'notin-tabular-server-side-refuse',
+    mode: 'deterministic',
+    origin:
+      '#1312, règle de #1242 — un `notin` calculé dans le navigateur derrière une source Tabular en `server-side` ne filtrerait qu’une page. La source passe en ERREUR DE CONFIGURATION : elle nomme la clause, dit pourquoi l’API ne la calcule pas (elle écarterait les valeurs absentes) et de retirer `server-side`. Même règle pour la clause écrite sur la source.',
+    feed: { kind: 'fixture', datasets: { main: NEGATIONS } },
+    markup: `
+  ${sourceTabularNegations('s-tab-notin-page', `server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-query id="q-tab-notin-page" source="s-tab-notin-page" where="statut:notin:clos|archive"></dsfr-data-query>
+  <dsfr-data-list id="l-tab-notin-page" source="q-tab-notin-page" columns="statut:Statut"></dsfr-data-list>
+  ${sourceTabularNegations('s-tab-notin-page-propre', `where="statut:notin:clos|archive" server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-list id="l-tab-notin-page-propre" source="s-tab-notin-page-propre" columns="statut:Statut"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 's-tab-notin-page',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-tab-notin-page"',
+      },
+      {
+        kind: 'diagnostic',
+        id: 's-tab-notin-page',
+        expect: 'config-error',
+        contains: 'notin y écarterait les lignes dont la valeur est absente',
+      },
+      {
+        kind: 'diagnostic',
+        id: 's-tab-notin-page-propre',
+        expect: 'config-error',
+        contains: 'la clause "statut:notin:clos|archive"',
+      },
+    ],
+  },
+
+  {
+    id: 'isnull-tabular-confie',
+    mode: 'deterministic',
+    origin:
+      '#1312 — `champ:isnull` et `champ:isnotnull` s’écrivent sans valeur (deux segments) ; l’adaptateur Tabular ne traduisait que les clauses à trois segments et les IGNORAIT : sur le `where` d’une source, rien ne les appliquait, et la source rendait toutes ses lignes (12 ici). Elles partent désormais en `champ__isnull=` — l’API le lit comme le flag nu (34 328 élus dans les deux formes, mesuré le 2026-10-14). « région absente » : 4 lignes ; la chaîne vide est une valeur.',
+    feed: { kind: 'fixture', datasets: { main: NEGATIONS } },
+    markup:
+      surLaSourceNegations(sourceTabularNegations, 'tab-isnull', 'region:isnull') +
+      surLaSourceNegations(sourceTabularNegations, 'tab-isnotnull', 'region:isnotnull'),
+    expects: [
+      ...surLaSource('tab-isnull', [
+        { op: 'filter', filters: [{ field: 'region', op: 'isnull-strict' }] },
+      ]),
+      ...surLaSource('tab-isnotnull', [
+        { op: 'filter', filters: [{ field: 'region', op: 'isnotnull-strict' }] },
+      ]),
+      {
+        kind: 'urls',
+        id: 'isnull-tabular-part',
+        among: DATA_NEGATIONS,
+        contains: 'region__isnull=',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'notin-grist-garde-les-absents',
+    mode: 'deterministic',
+    origin:
+      "#1312 — `notin` partait à Grist en SQL `NOT IN`, qui ÉCARTE les valeurs absentes (logique à trois valeurs) ; le navigateur les garde. Mesuré le 2026-10-14 sur grist.numerique.gouv.fr (101 lignes, colonne dérivée nulle sur 12) : `c NOT IN ('zzz')` → 89, `(c IS NULL OR c NOT IN ('zzz'))` → 101. La clause part désormais sous cette seconde forme : elle reste confiée à Grist (regroupement compris), et rend les lignes du navigateur — 7 ici, 4 par `NOT IN`. `neq` (`!=`) écarte les absents comme le navigateur : il part tel quel, 6 lignes. Le faux Grist lit `!=` et `NOT IN` comme SQLite.",
+    feed: { kind: 'fixture', datasets: { main: NEGATIONS } },
+    markup:
+      regroupeeNegations(sourceGristNegations, 'gri-notin', 'statut:notin:clos|archive') +
+      surLaSourceNegations(sourceGristNegations, 'gri-notin-propre', 'statut:notin:clos|archive') +
+      regroupeeNegations(sourceGristNegations, 'gri-neq', 'statut:neq:clos') +
+      surLaSourceNegations(sourceGristNegations, 'gri-neq-propre', 'statut:neq:clos'),
+    expects: [
+      parGroupe('gri-notin', STATUT_NOTIN),
+      ...surLaSource('gri-notin-propre', STATUT_NOTIN),
+      parGroupe('gri-neq', STATUT_NEQ_CLOS),
+      ...surLaSource('gri-neq-propre', STATUT_NEQ_CLOS),
+      {
+        kind: 'urls',
+        id: 'grist-negations-par-sql',
+        among: 'docExAequo',
+        contains: '/sql',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'negations-ods-sort-des-absents',
+    mode: 'deterministic',
+    origin:
+      '#1312, ADR-139 — Opendatasoft a deux écritures de la négation, de sens différents : `!=` écarte les valeurs absentes (logique à trois valeurs), `NOT … in (…)` les garde (complément booléen). Remesuré le 2026-10-14 sur `retours-formulaire-votre-avis-copie` (176 lignes dont 21 nulles) : `!= "zzz"` → 155, `NOT themes_attendus in ("zzz")` → 176. C’est le sort que leur fait le navigateur : `neq` part en `!=`, `notin` en `NOT … in`, regroupement compris. Le faux portail lit désormais `NOT`, `in (…)` et `is null` comme le vrai (il les refusait) : un `notin` émis en `!=` y perdrait les trois nulles.',
+    feed: { kind: 'fixture', datasets: { main: NEGATIONS } },
+    markup:
+      regroupeeNegations(sourceOdsNegations, 'ods-neq', 'statut:neq:clos') +
+      regroupeeNegations(sourceOdsNegations, 'ods-notin', 'statut:notin:clos|archive'),
+    expects: [
+      parGroupe('ods-neq', STATUT_NEQ_CLOS),
+      parGroupe('ods-notin', STATUT_NOTIN),
+      {
+        kind: 'urls',
+        id: 'ods-negations-group-by',
+        among: `/datasets/${DATASET_NEGATIONS}/records`,
+        contains: 'group_by=',
+        verdict: 'some',
+      },
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -3480,5 +3739,6 @@ export const DELEGATION: Manifest = {
     ...CONTAINS_NON_DELEGUE,
     ...RECHERCHE_PAR_LE_CONTEXTE,
     ...JOKERS_SQL,
+    ...NEGATIONS_ABSENTS,
   ],
 };
