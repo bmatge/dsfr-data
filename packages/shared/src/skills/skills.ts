@@ -3389,7 +3389,7 @@ Si ni \`table\`, ni \`download\`, ni \`description\` ne sont définis, les trois
 Quand \`for="mon-graph"\` est défini :
 1. Un **skip link** est injecte dans le graphique cible (visible au focus clavier)
 2. \`aria-describedby\` pointe vers un resume concis dans le composant
-3. \`aria-details\` pointe vers le tableau de données (si \`table\` est active)
+3. \`aria-details\` pointe vers le tableau de données (si \`table\` est active), seulement quand il est affiché (retiré pendant le chargement et une panne)
 4. A la deconnexion, tout est nettoye automatiquement
 
 ### Exemple basique

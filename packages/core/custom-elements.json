@@ -278,6 +278,12 @@
             },
             {
               "kind": "method",
+              "name": "_syncAriaDetails",
+              "privacy": "private",
+              "description": "`aria-details` ne désigne le tableau équivalent que quand il est dans le\nDOM (#1306). Il n'y est pas pendant le premier chargement ni pendant une\npanne (#1288 : aucune ligne du dernier chargement sans être marquée) : un\n`aria-details` posé à ce moment-là désignait un identifiant inexistant.\nLe tableau d'un relevé `stale-if-error` est rendu, et reste désigné.\nRelu à chaque rendu (`updated`) : c'est le DOM rendu qui fait foi, pas\nune condition recopiée de `render()`. Un `aria-details` posé par\nl'intégrateur vers un autre élément n'est jamais retiré."
+            },
+            {
+              "kind": "method",
               "name": "_removeAria",
               "privacy": "private"
             },

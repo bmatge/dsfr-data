@@ -152,7 +152,7 @@
           <li>Le composant génère automatiquement un <code>id</code> s'il n'en a pas</li>
           <li>Un <strong>skip link</strong> est injecte dans le graphique cible (visible au focus clavier)</li>
           <li><code>aria-describedby</code> pointe vers un resume concis dans le composant</li>
-          <li><code>aria-details</code> pointe vers le tableau de données (si <code>table</code> est active)</li>
+          <li><code>aria-details</code> pointe vers le tableau de données (si <code>table</code> est active), seulement quand le tableau est affiché : il est retiré pendant le premier chargement et pendant une panne, et gardé pendant un dernier relevé <code>stale-if-error</code></li>
           <li>A la deconnexion, tout est nettoye automatiquement</li>
         </ol>
 
