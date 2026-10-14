@@ -1,5 +1,78 @@
 # dsfr-data
 
+## 0.51.1
+
+### Patch Changes
+
+- [#1311](https://github.com/bmatge/dsfr-data/pull/1311) [`581e0e6`](https://github.com/bmatge/dsfr-data/commit/581e0e6d42f80c94acbcbeeb2b8d3c1c203e9689) Thanks [@bmatge](https://github.com/bmatge)! - **`dsfr-data-a11y` : `aria-details` ne désigne plus un tableau absent ([#1306](https://github.com/bmatge/dsfr-data/issues/1306)).**
+  
+  Le composant posait `aria-details` sur sa cible (graphique, carte) vers son tableau équivalent dès le branchement, alors que ce tableau n'est pas dans la page pendant le premier chargement ni pendant une panne de source ([#1288](https://github.com/bmatge/dsfr-data/issues/1288)). Un lecteur d'écran recevait une référence vers un identifiant qui n'existait pas.
+  
+  `aria-details` est désormais posé quand le tableau est affiché, retiré pendant le chargement et la panne, remis au retour des données. Pendant un dernier relevé `stale-if-error`, le tableau gardé reste désigné ; à l'échéance du relevé, la référence part avec lui. Un `aria-details` posé par l'intégrateur vers un autre élément n'est jamais retiré.
+  
+  Ce qui change pour une page existante : la cible ne porte `aria-details` qu'une fois les données arrivées. Rien d'autre.
+
+- [#1311](https://github.com/bmatge/dsfr-data/pull/1311) [`5e5036e`](https://github.com/bmatge/dsfr-data/commit/5e5036ef9a73b73dd29f6577e101f180611a96d5) Thanks [@bmatge](https://github.com/bmatge)! - **Carte : le bandeau « N affichés sur M » reste sur la carte quand une légende est posée dessous ([#1307](https://github.com/bmatge/dsfr-data/issues/1307)).**
+  
+  Le bandeau d'une couche tronquée (`max-items`) était ancré à 10 px du bas de l'hôte de la carte. Une légende (ou des encarts) posée sous la carte allonge l'hôte : le bandeau se posait sur la légende, hors de la carte. La ligne d'état de panne avait le même défaut, corrigé en 0.50.0 ([#1288](https://github.com/bmatge/dsfr-data/issues/1288)) ; le bandeau ne l'était pas.
+  
+  `dsfr-data-map` place désormais tout le mobilier du bas de carte d'une seule mesure (`placeOverlays()`) : les bandeaux des couches au bas du volet Leaflet, empilés, puis la ligne d'état au-dessus d'eux. La mesure est rejouée quand la légende apparaît ou change de hauteur, et quand un bandeau part. Mesuré dans un navigateur à 1280 et à 375 px (`e2e/map-bandeau-max-items.spec.ts`, job `e2e-layout`).
+  
+  Ce qui change pour une page existante : sur une carte avec légende ou encarts dessous, le bandeau remonte dans la carte. Sans légende, rien ne bouge.
+
+- [#1315](https://github.com/bmatge/dsfr-data/pull/1315) [`3aaeb4f`](https://github.com/bmatge/dsfr-data/commit/3aaeb4f77f72f92b8a67d9b6e7b196b0a27df220) Thanks [@bmatge](https://github.com/bmatge)! - Comparaison de texte : une seule écriture, une seule règle par serveur ([#1285](https://github.com/bmatge/dsfr-data/issues/1285), ADR-159, lot 4).
+  Rangement sans changement de résultat.
+  
+  - La comparaison du filtre `contains` / `notcontains` (sous-chaîne, casse ignorée, accents
+    respectés) n'est plus écrite qu'à un endroit, `filterTextContains` de
+    `shared/query/text-match.ts`, appelé par `applyLocalFilter`, `dsfr-data-query`, `contains()` de
+    `compute` et les outils du Studio. La recherche tolérante (ex-`utils/search-match.ts`) y est
+    rangée aussi. Un test-garde refuse toute nouvelle écriture de la sous-chaîne hors de ce module.
+  - Ce que chaque serveur calcule comme le navigateur est dit par une interface unique,
+    `canServerExpress(fournisseur, clause)` / `splitFilterForServer` (`shared/query/server-clause.ts`),
+    lue par les adaptateurs Opendatasoft, Tabular et Grist, par le dialecte ODSQL par défaut et par les
+    exports du Builder et du tableau de bord.
+  - Le tableau « qui calcule chaque clause de texte, par fournisseur » a une source,
+    `docs/ARCHITECTURE.md`, reprise à l'identique dans le guide et la spec de `dsfr-data-query` ; un
+    test le compare à la règle du code et à ses deux copies.
+
+- [#1311](https://github.com/bmatge/dsfr-data/pull/1311) [`bb2cbee`](https://github.com/bmatge/dsfr-data/commit/bb2cbee11f38e732d74c0f69574740655d1f2903) Thanks [@bmatge](https://github.com/bmatge)! - **Pagination serveur : la pagination reste en place et garde le focus pendant le chargement d'une page ([#1305](https://github.com/bmatge/dsfr-data/issues/1305)).**
+  
+  En pagination serveur (`dsfr-data-list`, `dsfr-data-display`), un changement de page remplaçait tout le corps du composant par le sablier, pagination comprise. Le bouton cliqué quittait la page et le focus clavier était perdu à chaque page : un usager au clavier ou au lecteur d'écran devait revenir en haut du composant pour passer à la page suivante.
+  
+  Pendant le chargement d'une page demandée par la pagination, seules les lignes (ou les fiches) cèdent la place à « Chargement de la page 4… ». Le compte de résultats et la pagination restent, à la même hauteur ; le bouton cliqué garde le focus, et Entrée de nouveau affiche la page d'après. La page demandée est annoncée par la région live que l'afficheur avait déjà (« Page 4 sur 10 »). Même comportement avec `url-sync`. Une page refusée garde son rendu de [#1288](https://github.com/bmatge/dsfr-data/issues/1288) (« La page 4 n'a pas pu être chargée. Vous consultez toujours la page 3. »), et un relevé `stale-if-error` le sien.
+  
+  Ce qui change pour une page existante : le sablier d'un changement de page se pose sur les lignes au lieu de remplacer tout le bloc. Le premier chargement, un rafraîchissement, un tri ou un filtre gardent le sablier seul, comme avant. Le tableau de la liste est désormais enveloppé dans un `div.dsfr-data-list__rows` (et la grille des fiches dans `div.dsfr-data-display__rows`).
+
+- [#1316](https://github.com/bmatge/dsfr-data/pull/1316) [`752be97`](https://github.com/bmatge/dsfr-data/commit/752be974746ff5170b5011c10b25ddc291203d21) Thanks [@bmatge](https://github.com/bmatge)! - **Pagination : boutons de bord focalisables · Studio IA : un seul filtre · recherche de `dsfr-data-list` sans accents ([#1285](https://github.com/bmatge/dsfr-data/issues/1285), [#1305](https://github.com/bmatge/dsfr-data/issues/1305)).**
+  
+  **Pagination (`dsfr-data-list`, `dsfr-data-display`).** À la première et à la dernière page, les boutons de bord (« Première page », « Page précédente », « Page suivante », « Dernière page ») ne sont plus `disabled` : ils restent focalisables, portent `aria-disabled="true"`, gardent l'apparence inactive du DSFR et ignorent clic et Entrée. Arrivé sur la dernière page par « Page suivante » au clavier, le focus reste sur le bouton au lieu de retomber en tête de page. Pagination cliente et serveur.
+  
+  Ce qui change pour une page existante : en page 1 et en dernière page, les boutons de bord perdent l'attribut `disabled` et prennent `aria-disabled="true"` ; ils restent dans l'ordre de tabulation. Une feuille de style ou un script qui ciblait `.fr-pagination__link:disabled` doit lire `[aria-disabled="true"]`. Pendant un relevé (`stale-if-error`), les numéros de page déjà marqués `aria-disabled` prennent eux aussi la couleur inactive.
+  
+  **Studio IA.** Ses outils (`count_where`, diagnostic d'un graphique avant création) comptaient par leur propre écriture du `where`. Ils utilisent maintenant le filtre de la bibliothèque, champs lus par chemin pointé comme `dsfr-data-query` : une valeur nulle ou un champ absent ne « contient » plus rien, `notcontains` garde les valeurs absentes, une valeur encodée (`a%2Cb`) est décodée, `a|b:contains:x` est un OU entre champs, et `lieu.ville` lit l'objet imbriqué. Sur un jeu de 8 lignes, le Studio annonçait 1 · 1 · 7 · 0 · 0 · 0 lignes là où la page générée en montre 0 · 0 · 8 · 1 · 2 · 3 ; il annonce désormais les mêmes chiffres que la page.
+  
+  Ce qui change pour une page existante : rien — aucune page publiée ne change. Seuls les comptes que le Studio annonce pendant la génération (et donc les filtres qu'il juge « à zéro ligne ») sont corrigés.
+  
+  **Recherche intégrée de `dsfr-data-list` (attribut `search`).** Elle ignorait la casse mais respectait les accents : « beziers » ne trouvait pas « Béziers ». Elle est désormais la recherche tolérante de `dsfr-data-search` : sous-chaîne dans tous les champs de la ligne (hors champs techniques `_…`), casse et accents ignorés ; une valeur absente ne contient rien.
+  
+  Ce qui change pour une page existante : une liste trouve plus de lignes quand le terme est tapé sans accent (ou avec un accent que la donnée n'a pas). Un terme fait de blancs ne filtre plus rien, et « null » ne retrouve plus une ligne à valeur nulle.
+
+- [#1311](https://github.com/bmatge/dsfr-data/pull/1311) [`3fd3651`](https://github.com/bmatge/dsfr-data/commit/3fd3651ab1cddeccd27519147ed76e45ba3f6822) Thanks [@bmatge](https://github.com/bmatge)! - **`dsfr-data-repeat` : un répéteur à `scopes` construit par script alimente ses tuiles dès l'insertion ([#1308](https://github.com/bmatge/dsfr-data/issues/1308)).**
+  
+  Créé par `document.createElement('dsfr-data-repeat')`, gabarit et `scopes` posés avant l'insertion, sur une source déjà chargée, le répéteur estampait ses lignes avant d'avoir lu `scopes` : ses tuiles scopées restaient à « — » jusqu'à la prochaine émission de la source. `scopes` est désormais lu avant l'abonnement à la source.
+  
+  Ce qui change pour une page existante : rien pour un répéteur écrit dans le balisage de la page. Un répéteur inséré par script sur des données déjà là montre ses chiffres tout de suite. Gardé par le contrôle de donnée `repeteur-scopes-construit-par-script` (ADR-122).
+
+- [#1310](https://github.com/bmatge/dsfr-data/pull/1310) [`e7368fc`](https://github.com/bmatge/dsfr-data/commit/e7368fc8833f21409ce94569261ab1a01ce59372) Thanks [@bmatge](https://github.com/bmatge)! - Filtre `contains` / `notcontains` sur Tabular et Grist : la même sous-chaîne que dans le navigateur ([#1285](https://github.com/bmatge/dsfr-data/issues/1285), ADR-159, lot 2).
+  
+  - **`contains` reste confié à l'API, jokers échappés.** Tabular (`ilike`) et Grist (`LIKE`) lisaient `%` et `_` de la valeur comme des jokers : `nom:contains:50%` retenait « 500 », `code:contains:a_b` retenait « axb ». La valeur part désormais échappée ; sur Grist, la clause s'écrit `LIKE ? ESCAPE '\'`, sans quoi SQLite n'échappe rien. Mesuré le 2026-10-14 : `LIBELLE__contains=Sain_` rendait 25 communes de l'Ariège, `Sain\_` en rend 0 ; sur Grist, `'%Co_se%'` rendait les deux départements corses.
+  - **Sur Tabular, un `contains` dont la valeur porte `*` est calculé dans le navigateur** : l'API lit `*` comme un joker, et aucune écriture ne le garde tel quel.
+  - **`notcontains` est calculé dans le navigateur** sur Tabular et sur Grist, comme sur Opendatasoft depuis la 0.51.0 : leur `NOT LIKE` écartait les lignes dont la valeur est absente, que le filtre garde. Mesuré sur les élus municipaux : 498 lignes rendues par l'API là où le navigateur en garde 34 826.
+  - **Le `where` écrit sur une source Tabular ou Grist suit la même règle** que celui d'une `dsfr-data-query` : un `notcontains` y est calculé par la source.
+  - **Derrière `server-side` (ou à côté de `dsfr-data-facets server-facets` sur Grist), un `notcontains` devient une erreur de configuration** qui nomme la clause et dit de retirer `server-side`. Le Builder et l'export du tableau de bord ne posent plus `server-side` sur un tableau Tabular filtré par « ne contient pas ».
+  - La recherche (`dsfr-data-search` en `server-search` ou en mode `context`) partage la clause de `contains` sur Tabular et Grist : elle profite du même échappement ; sur Tabular, un terme qui porte `*` est cherché dans le navigateur.
+
 ## 0.51.0
 
 ### Minor Changes
