@@ -1,0 +1,22 @@
+[
+  {"rang":1,"libelle":"Taux 50% atteint","categorie":"taux","nombre":12},
+  {"rang":2,"libelle":"Taux 50 atteint","categorie":"taux","nombre":7},
+  {"rang":3,"libelle":"Taux 500 visé","categorie":"taux","nombre":3},
+  {"rang":4,"libelle":"Remise 50 % sur place","categorie":"taux","nombre":9},
+  {"rang":5,"libelle":"code_a","categorie":"code","nombre":4},
+  {"rang":6,"libelle":"codexa","categorie":"code","nombre":11},
+  {"rang":7,"libelle":"Code A","categorie":"code","nombre":2},
+  {"rang":8,"libelle":"CODE_A_BIS","categorie":"code","nombre":6},
+  {"rang":9,"libelle":"étoile*","categorie":"symbole","nombre":5},
+  {"rang":10,"libelle":"étoile","categorie":"symbole","nombre":8},
+  {"rang":11,"libelle":"étoile filante","categorie":"symbole","nombre":1},
+  {"rang":12,"libelle":"chemin\\dossier","categorie":"chemin","nombre":10},
+  {"rang":13,"libelle":"chemindossier","categorie":"chemin","nombre":13},
+  {"rang":14,"libelle":"chemin/dossier","categorie":"chemin","nombre":14},
+  {"rang":15,"libelle":null,"categorie":"taux","nombre":20},
+  {"rang":16,"libelle":null,"categorie":"code","nombre":30},
+  {"rang":17,"libelle":null,"categorie":"symbole","nombre":40},
+  {"rang":18,"libelle":"","categorie":"chemin","nombre":50},
+  {"rang":19,"libelle":"Sans motif","categorie":"autre","nombre":15},
+  {"rang":20,"libelle":"Autre libellé","categorie":"autre","nombre":16}
+]

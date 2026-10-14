@@ -38,6 +38,7 @@ import { repondreGristDocument, tableGrist } from './fixtures-grist.js';
 import territoires from './jeux/territoires.json' with { type: 'json' };
 import exAequo from './jeux/delegation-tabular-ex-aequo.json' with { type: 'json' };
 import gristExAequo from './jeux/delegation-grist-ex-aequo.json' with { type: 'json' };
+import jokers from './jeux/delegation-jokers.json' with { type: 'json' };
 import mesures from './jeux/mesures.json' with { type: 'json' };
 import regions from './jeux/regions.json' with { type: 'json' };
 
@@ -94,7 +95,23 @@ export const GRIST_DOC_EX_AEQUO = 'https://grist.verif.invalid/api/docs/docExAeq
 export const GRIST_TABLE_EX_AEQUO = 'ExAequo';
 export const URL_GRIST_EX_AEQUO = `${GRIST_DOC_EX_AEQUO}/tables/${GRIST_TABLE_EX_AEQUO}/records`;
 export const GRIST_EX_AEQUO: Row[] = gristExAequo;
-const TABLES_GRIST = { [GRIST_TABLE_EX_AEQUO]: tableGrist(GRIST_EX_AEQUO) };
+
+/**
+ * Le jeu des JOKERS (#1285, ADR-159 lot 2) : des libellés qui portent `%`,
+ * `_`, `*` et `\` pour de vrai, leurs voisins qu'un joker laissé dans la
+ * valeur retiendrait en plus (« Taux 50 atteint », « codexa », « étoile »,
+ * « chemindossier »), et des valeurs ABSENTES qu'un `NOT LIKE` écarte. Servi
+ * par une ressource Tabular à part et par une table du document Grist à SQL.
+ */
+export const RESSOURCE_TABULAR_JOKERS = 'ea1b5c3d-0000-4000-8000-verifjokers3';
+export const JOKERS: Row[] = jokers;
+export const GRIST_TABLE_JOKERS = 'Jokers';
+export const URL_GRIST_JOKERS = `${GRIST_DOC_EX_AEQUO}/tables/${GRIST_TABLE_JOKERS}/records`;
+
+const TABLES_GRIST = {
+  [GRIST_TABLE_EX_AEQUO]: tableGrist(GRIST_EX_AEQUO),
+  [GRIST_TABLE_JOKERS]: tableGrist(JOKERS),
+};
 
 /**
  * Préfixe du relais cachable du site hôte (ADR-155, #1232), tel qu'une page le
@@ -337,6 +354,9 @@ export function repondre(url: URL, corps?: string | null): unknown | null {
     }
     if (url.pathname === `/api/resources/${RESSOURCE_TABULAR_EX_AEQUO}/data/`) {
       return repondreTabular(url, EX_AEQUO);
+    }
+    if (url.pathname === `/api/resources/${RESSOURCE_TABULAR_JOKERS}/data/`) {
+      return repondreTabular(url, JOKERS);
     }
     // La ressource Tabular du lot AFFICHAGES (#1020) : meme hote, autre chemin.
     return repondreAffichagesTabular(url);

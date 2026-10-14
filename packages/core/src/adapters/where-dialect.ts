@@ -160,16 +160,33 @@ export function describeClientWhere(
   clientWhere: string
 ): { cause: string; alternatives: string } {
   const substring = /:(not)?contains:/.test(clientWhere);
+  const odsql = adapter.capabilities?.whereFormat === 'odsql';
+  // Pourquoi, dit seulement quand c'est vrai pour ce dialecte (#1285,
+  // ADR-159) : un portail Opendatasoft compare des mots ; un `LIKE` SQL
+  // (Tabular, Grist) écarte les valeurs absentes sous une négation, et
+  // PostgREST lit `*` comme un joker (Tabular).
+  const sql = [
+    /:notcontains:/.test(clientWhere)
+      ? `notcontains y écarterait les lignes dont la valeur est absente, que le navigateur garde`
+      : '',
+    /:contains:[^,]*\*/.test(clientWhere)
+      ? `un * dans la valeur de contains y serait un joker`
+      : '',
+  ].filter(Boolean);
   const cause =
     `l'API ${adapter.type ?? 'de la source'} ne sait pas la calculer comme le navigateur` +
-    (substring && adapter.capabilities?.whereFormat === 'odsql'
+    (substring && odsql
       ? ` (contains cherche une sous-chaîne, le like d'un portail Opendatasoft compare des mots)`
-      : '');
+      : !odsql && sql.length > 0
+        ? ` (${sql.join(' ; ')})`
+        : '');
+  // Une recherche du visiteur remplace un `contains`, jamais une négation —
+  // sauf sur Opendatasoft, où le message d'origine (lot 1) la propose aussi.
   const search =
-    substring && adapter.capabilities?.serverSearch
+    (odsql ? substring : /:contains:/.test(clientWhere)) && adapter.capabilities?.serverSearch
       ? `, ou, pour une recherche saisie par le visiteur, passez par dsfr-data-search ` +
-        `server-search ou dsfr-data-search context (recherche de l'API, par début de mot, ` +
-        `qui reste compatible avec server-side)`
+        `server-search ou dsfr-data-search context (recherche de l'API` +
+        `${odsql ? ', par début de mot' : ''}, qui reste compatible avec server-side)`
       : '';
   return { cause, alternatives: search };
 }

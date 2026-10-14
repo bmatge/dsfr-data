@@ -260,16 +260,27 @@ describe('GristAdapter — SQL mode utilities', () => {
       expect(args).toEqual([99.9]);
     });
 
-    it('converts contains to LIKE', () => {
+    it("converts contains to LIKE … ESCAPE '\\'", () => {
       const args: (string | number)[] = [];
-      expect(adapter._colonWhereToSql('nom:contains:Paris', args)).toBe('"nom" LIKE ?');
+      expect(adapter._colonWhereToSql('nom:contains:Paris', args)).toBe(`"nom" LIKE ? ESCAPE '\\'`);
       expect(args).toEqual(['%Paris%']);
     });
 
-    it('converts notcontains to NOT LIKE', () => {
+    it('échappe les jokers de la valeur (#1285, ADR-159 lot 2)', () => {
       const args: (string | number)[] = [];
-      expect(adapter._colonWhereToSql('nom:notcontains:test', args)).toBe('"nom" NOT LIKE ?');
+      adapter._colonWhereToSql('nom:contains:50%_a\\b', args);
+      // `\` d'abord, puis `%` et `_` : chaque caractère vaut pour lui-même
+      expect(args).toEqual(['%50\\%\\_a\\\\b%']);
+    });
+
+    it('converts notcontains to NOT LIKE (jamais confié : supportsServerClause)', () => {
+      const args: (string | number)[] = [];
+      expect(adapter._colonWhereToSql('nom:notcontains:test', args)).toBe(
+        `"nom" NOT LIKE ? ESCAPE '\\'`
+      );
       expect(args).toEqual(['%test%']);
+      expect(adapter.supportsServerClause('nom:notcontains:test')).toBe(false);
+      expect(adapter.supportsServerClause('nom:contains:te_st%')).toBe(true);
     });
 
     it('converts in to IN with multiple placeholders', () => {

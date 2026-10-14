@@ -206,7 +206,7 @@ describe('#1026 — Grist : SQL `(… OR …)`, filtre Records jamais', () => {
   it('le SQL relie les champs par OR, arguments dans l’ordre des ?', () => {
     const args: (string | number)[] = [];
     const sql = adapter._colonWhereToSql('nom|prenom:contains:martin, dept:eq:75', args);
-    expect(sql).toBe('("nom" LIKE ? OR "prenom" LIKE ?) AND "dept" = ?');
+    expect(sql).toBe(`("nom" LIKE ? ESCAPE '\\' OR "prenom" LIKE ? ESCAPE '\\') AND "dept" = ?`);
     expect(args).toEqual(['%martin%', '%martin%', '75']);
   });
 

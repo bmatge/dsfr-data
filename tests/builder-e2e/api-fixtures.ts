@@ -33,6 +33,7 @@
  */
 
 import { likePortail } from './ods-like.js';
+import { ilikeTabular } from './sql-like.js';
 
 /**
  * Une ligne du jeu de recette.
@@ -792,7 +793,7 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
       continue;
     }
     const filtre =
-      /^(.+)__(exact|differs|strictly_greater|greater|strictly_less|less|contains|in|notin)$/.exec(
+      /^(.+)__(exact|differs|strictly_greater|greater|strictly_less|less|contains|notcontains|in|notin)$/.exec(
         cle
       );
     if (filtre) {
@@ -963,7 +964,9 @@ function filtrerOuTabular(lignes: Ligne[], groupe: string): Ligne[] | string {
       [champOp, valeur] = morceaux;
     }
     const filtre =
-      /^(.+)__(exact|differs|strictly_greater|greater|strictly_less|less|contains)$/.exec(champOp);
+      /^(.+)__(exact|differs|strictly_greater|greater|strictly_less|less|contains|notcontains)$/.exec(
+        champOp
+      );
     if (!filtre) return malforme(membre);
     const [, champ, operateur] = filtre;
     predicats.push((ligne) => filtrerTabular([ligne], champ, operateur, valeur).length === 1);
@@ -984,8 +987,13 @@ function filtrerTabular(
         return String(gauche) === valeur;
       case 'differs':
         return String(gauche) !== valeur;
+      // `ilike.*valeur*` (#1285, ADR-159 lot 2, mesuré le 2026-10-14) : `*`,
+      // `%` et `_` de la valeur sont des jokers, `\` échappe, et une valeur
+      // absente n'est retenue ni par `contains` ni par `notcontains`.
       case 'contains':
-        return String(gauche).toLowerCase().includes(valeur.toLowerCase());
+        return ilikeTabular(gauche, valeur, false);
+      case 'notcontains':
+        return ilikeTabular(gauche, valeur, true);
       case 'strictly_less':
         return nombre(gauche) < Number(valeur);
       case 'less':

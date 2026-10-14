@@ -91,7 +91,7 @@ import {
 import type { DataIdleEvent } from '../utils/data-bridge.js';
 import { visibleConsumers } from '../utils/visible-consumers.js';
 import { safeSourcePage } from '../utils/source-errors.js';
-import { joinWhere, describeClientWhere } from '../utils/where.js';
+import { joinWhere, describeClientWhere, splitWhere } from '../utils/where.js';
 import {
   describeClientFilter,
   fetchAllWithClientWhere,
@@ -949,7 +949,8 @@ export class DsfrDataSource extends LitElement {
       Array.isArray(excludeKey) ? excludeKey : excludeKey !== undefined ? [excludeKey] : []
     );
     const parts: string[] = [];
-    if (this.where) parts.push(this.where);
+    const own = this._ownWhereSplit().server;
+    if (own) parts.push(own);
     for (const [key, value] of this._whereOverlays) {
       if (!excluded.has(key) && value) parts.push(value);
     }
@@ -966,10 +967,28 @@ export class DsfrDataSource extends LitElement {
    */
   public getClientWhere(): string {
     const parts: string[] = [];
+    const own = this._ownWhereSplit().client;
+    if (own) parts.push(own);
     for (const value of this._clientWhereOverlays.values()) {
       if (value) parts.push(value);
     }
     return parts.join(', ');
+  }
+
+  /**
+   * Le `where` écrit sur la source, partagé comme celui d'une query (#1285,
+   * ADR-159, lot 2) — seulement quand il est dans la grammaire colon, celle
+   * que l'adaptateur traduit lui-même (Tabular, Grist…) : une clause dont la
+   * comparaison n'a pas la même structure sur l'API (`notcontains` sur
+   * Tabular ou Grist, qui y écarterait les valeurs absentes) est calculée
+   * dans le navigateur. Un `where` dans la langue du portail (ODSQL) part
+   * tel quel : c'est l'intégrateur qui l'a écrit pour lui.
+   */
+  private _ownWhereSplit(): { server: string; client: string } {
+    if (!this.where) return { server: '', client: '' };
+    const adapter = this.getAdapter();
+    if (adapter?.capabilities?.whereFormat !== 'colon') return { server: this.where, client: '' };
+    return splitWhere(adapter, this.where);
   }
 
   /**
