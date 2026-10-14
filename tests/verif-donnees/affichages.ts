@@ -32,6 +32,7 @@ import {
   urlJeuPagineBorne,
 } from './fixtures.js';
 import { urlsDe } from './fixtures-delegation.js';
+import { BAROMETRE_QUESTIONS, BAROMETRE_SCORES, inline } from './fixtures-transformations.js';
 import {
   AIDES,
   COMMUNES,
@@ -3921,6 +3922,62 @@ const CHECKS: Check[] = [
       lecture('rp-releve', SOMME_POPULATION),
       lecture('rp-avant', SOMME_POPULATION),
       lecture('rp-temoin', SOMME_POPULATION),
+    ],
+  },
+  {
+    id: 'repeteur-scopes-construit-par-script',
+    mode: 'deterministic',
+    origin:
+      '#1308 — un `dsfr-data-repeat` à `scopes` CONSTRUIT PAR SCRIPT (gabarit en place avant l’insertion) sur des sources déjà chargées estampait ses lignes avant de lire `scopes` : ses tuiles restaient à « — » jusqu’à la prochaine émission de la source. Le balisage analysé d’un coup (`repeat-scopes-partition`, lot transformations) n’était pas touché : la donnée y arrive après la connexion. La page attend que les deux sources aient livré, puis crée le répéteur, son gabarit et son attribut `scopes`, et l’insère. Chaque KPI de ligne doit valoir la somme de SA clé dès l’insertion, sans nouvelle émission — cinq tuiles, et la somme des cinq rend la somme brute.',
+    feed: {
+      kind: 'fixture',
+      datasets: { main: BAROMETRE_SCORES, questions: BAROMETRE_QUESTIONS },
+    },
+    markup: `
+  <dsfr-data-source id="s-rps-q" data='${inline(BAROMETRE_QUESTIONS)}'></dsfr-data-source>
+  <dsfr-data-source id="s-rps-s" data='${inline(BAROMETRE_SCORES)}'></dsfr-data-source>
+  <div id="rps-hote"></div>
+  <script>
+    (function () {
+      var charge = {}, parti = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (parti || !e.detail) return;
+        charge[e.detail.sourceId] = true;
+        if (!charge['s-rps-q'] || !charge['s-rps-s']) return;
+        parti = true;
+        // Une macrotâche plus tard : les deux sources sont au cache, aucune
+        // n'émettra plus — seule l'insertion peut alimenter les tuiles.
+        setTimeout(function () {
+          var rep = document.createElement('dsfr-data-repeat');
+          rep.setAttribute('source', 's-rps-q');
+          rep.setAttribute('key-field', 'code');
+          rep.setAttribute('scopes', 's-rps-s:code:qs');
+          var gabarit = document.createElement('template');
+          gabarit.innerHTML =
+            '<dsfr-data-kpi id="kps-{{code}}" source="{{$scope.qs}}" value="montant:sum"' +
+            ' format="nombre" label="Total"></dsfr-data-kpi>';
+          rep.appendChild(gabarit);
+          document.getElementById('rps-hote').appendChild(rep);
+        }, 0);
+      });
+    })();
+  </script>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'rps-hote',
+        selector: '.dsfr-data-kpi__value',
+        pipeline: [
+          { op: 'group-by', by: 'code', columns: { montant: { agg: 'sum', field: 'montant' } } },
+          { op: 'order-by', column: 'code', dir: 'asc' },
+        ],
+        column: 'montant',
+        numeric: true,
+        invariants: [
+          { kind: 'count-equals', n: 5 },
+          { kind: 'sum-preserved', field: 'montant' },
+        ],
+      },
     ],
   },
 ];
