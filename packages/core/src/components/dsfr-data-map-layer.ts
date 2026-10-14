@@ -2632,18 +2632,10 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
       this._banner.replaceChildren(frag);
     }
 
-    // Plusieurs couches tronquees : empiler les bandeaux au lieu de les
-    // superposer (#297). Hauteur mesuree — le texte passe a la ligne sur
-    // un ecran etroit ; 30 px quand rien n'est mesurable.
-    const all = Array.from(
-      this._mapParent.querySelectorAll<HTMLElement>('.dsfr-data-map__max-items-banner')
-    );
-    let bottom = 10;
-    for (const other of all) {
-      if (other === this._banner) break;
-      bottom += (other.offsetHeight || 30) + 6;
-    }
-    this._banner.style.bottom = bottom > 10 ? `${bottom}px` : '';
+    // Plusieurs couches tronquees : bandeaux empiles, pas superposes (#297),
+    // et au bas de la CARTE, pas de l'hote (#1307) — une legende sous la
+    // carte allonge l'hote. La carte mesure et place tout le mobilier du bas.
+    this._mapParent.placeOverlays?.();
   }
 
   /**
@@ -2686,8 +2678,11 @@ export class DsfrDataMapLayer extends SelectionFilterMixin(SourceSubscriberMixin
 
   private _removeBanner() {
     if (this._banner) {
+      const parent = this._banner.parentNode as DsfrDataMap | null;
       this._banner.remove();
       this._banner = null;
+      // Les bandeaux restants (et la ligne d'etat) redescendent d'un cran
+      parent?.placeOverlays?.();
     }
   }
 

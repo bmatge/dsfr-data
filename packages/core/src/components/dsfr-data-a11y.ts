@@ -263,6 +263,7 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
       this._removeAria();
       this._setupTarget();
     }
+    this._syncAriaDetails();
     this._checkSeriesConfig();
     this._checkColumnsExist();
   }
@@ -429,9 +430,31 @@ export class DsfrDataA11y extends SourceSubscriberMixin(LitElement) {
       target.setAttribute('aria-describedby', value);
     }
 
-    // aria-details → data table (progressive enhancement)
-    if (this._showTable) {
-      target.setAttribute('aria-details', `${this.id}-table`);
+    // aria-details → data table (progressive enhancement), seulement quand il existe
+    this._syncAriaDetails();
+  }
+
+  /**
+   * `aria-details` ne désigne le tableau équivalent que quand il est dans le
+   * DOM (#1306). Il n'y est pas pendant le premier chargement ni pendant une
+   * panne (#1288 : aucune ligne du dernier chargement sans être marquée) : un
+   * `aria-details` posé à ce moment-là désignait un identifiant inexistant.
+   * Le tableau d'un relevé `stale-if-error` est rendu, et reste désigné.
+   * Relu à chaque rendu (`updated`) : c'est le DOM rendu qui fait foi, pas
+   * une condition recopiée de `render()`. Un `aria-details` posé par
+   * l'intégrateur vers un autre élément n'est jamais retiré.
+   */
+  private _syncAriaDetails() {
+    const target = this._previousForTarget;
+    if (!target || this.noAutoAria || !this.for) return;
+    const tableId = `${this.id}-table`;
+    const present = this._showTable && this.querySelector(`[id="${tableId}"]`) !== null;
+    if (present) {
+      if (target.getAttribute('aria-details') !== tableId) {
+        target.setAttribute('aria-details', tableId);
+      }
+    } else if (target.getAttribute('aria-details') === tableId) {
+      target.removeAttribute('aria-details');
     }
   }
 

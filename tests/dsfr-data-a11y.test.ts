@@ -206,37 +206,59 @@ describe('DsfrDataA11y', () => {
       expect(target.hasAttribute('aria-describedby')).toBe(false);
     });
 
-    it('sets aria-details when table is enabled', () => {
+    /**
+     * `aria-details` désigne le tableau RENDU (#1306) : il faut des données et
+     * un rendu, sinon l'identifiant ne mènerait nulle part.
+     */
+    async function monterAvecDonnees(): Promise<void> {
+      comp.source = SOURCE_ID;
+      comp.setAttribute('data-test-target', '');
+      document.body.appendChild(comp);
+      dispatchDataLoaded(SOURCE_ID, [{ region: 'Bretagne', pop: 3000000 }]);
+      await comp.updateComplete;
+    }
+
+    it('sets aria-details when table is enabled and rendered', async () => {
+      comp.for = 'chart1';
+      comp.table = true;
+      await monterAvecDonnees();
+
+      expect(target.getAttribute('aria-details')).toBe(`${comp.id}-table`);
+      expect(document.getElementById(`${comp.id}-table`)).not.toBeNull();
+    });
+
+    it('does not set aria-details before the table exists (#1306)', () => {
       comp.for = 'chart1';
       comp.table = true;
       comp.connectedCallback();
 
-      expect(target.getAttribute('aria-details')).toBe(`${comp.id}-table`);
+      expect(document.getElementById(`${comp.id}-table`)).toBeNull();
+      expect(target.hasAttribute('aria-details')).toBe(false);
     });
 
-    it('does not set aria-details when table is disabled and other features are set', () => {
+    it('does not set aria-details when table is disabled and other features are set', async () => {
       comp.for = 'chart1';
       comp.download = true;
-      comp.connectedCallback();
+      await monterAvecDonnees();
 
       expect(target.hasAttribute('aria-details')).toBe(false);
     });
 
-    it('sets aria-details in default mode (all features active)', () => {
+    it('sets aria-details in default mode (all features active)', async () => {
       comp.for = 'chart1';
       // No features explicitly set → all active by default
-      comp.connectedCallback();
+      await monterAvecDonnees();
 
       expect(target.getAttribute('aria-details')).toBe(`${comp.id}-table`);
     });
 
-    it('cleans up aria-details on disconnect', () => {
+    it('cleans up aria-details on disconnect', async () => {
       comp.for = 'chart1';
       comp.table = true;
-      comp.connectedCallback();
+      await monterAvecDonnees();
       expect(target.getAttribute('aria-details')).toBe(`${comp.id}-table`);
 
-      comp.disconnectedCallback();
+      comp.remove();
       expect(target.hasAttribute('aria-details')).toBe(false);
     });
   });

@@ -278,6 +278,12 @@
             },
             {
               "kind": "method",
+              "name": "_syncAriaDetails",
+              "privacy": "private",
+              "description": "`aria-details` ne désigne le tableau équivalent que quand il est dans le\nDOM (#1306). Il n'y est pas pendant le premier chargement ni pendant une\npanne (#1288 : aucune ligne du dernier chargement sans être marquée) : un\n`aria-details` posé à ce moment-là désignait un identifiant inexistant.\nLe tableau d'un relevé `stale-if-error` est rendu, et reste désigné.\nRelu à chaque rendu (`updated`) : c'est le DOM rendu qui fait foi, pas\nune condition recopiée de `render()`. Un `aria-details` posé par\nl'intégrateur vers un autre élément n'est jamais retiré."
+            },
+            {
+              "kind": "method",
               "name": "_removeAria",
               "privacy": "private"
             },
@@ -11166,6 +11172,25 @@
                 }
               ],
               "description": "Corps de la liste : etat de la source (chargement, erreur, attente d'un\nfiltre) ou le compte, le tableau et la pagination.\n\nUn changement de page refuse en pagination serveur n'efface pas la page\ndeja rendue : elle reste, sous la phrase qui dit quelle page n'a pas pu\netre chargee (#1288). Toute autre erreur de source rend le message de\npanne, sans aucune ligne."
+            },
+            {
+              "kind": "method",
+              "name": "_turningPage",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "hasStale",
+                  "type": {
+                    "text": "boolean"
+                  }
+                }
+              ],
+              "description": "La liste tourne-t-elle une page serveur (#1305) ? Il faut un chargement\ndemandé PAR la pagination (`pageLoading`) et une page déjà à l'écran.\nUn relevé affiché (`stale-if-error`) garde son propre rendu."
             }
           ],
           "events": [
@@ -16214,14 +16239,13 @@
             },
             {
               "kind": "method",
-              "name": "_placeLayerStatus",
-              "privacy": "private",
+              "name": "placeOverlays",
               "return": {
                 "type": {
                   "text": "void"
                 }
               },
-              "description": "Place la ligne d'état en bas de la CARTE (#1288). Elle est sœur du\nconteneur Leaflet, donc positionnée dans l'hôte : une légende posée sous\nla carte allonge l'hôte, et la ligne se retrouvait sur la légende, hors de\nla carte. Elle reste au-dessus des bandeaux « N affichés sur M » des\ncouches qui tracent. Rejoué quand l'hôte change de taille."
+              "description": "Replace au bas de la carte les bandeaux des couches et la ligne d'état (appelé par les couches)"
             },
             {
               "kind": "method",

@@ -6,6 +6,7 @@ import { SelectionFilterMixin } from '../utils/selection-filter.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 import {
   renderSourceLoading,
+  renderPageLoading,
   renderSourceError,
   renderPageLoadError,
   renderStaleNotice,
@@ -1286,11 +1287,20 @@ ${bodyRows}
     // Dernier relevé (#1288) : les lignes restent, sous la mention qui les
     // date — nouvel essai compris, la liste ne repasse pas par le sablier.
     const stale = this._staleNotice();
-    if (!stale && this._sourceLoading) {
+    // Changement de page serveur en vol (#1305) : seules les lignes cèdent la
+    // place au sablier ; compte et pagination restent, le bouton cliqué garde
+    // le focus. Tout autre chargement rend le sablier seul, comme avant.
+    const turning = this._turningPage(stale !== null);
+    if (!stale && this._sourceLoading && !turning) {
       return renderSourceLoading('dsfr-data-list', 'Chargement des données...');
     }
-    const failedPage = this._sourceError ? this._pager.failedPage : null;
-    if (!stale && this._sourceError && (failedPage === null || this._data.length === 0)) {
+    const failedPage = this._sourceError && !turning ? this._pager.failedPage : null;
+    if (
+      !stale &&
+      !turning &&
+      this._sourceError &&
+      (failedPage === null || this._data.length === 0)
+    ) {
       return renderSourceError('dsfr-data-list', this._sourceError, this.source);
     }
     if (!stale && this._sourceIdle) {
@@ -1329,8 +1339,24 @@ ${bodyRows}
           : nothing
       }
       ${stale ? renderStaleNotice('dsfr-data-list', stale) : nothing}
-      ${this._renderTable(columns, paginatedData)} ${this._renderPagination(totalPages)}
+      <div
+        class="dsfr-data-list__rows ${turning ? 'dsfr-data-list__rows--loading' : ''}"
+        aria-busy="${turning ? 'true' : nothing}"
+      >
+        ${turning ? renderPageLoading('dsfr-data-list', this._currentPage) : nothing}
+        ${this._renderTable(columns, paginatedData)}
+      </div>
+      ${this._renderPagination(totalPages)}
     `;
+  }
+
+  /**
+   * La liste tourne-t-elle une page serveur (#1305) ? Il faut un chargement
+   * demandé PAR la pagination (`pageLoading`) et une page déjà à l'écran.
+   * Un relevé affiché (`stale-if-error`) garde son propre rendu.
+   */
+  private _turningPage(hasStale: boolean): boolean {
+    return !hasStale && this._sourceLoading && this._pager.pageLoading && this._data.length > 0;
   }
 }
 

@@ -258,10 +258,16 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
   }
 
   connectedCallback() {
+    // `scopes` AVANT l'abonnement du mixin (#1308) : sur une source déjà au
+    // cache, `super.connectedCallback()` estampe les lignes sur-le-champ. Un
+    // émetteur pas encore configuré n'émettait aucun id scopé et ne donnait
+    // aucune variable `{{$scope}}` : les tuiles naissaient sans source, et le
+    // rattrapage du premier `willUpdate` arrivait après leur abonnement —
+    // elles restaient à « — » jusqu'à la prochaine émission de la source.
+    this._scopes.configure(this.scopes, this.keyField);
     super.connectedCallback();
     sendWidgetBeacon(REPEAT_TAG);
     if (!this.source) this._report('attribut "source" requis');
-    this._scopes.configure(this.scopes, this.keyField);
   }
 
   disconnectedCallback() {

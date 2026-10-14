@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 
 /**
  * BUG-034 (banc d'essai open-data-viz, #1229) — un encart de carte clonait la
@@ -94,13 +94,28 @@ function etat(page: Page, id: string): Promise<EtatCarte[]> {
  * s'initialise qu'à la visibilité, encarts compris.
  */
 async function montrer(page: Page, id: string) {
-  await page.locator(`#${id}`).scrollIntoViewIfNeeded();
-  await expect(page.locator(`#${id} > .leaflet-container`)).toBeVisible({ timeout: 10_000 });
+  await amener(page.locator(`#${id}`), page.locator(`#${id} > .leaflet-container`));
   const encarts = page.locator(`#${id} dsfr-data-map-inset`);
   for (let i = 0; i < (await encarts.count()); i++) {
-    await encarts.nth(i).scrollIntoViewIfNeeded();
-    await expect(encarts.nth(i).locator('.leaflet-container')).toBeVisible({ timeout: 10_000 });
+    await amener(encarts.nth(i), encarts.nth(i).locator('.leaflet-container'));
   }
+}
+
+/**
+ * Fait défiler jusqu'à `cible` et attend que sa carte soit initialisée, en
+ * REFAISANT le défilement tant qu'elle ne l'est pas (#1309). Les cartes situées
+ * au-dessus s'initialisent elles aussi pendant ce temps ; leurs encarts et la
+ * frise de `m-temps` prennent alors leur hauteur, et la page se décale sous
+ * la carte visée. Un seul défilement pouvait la laisser hors de la marge de
+ * l'observateur de visibilité : le test attendait 10 s une carte qui ne
+ * s'initialisait jamais (environ un rejeu sur cinq en parallèle). L'état
+ * attendu est observable — le conteneur Leaflet posé —, aucun délai fixe.
+ */
+async function amener(cible: Locator, conteneur: Locator) {
+  await expect(async () => {
+    await cible.scrollIntoViewIfNeeded();
+    await expect(conteneur).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 10_000 });
 }
 
 /** Les comptes posés, carte par carte : `{ Points: 4, 'Encart — Guadeloupe': 1, … }`. */

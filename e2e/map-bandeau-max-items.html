@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — bandeau « N affichés sur M » et légende sous la carte (#1307)</title>
+  <!--
+    #1307 : le bandeau `max-items` d'une couche est un frère du conteneur
+    Leaflet, positionné dans l'HÔTE de la carte. Une légende posée sous la
+    carte allonge l'hôte : ancré à `bottom: 10px`, le bandeau se posait sur
+    la légende, hors de la carte. La ligne d'état de panne avait le même
+    défaut, corrigé dans #1297 (`_placeLayerStatus`).
+
+    Trois cartes :
+      - #avec-legende  : une couche tronquée, une légende dessous ;
+      - #deux-couches  : deux couches tronquées (bandeaux empilés), légende
+        et encarts dessous — l'hôte encore plus haut ;
+      - #sans-legende  : témoin, le bandeau au bas de la carte comme avant.
+
+    Tuiles sur un gabarit local absent : aucun serveur tiers.
+  -->
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; }
+    main { max-width: 1000px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Bandeau de troncature et légende</h1>
+    <dsfr-data-source id="pts" data='[
+      {"lat":48.85,"lon":2.35,"nom":"Paris","cat":"A"},
+      {"lat":45.76,"lon":4.83,"nom":"Lyon","cat":"B"},
+      {"lat":43.30,"lon":5.37,"nom":"Marseille","cat":"A"},
+      {"lat":44.84,"lon":-0.58,"nom":"Bordeaux","cat":"B"},
+      {"lat":50.63,"lon":3.06,"nom":"Lille","cat":"A"}
+    ]'></dsfr-data-source>
+
+    <h2>Une couche tronquée, légende dessous</h2>
+    <dsfr-data-map id="avec-legende" center="46.6,2.3" zoom="5" height="320px"
+      tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+      <dsfr-data-map-layer id="c-legende" source="pts" type="circle" lat-field="lat" lon-field="lon"
+        max-items="2" color-field="cat" color-map="A:#000091,B:#e1000f"></dsfr-data-map-layer>
+      <dsfr-data-map-legend for="c-legende" label="Catégorie"></dsfr-data-map-legend>
+    </dsfr-data-map>
+
+    <h2>Deux couches tronquées, légende et encarts dessous</h2>
+    <dsfr-data-map id="deux-couches" center="46.6,2.3" zoom="5" height="320px"
+      tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+      <dsfr-data-map-layer id="c-un" source="pts" type="circle" lat-field="lat" lon-field="lon"
+        max-items="2" color-field="cat" color-map="A:#000091,B:#e1000f"></dsfr-data-map-layer>
+      <dsfr-data-map-layer id="c-deux" source="pts" type="marker" lat-field="lat" lon-field="lon"
+        max-items="3"></dsfr-data-map-layer>
+      <dsfr-data-map-inset territory="guadeloupe" zoom="8"></dsfr-data-map-inset>
+      <dsfr-data-map-inset territory="martinique" zoom="8"></dsfr-data-map-inset>
+      <dsfr-data-map-legend for="c-un" label="Catégorie"></dsfr-data-map-legend>
+    </dsfr-data-map>
+
+    <h2>Témoin sans légende</h2>
+    <dsfr-data-map id="sans-legende" center="46.6,2.3" zoom="5" height="320px"
+      tiles="/e2e/tuiles-absentes/{z}/{x}/{y}.png" tiles-attribution="aucun fond">
+      <dsfr-data-map-layer source="pts" type="circle" lat-field="lat" lon-field="lon"
+        max-items="2"></dsfr-data-map-layer>
+    </dsfr-data-map>
+  </main>
+</body>
+</html>

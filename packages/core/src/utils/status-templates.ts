@@ -59,6 +59,23 @@ export function renderSourceLoading(
   `;
 }
 
+/**
+ * Sablier d'un CHANGEMENT DE PAGE serveur (#1305) : posé par-dessus les
+ * lignes de la page précédente, que l'hôte garde en place et masque
+ * (`visibility: hidden` : même hauteur, rien de lisible ni de focalisable).
+ * Pagination et compte restent rendus autour — le bouton cliqué garde le
+ * focus. Pas de région live : la page demandée est annoncée par celle que
+ * l'hôte avait déjà (« Page 4 sur 10 »), une seconde la doublerait.
+ */
+export function renderPageLoading(componentClass: string, page: number): TemplateResult {
+  return html`
+    <div class="${componentClass}__page-loading dsfr-data-status--loading">
+      <span class="fr-icon-loader-4-line" aria-hidden="true"></span>
+      Chargement de la page ${page}…
+    </div>
+  `;
+}
+
 /** Libellé par défaut de l'état d'attente d'un filtre (#690) */
 export const IDLE_MESSAGE_DEFAULT = 'Choisissez un filtre pour afficher les données';
 

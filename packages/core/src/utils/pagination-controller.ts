@@ -68,6 +68,17 @@ export class PaginationController {
 
   constructor(private host: PaginationHostLike) {}
 
+  /**
+   * Un changement de page SERVEUR est en vol (#1305) : la page a été demandée
+   * par la pagination, la source ne l'a pas encore livrée. L'hôte garde alors
+   * la pagination et le compte en place, et ne met le sablier qu'à la place
+   * des lignes — sans quoi le bouton cliqué quittait le DOM et le focus
+   * clavier retombait en tête de page, à chaque page.
+   */
+  get pageLoading(): boolean {
+    return this.serverMode && this._pendingPage !== null;
+  }
+
   /** À appeler depuis connectedCallback du composant */
   connect(): void {
     if (!this.host.urlSync) return;
