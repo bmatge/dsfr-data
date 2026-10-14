@@ -66,6 +66,14 @@ name: E2E layout
 # desatures dont le contraste est mesure sur les pixels reellement peints
 # (3:1, en clair et en sombre), la tuile de KPI qui garde ses 140 px, le
 # fichier exporte date dans son nom. Memes criteres : deterministe, aucun reseau.
+#
+# `map-bandeau-max-items.spec.ts` (#1307) mesure ou tombe le bandeau
+# « N affichés sur M » d'une couche tronquee quand une legende (et des encarts)
+# sont poses sous la carte : dans l'emprise du volet Leaflet, hors de la
+# legende, bandeaux de deux couches empiles sans se chevaucher, a 1280 et a
+# 375 px. Frere du conteneur Leaflet, il est positionne dans l'hote, que la
+# legende allonge : aucune hauteur n'existe sous happy-dom. Donnees inline,
+# tuiles absentes.
 
 on:
   pull_request:
@@ -121,6 +129,7 @@ jobs:
           e2e/map-insets.spec.ts
           e2e/panne-partout.spec.ts
           e2e/dernier-releve.spec.ts
+          e2e/map-bandeau-max-items.spec.ts
           --project=chromium
 
       - name: Upload traces on failure

@@ -755,7 +755,7 @@ export class DsfrDataMap extends LitElement {
       else onResize?.();
       this._leafletMap?.invalidateSize();
       // La légende sous la carte vient d'apparaître ou de changer de hauteur
-      this._placeLayerStatus();
+      this.placeOverlays();
     });
     this._resizeObserver.observe(this);
   }
@@ -1096,7 +1096,7 @@ export class DsfrDataMap extends LitElement {
         )}`,
         this._layerStatus
       );
-      this._placeLayerStatus();
+      this.placeOverlays();
       this._errorTexts = [
         ...failedLines.map((f) => this._layerStatusText(f)),
         ...stale.map((s) => this._staleDescription(s)),
@@ -1111,24 +1111,30 @@ export class DsfrDataMap extends LitElement {
     this.updateDescription(this._layerSummaries);
   }
 
-  /**
-   * Place la ligne d'état en bas de la CARTE (#1288). Elle est sœur du
-   * conteneur Leaflet, donc positionnée dans l'hôte : une légende posée sous
-   * la carte allonge l'hôte, et la ligne se retrouvait sur la légende, hors de
-   * la carte. Elle reste au-dessus des bandeaux « N affichés sur M » des
-   * couches qui tracent. Rejoué quand l'hôte change de taille.
-   */
-  private _placeLayerStatus(): void {
-    if (!this._layerStatus) return;
-    let bottom = 10;
-    for (const banner of this.querySelectorAll<HTMLElement>('.dsfr-data-map__max-items-banner')) {
-      bottom += (banner.offsetHeight || 30) + 6;
-    }
+  /** Replace au bas de la carte les bandeaux des couches et la ligne d'état (appelé par les couches) */
+  placeOverlays(): void {
+    // Bandeaux « N affichés sur M » des couches (#1307), empilés, puis la
+    // ligne d'état (#1288) au-dessus d'eux. Tous sont frères du conteneur
+    // Leaflet, donc positionnés dans l'hôte : une légende ou des encarts
+    // posés sous la carte allongent l'hôte, et un `bottom` compté depuis le
+    // bas de l'hôte les posait sur la légende, hors de la carte. La ligne
+    // d'état était corrigée seule (#1288) ; les bandeaux, posés par chaque
+    // couche, gardaient `bottom: 10px`. Une seule mesure pour les deux.
+    // Appelé par les couches quand leur bandeau apparaît, change ou part, et
+    // rejoué quand l'hôte change de taille. Hauteurs mesurées — un bandeau
+    // passe à la ligne sur un écran étroit ; 30 px quand rien n'est mesurable.
     const container = this._container;
     const below = container
-      ? this.clientHeight - (container.offsetTop + container.offsetHeight)
+      ? Math.max(0, this.clientHeight - (container.offsetTop + container.offsetHeight))
       : 0;
-    this._layerStatus.style.bottom = `${Math.max(bottom, 10 + Math.max(0, below))}px`;
+    let bottom = 10 + below;
+    for (const banner of this.querySelectorAll<HTMLElement>(
+      ':scope > .dsfr-data-map__max-items-banner'
+    )) {
+      banner.style.bottom = `${bottom}px`;
+      bottom += (banner.offsetHeight || 30) + 6;
+    }
+    if (this._layerStatus) this._layerStatus.style.bottom = `${bottom}px`;
   }
 
   /**

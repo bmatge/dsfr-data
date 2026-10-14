@@ -16220,14 +16220,13 @@
             },
             {
               "kind": "method",
-              "name": "_placeLayerStatus",
-              "privacy": "private",
+              "name": "placeOverlays",
               "return": {
                 "type": {
                   "text": "void"
                 }
               },
-              "description": "Place la ligne d'état en bas de la CARTE (#1288). Elle est sœur du\nconteneur Leaflet, donc positionnée dans l'hôte : une légende posée sous\nla carte allonge l'hôte, et la ligne se retrouvait sur la légende, hors de\nla carte. Elle reste au-dessus des bandeaux « N affichés sur M » des\ncouches qui tracent. Rejoué quand l'hôte change de taille."
+              "description": "Replace au bas de la carte les bandeaux des couches et la ligne d'état (appelé par les couches)"
             },
             {
               "kind": "method",
