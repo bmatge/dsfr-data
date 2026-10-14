@@ -16,7 +16,8 @@ import {
   sourcePageFor,
   type SourceErrorDescription,
 } from '../utils/source-errors.js';
-import { RETRY_LABEL, renderSourcePageLink } from '../utils/status-templates.js';
+import { RETRY_LABEL, RETRYING_LABEL, renderSourcePageLink } from '../utils/status-templates.js';
+import { readStaleReading, type StaleReading } from '../utils/stale-reading.js';
 
 /** Une panne affichée : l'état d'erreur de la source d'origine, et sa relance en cours. */
 interface Outage {
@@ -29,15 +30,39 @@ const TITLE_PERMANENT = 'Une partie des chiffres de cette page ne peut pas être
 const REST_OF_PAGE =
   'Les blocs concernés s’afficheront dès son retour ; le reste de la page est à jour.';
 
+/**
+ * Dernier relevé affiché (#1288, `stale-if-error`) : les blocs ne sont pas
+ * vides, ils montrent des chiffres datés. Le bandeau ne promet donc plus
+ * qu'ils « s'afficheront dès son retour » — il dit qu'ils n'ont pas été
+ * actualisés, et où lire leur heure. La date elle-même est dite par chaque
+ * bloc : deux sources peuvent ne pas avoir été relevées au même moment.
+ */
+const TITLE_STALE = 'Une partie des chiffres de cette page n’a pas pu être actualisée';
+const STALE_KEPT = 'Les derniers chiffres reçus restent affichés, avec l’heure de leur relevé';
+
 /** Titre du bandeau pour une cause : passager, hors connexion, ou durable. */
-function bannerTitle(desc: SourceErrorDescription): string {
+function bannerTitle(desc: SourceErrorDescription, stale: boolean): string {
   if (desc.cause === 'hors-connexion') return desc.title;
+  if (stale) return TITLE_STALE;
   return desc.retry ? TITLE_TEMPORARY : TITLE_PERMANENT;
 }
 
+/** Phrase du bandeau quand les blocs gardent leur dernier relevé (#1288). */
+function bannerStaleText(desc: SourceErrorDescription): string {
+  switch (desc.cause) {
+    case 'hors-connexion':
+      return `${STALE_KEPT} ; ils seront actualisés quand la connexion reviendra.`;
+    case 'service-sollicite':
+      return `${desc.title}. ${STALE_KEPT}. ${desc.detail}`;
+    default:
+      return `${desc.detail} ${STALE_KEPT} ; le reste de la page est à jour.`;
+  }
+}
+
 /** Phrase du bandeau : celle de l'intégrateur, sinon celle du barème. */
-function bannerText(desc: SourceErrorDescription, userMessage?: string): string {
+function bannerText(desc: SourceErrorDescription, userMessage?: string, stale = false): string {
   if (userMessage) return userMessage;
+  if (stale) return bannerStaleText(desc);
   switch (desc.cause) {
     case 'service-indisponible':
     case 'reponse-bloquee':
@@ -78,6 +103,11 @@ function bannerText(desc: SourceErrorDescription, userMessage?: string): string 
  * Sur des données introuvables (404, 410), le bandeau propose le lien « Consulter la page de ces
  * données » quand la source porte `source-page` ; sans cet attribut, aucun lien.
  *
+ * Quand la source porte `stale-if-error` et que la panne est passagère, les blocs gardent leur
+ * dernier relevé, daté : le bandeau dit alors « Une partie des chiffres de cette page n'a pas pu
+ * être actualisée », et renvoie à l'heure écrite sur chaque bloc. Passé la durée donnée, il
+ * reprend de lui-même son texte ordinaire.
+ *
  * Un `dsfr-data-kpi` en panne garde une forme compacte : « — » à la place du chiffre, son libellé,
  * et une phrase courte. Avec le bandeau, la tuile ne porte ni bouton, ni lien, ni détail technique.
  *
@@ -112,6 +142,8 @@ export class DsfrDataSourceStatus extends LitElement {
   private _outages = new Map<string, Outage>();
   private _releaseBanner: (() => void) | null = null;
   private _registeredFor: string | null = null;
+  /** Échéance du plus proche relevé affiché (#1288) : le texte du bandeau en dépend. */
+  private _staleTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Light DOM pour hériter des styles DSFR
   createRenderRoot() {
@@ -139,6 +171,42 @@ export class DsfrDataSourceStatus extends LitElement {
     this._releaseBanner = null;
     this._registeredFor = null;
     this._outages.clear();
+    this._clearStaleTimer();
+  }
+
+  private _clearStaleTimer() {
+    if (this._staleTimer !== null) {
+      clearTimeout(this._staleTimer);
+      this._staleTimer = null;
+    }
+  }
+
+  /**
+   * Le relevé de la source d'origine, s'il est affichable (#1288) — la même
+   * règle que les blocs (`judgeStaleReading`). Le bandeau lit l'ORIGINE : un
+   * bloc branché sur une jointure peut dater d'un autre moment, et c'est lui
+   * qui l'écrit.
+   */
+  private _readings(): Map<string, StaleReading> {
+    const readings = new Map<string, StaleReading>();
+    for (const originId of this._outages.keys()) {
+      const reading = readStaleReading(originId);
+      if (reading) readings.set(originId, reading);
+    }
+    return readings;
+  }
+
+  /** Arme le retour au texte ordinaire à l'échéance du relevé le plus proche. */
+  private _armStaleTimer(readings: Map<string, StaleReading>) {
+    this._clearStaleTimer();
+    let next = Infinity;
+    for (const reading of readings.values()) next = Math.min(next, reading.expiresAt + 1);
+    if (!Number.isFinite(next)) return;
+    const delay = Math.min(Math.max(next - Date.now(), 0), 2_147_483_647);
+    this._staleTimer = setTimeout(() => {
+      this._staleTimer = null;
+      this.requestUpdate();
+    }, delay);
   }
 
   willUpdate(changedProperties: Map<string, unknown>) {
@@ -196,7 +264,7 @@ export class DsfrDataSourceStatus extends LitElement {
     dispatchSourceCommand(originId, this.id ? { reload: true, origin: this.id } : { reload: true });
   }
 
-  private _renderOutage(originId: string, outage: Outage): TemplateResult {
+  private _renderOutage(originId: string, outage: Outage, stale: boolean): TemplateResult {
     const { state, retrying } = outage;
     const desc = describeSourceCause(state.cause, state.error);
     const sourcePage = sourcePageFor(desc.cause, state.sourcePage);
@@ -205,9 +273,10 @@ export class DsfrDataSourceStatus extends LitElement {
         class="fr-alert fr-alert--info fr-mb-2w dsfr-data-source-status__alert"
         data-source=${originId}
         data-cause=${desc.cause}
+        data-stale=${stale ? 'true' : nothing}
       >
-        <h3 class="fr-alert__title">${bannerTitle(desc)}</h3>
-        <p class="dsfr-data-source-status__text">${bannerText(desc, state.userMessage)}</p>
+        <h3 class="fr-alert__title">${bannerTitle(desc, stale)}</h3>
+        <p class="dsfr-data-source-status__text">${bannerText(desc, state.userMessage, stale)}</p>
         ${
           sourcePage
             ? html`<p class="dsfr-data-source-status__link fr-mt-1w">
@@ -226,7 +295,7 @@ export class DsfrDataSourceStatus extends LitElement {
                   if (!retrying) this._retry(originId);
                 }}
               >
-                ${retrying ? 'Nouvel essai en cours…' : RETRY_LABEL}
+                ${retrying ? RETRYING_LABEL : RETRY_LABEL}
               </button>`
             : nothing
         }
@@ -254,9 +323,13 @@ export class DsfrDataSourceStatus extends LitElement {
   render() {
     // La région live existe AVANT la panne : un lecteur d'écran n'annonce que
     // ce qui change dans une région déjà présente.
+    const readings = this._readings();
+    this._armStaleTimer(readings);
     return html`
       <div class="dsfr-data-source-status" role="status">
-        ${[...this._outages.entries()].map(([id, outage]) => this._renderOutage(id, outage))}
+        ${[...this._outages.entries()].map(([id, outage]) =>
+          this._renderOutage(id, outage, readings.has(id))
+        )}
       </div>
     `;
   }

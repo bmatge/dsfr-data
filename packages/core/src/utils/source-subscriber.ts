@@ -13,6 +13,7 @@ import {
   isDataStale,
   STATUS_COVERAGE_EVENT,
 } from './data-bridge.js';
+import { readStaleReading, type StaleReading } from './stale-reading.js';
 import { checkUnknownAttributes } from './unknown-attributes.js';
 import { registerDsfrDataInstance, unregisterDsfrDataInstance } from './instance-registry.js';
 
@@ -28,10 +29,22 @@ export interface SourceSubscriberInterface {
   _sourceError: Error | null;
   /** L'amont attend un filtre (`require-where`, #690) — état « idle ». */
   _sourceIdle: boolean;
+  /**
+   * Le dernier relevé de la source en panne, quand il est à AFFICHER (#1288) :
+   * `stale-if-error` posé sur la source d'origine, cause passagère, même
+   * requête, relevé encore dans sa durée. `null` sinon — y compris tant que la
+   * source fonctionne. Vaut pendant un nouvel essai : le bloc garde ses
+   * chiffres, il ne repasse pas par le sablier.
+   */
+  _sourceStale: StaleReading | null;
   onSourceData(data: unknown): void;
   onSourceError?(error: Error): void;
   onSourceReset?(): void;
+  onSourceStale?(reading: StaleReading | null): void;
 }
+
+/** Plus long délai qu'un `setTimeout` accepte sans déborder (2^31 - 1 ms). */
+const MAX_TIMER_DELAY = 2_147_483_647;
 
 /**
  * Mixin qui ajoute la logique d'abonnement à une source de données.
@@ -51,8 +64,12 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
      * donnée » qui laisserait croire que la requête a été faite pour rien.
      */
     _sourceIdle = false;
+    /** Relevé à afficher pendant la panne (#1288) — voir l'interface. */
+    _sourceStale: StaleReading | null = null;
 
     private _unsubscribeSource: (() => void) | null = null;
+    /** Échéance du relevé affiché (#1288) : le bloc bascule seul au message de panne. */
+    private _staleTimer: ReturnType<typeof setTimeout> | null = null;
 
     /**
      * Hook appelé quand de nouvelles données arrivent.
@@ -77,6 +94,22 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
      * `source` ne doit pas laisser l'affichage précédent.
      */
     onSourceReset(): void {
+      // default: no-op
+    }
+
+    /**
+     * Hook du dernier relevé (#1288). Appelé avec le relevé quand il devient
+     * affichable — après `onSourceError`, ou à l'abonnement d'un bloc monté
+     * pendant la panne — et avec `null` quand il ÉCHOIT (durée dépassée) sans
+     * qu'aucun événement de la source ne l'ait levé.
+     *
+     * À surcharger par un hôte qui garde sa copie des lignes : il la reprend
+     * du relevé (`reading.data`), puis la lâche à l'échéance. `_sourceStale`
+     * est déjà à jour quand le hook est appelé. Un échec qui REFUSE le relevé
+     * (autre requête, cause durable) ne passe pas par ici : `onSourceError`
+     * l'a déjà traité.
+     */
+    onSourceStale(_reading: StaleReading | null): void {
       // default: no-op
     }
 
@@ -108,13 +141,58 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
      * redessine pour retirer — ou reprendre — son propre « Réessayer ».
      */
     private _onStatusCoverage = (): void => {
-      if (this._sourceError) this.requestUpdate();
+      if (this._sourceError || this._sourceStale) this.requestUpdate();
     };
+
+    /**
+     * Arme l'échéance du relevé affiché (#1288). Le bloc se relit aussi au
+     * changement de jour : « aujourd’hui à 14 h 32 » devient « le 13 octobre à
+     * 14 h 32 » sans attendre un geste.
+     */
+    private _armStaleTimer(): void {
+      this._clearStaleTimer();
+      const reading = this._sourceStale;
+      if (!reading) return;
+      const now = Date.now();
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      // +1 ms : à l'instant exact de l'échéance, le relevé vaut encore.
+      const next = Math.min(reading.expiresAt + 1, midnight.getTime());
+      const delay = Math.min(Math.max(next - now, 0), MAX_TIMER_DELAY);
+      this._staleTimer = setTimeout(() => {
+        this._staleTimer = null;
+        this._refreshStale();
+      }, delay);
+    }
+
+    private _clearStaleTimer(): void {
+      if (this._staleTimer !== null) {
+        clearTimeout(this._staleTimer);
+        this._staleTimer = null;
+      }
+    }
+
+    /** Relit le relevé à l'échéance (ou à minuit) et prévient l'hôte s'il a échu. */
+    private _refreshStale(): void {
+      if (!this._sourceStale) return;
+      const source = (this as unknown as SourceSubscriberInterface).source;
+      this._sourceStale = source ? readStaleReading(source) : null;
+      if (this._sourceStale) this._armStaleTimer();
+      else this.onSourceStale(null);
+      this.requestUpdate();
+    }
+
+    /** Plus de relevé : la source a livré, attend un filtre, ou l'abonnement change. */
+    private _dropStale(): void {
+      this._clearStaleTimer();
+      this._sourceStale = null;
+    }
 
     disconnectedCallback() {
       super.disconnectedCallback();
       document.removeEventListener(STATUS_COVERAGE_EVENT, this._onStatusCoverage);
       unregisterDsfrDataInstance(this);
+      this._clearStaleTimer();
       this._cleanupSubscription();
     }
 
@@ -139,6 +217,7 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
       this._sourceError = null;
       this._sourceLoading = false;
       this._sourceIdle = false;
+      this._dropStale();
       this.onSourceReset();
       this.requestUpdate();
 
@@ -167,25 +246,49 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
       // est déjà passé. Le bloc monté à cet instant est en chargement.
       else if (isDataStale(source)) this._sourceLoading = true;
 
+      // Bloc monté PENDANT la panne (#1288) : le relevé se lit au registre,
+      // comme l'erreur. Rien si l'intégrateur ne l'a pas demandé.
+      if (failed || this._sourceLoading) {
+        this._sourceStale = readStaleReading(source);
+        if (this._sourceStale) {
+          this._armStaleTimer();
+          this.onSourceStale(this._sourceStale);
+        }
+      }
+
       this._unsubscribeSource = subscribeToSource(source, {
         onLoaded: (data) => {
           this._sourceData = data;
           this._sourceLoading = false;
           this._sourceError = null;
           this._sourceIdle = false;
+          this._dropStale();
           this.onSourceData(data);
           this.requestUpdate();
         },
         onLoading: () => {
           this._sourceLoading = true;
           this._sourceIdle = false;
+          // Un relevé affiché se relit ici aussi (#1288) : l'étape lue a pu
+          // refuser un nouveau calcul pendant l'essai — ce qu'elle garde ne
+          // répond plus à ce qu'on lui demande.
+          this._refreshStale();
           this.requestUpdate();
         },
         onError: (error) => {
           this._sourceError = error;
           this._sourceLoading = false;
           this._sourceIdle = false;
+          // Le relevé se juge AVANT le hook d'erreur (#1288) : l'hôte y lit
+          // déjà s'il garde ses chiffres. Rejugé à chaque échec — la cause ou
+          // la requête ont pu changer depuis le précédent.
+          this._clearStaleTimer();
+          this._sourceStale = readStaleReading(source);
           this.onSourceError(error);
+          if (this._sourceStale) {
+            this._armStaleTimer();
+            this.onSourceStale(this._sourceStale);
+          }
           this.requestUpdate();
         },
         // Retour en attente (#690) : l'état dérivé de l'hôte est purgé par
@@ -196,6 +299,7 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
           this._sourceLoading = false;
           this._sourceError = null;
           this._sourceData = null;
+          this._dropStale();
           this.onSourceReset();
           this.requestUpdate();
         },

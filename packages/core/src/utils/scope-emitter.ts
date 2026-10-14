@@ -2,6 +2,7 @@ import {
   subscribeToSource,
   getDataCache,
   getDataErrorState,
+  getLastKnownData,
   isDataIdle,
   dispatchDataLoaded,
   dispatchDataLoading,
@@ -310,7 +311,10 @@ export class ScopeEmitter {
             // du scope ; `truncated` et `serverSide` ne se relaient pas — aucun
             // serveur ne pagine un id fabriqué.
             setDataMeta(id, { page: 1, pageSize: 0, total: rows.length });
-            dispatchDataLoaded(id, rows);
+            // Les lignes d'un scope datent du chargement de leur source
+            // (#1272, #1288) : partitionner à l'instant ne les rajeunit pas.
+            const at = getLastKnownData(entry.source)?.loadedAt;
+            dispatchDataLoaded(id, rows, at ? { loadedAt: at } : {});
             break;
           }
           case 'loading':
@@ -350,7 +354,12 @@ export class ScopeEmitter {
         const id = `${entry.alias}-${key}`;
         if (state.status === 'loading') dispatchDataLoading(id);
         else if (state.status === 'error')
-          dispatchDataError(id, state.error ?? new Error('source scopée en erreur'));
+          // Origine relayée ici aussi (#1288) : rejouée sans elle, l'erreur
+          // d'une ligne née pendant la panne perdait sa source, sa cause
+          // classée à l'origine et la consigne `stale-if-error`.
+          dispatchDataError(id, state.error ?? new Error('source scopée en erreur'), undefined, {
+            relayedFrom: entry.source,
+          });
         else dispatchDataIdle(id);
       }
     }

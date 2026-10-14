@@ -14,11 +14,15 @@ import {
   renderSourceLoading,
   renderSourceError,
   renderPageLoadError,
+  renderStaleNotice,
+  resolveStaleNotice,
+  type StaleNoticeView,
   pageLoadErrorText,
   renderSourceIdle,
   IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
 import { getDataMeta } from '../utils/data-bridge.js';
+import type { StaleReading } from '../utils/stale-reading.js';
 import { formatCountWithLabel } from '../utils/count-label.js';
 import { PaginationController } from '../utils/pagination-controller.js';
 import {
@@ -317,6 +321,42 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
     this._pager.onData(this.source ? getDataMeta(this.source) : undefined);
   }
 
+  /**
+   * Dernier relevé (#1288, `stale-if-error`) — même contrat que
+   * dsfr-data-list : les éléments lâchés par `onSourceError` sont repris du
+   * relevé, puis lâchés de nouveau quand il échoit.
+   */
+  onSourceStale(reading: StaleReading | null): void {
+    if (!reading) {
+      this._data = [];
+      return;
+    }
+    this._data = Array.isArray(reading.data) ? (reading.data as Record<string, unknown>[]) : [];
+    this._pager.onStale(this.source ? getDataMeta(this.source) : undefined);
+  }
+
+  /** Ce que les fiches disent du relevé qu'elles montrent (#1288), ou `null`. */
+  private _staleNotice(): StaleNoticeView | null {
+    if (!this._sourceStale || this._pager.failedPage !== null) return null;
+    const notice = resolveStaleNotice(
+      this._sourceStale,
+      this._sourceError,
+      this.source,
+      this._sourceLoading
+    );
+    if (this._serverLocked()) {
+      notice.extra = [notice.extra, 'Les autres pages reviendront avec les données.']
+        .filter(Boolean)
+        .join(' ');
+    }
+    return notice;
+  }
+
+  /** Relevé affiché en pagination serveur (#1288) : une autre page est une autre requête. */
+  private _serverLocked(): boolean {
+    return this._sourceStale !== null && this._pager.failedPage === null && this._serverPagination;
+  }
+
   // --- Sélection au clic (#734, mixin partagé avec la carte) ---
 
   /** whereKey du chemin dégradé : `display-select-ID` */
@@ -417,6 +457,8 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   }
 
   private _handlePageChange(page: number) {
+    // Relevé en pagination serveur (#1288) : les autres pages ne sont pas là
+    if (this._serverLocked()) return;
     this._pager.changePage(page);
     this._announce(`Page ${page} sur ${this._getTotalPages()}`);
   }
@@ -561,6 +603,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
             <button
               class="fr-pagination__link fr-pagination__link--first"
               ?disabled="${this._currentPage === 1}"
+              aria-disabled="${this._serverLocked() ? 'true' : nothing}"
               @click="${() => this._handlePageChange(1)}"
               aria-label="Première page"
               type="button"
@@ -572,6 +615,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
             <button
               class="fr-pagination__link fr-pagination__link--prev"
               ?disabled="${this._currentPage === 1}"
+              aria-disabled="${this._serverLocked() ? 'true' : nothing}"
               @click="${() => this._handlePageChange(this._currentPage - 1)}"
               aria-label="Page précédente"
               type="button"
@@ -586,6 +630,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
                   class="fr-pagination__link ${
                     page === this._currentPage ? 'fr-pagination__link--active' : ''
                   }"
+                  aria-disabled="${this._serverLocked() ? 'true' : nothing}"
                   @click="${() => this._handlePageChange(page)}"
                   aria-current="${page === this._currentPage ? 'page' : nothing}"
                   aria-label="Page ${page} sur ${totalPages}"
@@ -600,6 +645,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
             <button
               class="fr-pagination__link fr-pagination__link--next"
               ?disabled="${this._currentPage === totalPages}"
+              aria-disabled="${this._serverLocked() ? 'true' : nothing}"
               @click="${() => this._handlePageChange(this._currentPage + 1)}"
               aria-label="Page suivante"
               type="button"
@@ -611,6 +657,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
             <button
               class="fr-pagination__link fr-pagination__link--last"
               ?disabled="${this._currentPage === totalPages}"
+              aria-disabled="${this._serverLocked() ? 'true' : nothing}"
               @click="${() => this._handlePageChange(totalPages)}"
               aria-label="Dernière page"
               type="button"
@@ -638,6 +685,9 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
     // précédente reste, sous la phrase qui le dit. Toute autre erreur de
     // source rend le message de panne, sans aucun élément.
     const failedPage = this._sourceError ? this._pager.failedPage : null;
+    // Dernier relevé (#1288) : les fiches restent, sous la mention qui les
+    // date — nouvel essai compris.
+    const stale = this._staleNotice();
 
     return html`
       <div
@@ -649,11 +699,11 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
           ${this._liveAnnouncement}
         </div>
         ${
-          this._sourceLoading
+          !stale && this._sourceLoading
             ? renderSourceLoading('dsfr-data-display')
-            : this._sourceError && (failedPage === null || this._data.length === 0)
+            : !stale && this._sourceError && (failedPage === null || this._data.length === 0)
               ? renderSourceError('dsfr-data-display', this._sourceError, this.source)
-              : this._sourceIdle
+              : !stale && this._sourceIdle
                 ? renderSourceIdle('dsfr-data-display', this.idleMessage)
                 : totalItems === 0
                   ? html`
@@ -684,6 +734,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
                             )
                           : nothing
                       }
+                      ${stale ? renderStaleNotice('dsfr-data-display', stale) : nothing}
                       ${this._renderGrid(paginatedData)} ${this._renderPagination(totalPages)}
                     `
         }

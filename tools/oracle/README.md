@@ -25,11 +25,11 @@ déclarer. Si la lib et l'oracle se trompent, ce n'est pas de la même façon.
 
 État du dépôt (mesuré le 2026-10-12 ; les trois chiffres déterministes — contrôles, observations,
 attentes de la troisième voix — remesurés le 2026-10-13 sur `out/manifests.json` et `attendus.json`) :
-**343 contrôles déterministes** et **38 contrôles vivants**,
-répartis en onze domaines, pour 802 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
+**351 contrôles déterministes** et **38 contrôles vivants**,
+répartis en onze domaines, pour 830 observations déterministes et **27 invariants**. Un contrôle et deux invariants sont en
 attente (voir « Un contrôle que la bibliothèque ne passe pas »). Les contrôles vivants rejouent
 **16 reproductions** du banc d'essai ; avec le canari, **50 constats** de son registre sont
-cités. Une troisième voix, en Python standard, recalcule 595 des attentes déterministes
+cités. Une troisième voix, en Python standard, recalcule 623 des attentes déterministes
 (« La troisième voix ») ; en mode vivant, **25 observations** sont recoupées par le serveur
 Opendatasoft lui-même (« Le recoupement serveur »).
 
@@ -822,6 +822,20 @@ de 90 s au lieu de dire son chiffre. `kpi-source-en-panne-apres-chargement`
 corps est maintenant abandonné (`utils/http-error.ts`) :
 `marquage-perime-leve-au-rechargement` retire le jeu par un clic.
 
+**Une panne peut être PROGRAMMÉE dans l'adresse** (#1288). `avecPanne(url, 503, 1)`
+(`fixtures.ts`) ajoute deux paramètres que les fixtures ignorent et que le faux réseau lit :
+cette adresse répond normalement une fois, puis 503 à chaque appel suivant. C'est le seul moyen
+de faire échouer LE MÊME appel que celui qui a livré — ce qu'exige le dernier relevé
+(`stale-if-error`), qui refuse les lignes d'une autre requête : viser un jeu retiré, comme le
+font les contrôles de #1272, changerait d'adresse, donc de requête.
+
+**Une page peut AVANCER l'horloge** (#1288). `clock` fige l'instant ; un contrôle sur une date
+de RELEVÉ a besoin que le chargement et la panne ne tombent pas au même instant — sinon une
+heure prise à l'échec, ou au rendu, serait la bonne par hasard. La page décale donc elle-même
+`Date.now` (`avance`, dans `OUTILS_RELEVE` d'`affichages.ts`) entre les deux, et recalcule à la
+main l'heure qu'elle attend. Les minuteries, elles, restent réelles : `releve-echu` attend la
+vraie minuterie du bloc, sur une durée de deux secondes.
+
 `clock` fixe l'instant (`page.clock.setFixedTime`) ET le fuseau du navigateur
 (`timezoneId` du contexte). Sans elle, un contrôle sur `today`,
 `current-month`, `current-year` ou `last-n-days` serait vert 364 jours sur 365
@@ -1007,6 +1021,16 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | affichages | la page courante ne revient plus à la page affichée après un refus (`this.currentPage = this.previousPage` retiré, `pagination-controller.ts`) | `liste-page-refusee` | « pr-dit : affiché « phrase qui ne se recoupe pas » » : la phrase dit « toujours la page 2 » au-dessus des lignes de la page 1 (#1288) |
 | affichages | `_effectiveHideCounts` ne regarde plus la panne (`dsfr-data-facets.ts`) | `filtres-source-en-panne` | « fp-facettes : affiché « 48 », recalculé — » : les compteurs du dernier chargement restent à côté de filtres désactivés (#1288) |
 | affichages | le compte de la recherche rendu malgré la panne (`_renderCount()` sorti du test, `dsfr-data-search.ts`) | `filtres-source-en-panne` | « fp-recherche : affiché « 48 », recalculé — » : « 48 résultats » sous un tableau qui dit « indisponible » (#1288) |
+| affichages | l'étiquette « Non actualisé » rendue vide (`renderStaleBadge`, `status-templates.ts`) et « · non actualisé » retiré de la ligne de la tuile (`_renderStaleLine`, `dsfr-data-kpi.ts`) | `releve-marque-et-date` | « rm-kpi : affiché « aucune étiquette « Non actualisé » », recalculé 15909531 », de même `rm-liste` et `rm-tableau` : les trois blocs montrent bien la somme d'avant la panne, mais plus rien ne la dit ancienne ; `rm-cache` reste vert (#1288) |
+| affichages | le relevé daté de l'instant du rendu — `loadedAt: now` au lieu de `known.loadedAt` (`judgeStaleReading`, `stale-reading.ts`) | `releve-marque-et-date` | « rm-kpi : affiché « instant du relevé : 2026-10-13T12:39:07.000Z » » : 14 h 39, l'heure de l'échec, là où le chargement date de 14 h 32 — sept minutes d'un chiffre présenté comme plus frais qu'il n'est (#1288) |
+| affichages | la consigne posée d'office — `this._staleIfErrorSeconds() ?? 3600` (`_errorOptions`, `dsfr-data-source.ts`) | `releve-sans-opt-in` | « so-kpi : affiché « 15909531 », recalculé — », de même `so-liste` et `so-tableau` : une source qui n'a rien demandé garde ses anciens chiffres à l'écran ; `so-avant` reste vert (#1288) |
+| affichages | la durée ignorée — le refus `echu` neutralisé (`judgeStaleReading`, `stale-reading.ts`) | `releve-echu` | « ec-kpi : affiché « 15909531 », recalculé — » et `ec-tableau` de même : une minute après un relevé accepté pour deux secondes, la tuile le montre toujours ; `ec-pendant` reste vert (#1288) |
+| affichages | la cause ignorée — le refus `cause-durable` neutralisé (`judgeStaleReading`, `stale-reading.ts`) | `releve-refuse-donnees-retirees` | « dr-kpi : affiché « 15909531 », recalculé — » : le jeu répond 404, et ses lignes sont remontrées « non actualisées » (#1288) |
+| affichages | l'empreinte ignorée — le refus `autre-requete` neutralisé (`judgeStaleReading`, `stale-reading.ts`) | `releve-refuse-autre-requete` | « ar-kpi : affiché « 15909531 », recalculé — » : la somme de toutes les zones sous une requête filtrée qui a échoué ; le témoin (même appel) reste vert (#1288) |
+| affichages | le relevé gardé après un chargement réussi — `this._dropStale()` retiré de `onLoaded` (`source-subscriber.ts`) | `releve-leve-au-retour` | « lr-kpi : affiché « étiquette encore là », recalculé 3155097 » : le nouveau chiffre est juste, et toujours dit « non actualisé » (#1288) |
+| affichages | le fichier exporté sous son nom ordinaire pendant un relevé (`_handleDownload` de `dsfr-data-a11y.ts`, `_exportFilename` de `dsfr-data-list.ts`) | `export-date` | « ex-export : affiché « nom du fichier : données.csv », recalculé 15909531 » et « ex-liste : … export.csv » : les lignes d'avant la panne partent dans un fichier que rien ne date (#1288) |
+| affichages | le répéteur ne lâche plus ses lignes à l'erreur — `this._dropRows()` retiré de `onSourceError` (`dsfr-data-repeat.ts`), l'état d'avant #1288 | `repeteur-source-en-panne` | « rp-lignes : affiché « 15909531 », recalculé — » : les 48 lignes restent sous le message de panne ; le relevé, l'avant et le témoin restent verts (#1288) |
+| affichages | l'étiquette « Non actualisé » rendue vide (`renderStaleBadge`, `status-templates.ts`) | `repeteur-source-en-panne` | « rp-releve : affiché « aucune étiquette « Non actualisé » », recalculé 15909531 » : les lignes gardées par `stale-if-error` ne sont plus dites anciennes (#1288) |
 | affichages | `last` lit la première ligne | `kpi-premiere-et-derniere-ligne` | affiché 120, recalculé 168 |
 | affichages | `evaluateParsed` ignore `rowFilter` | `kpi-filtre-entre-accolades-776` | affiché 100,00 %, recalculé 23,46 (#776) |
 | affichages | `meta:total` rend les lignes reçues | `kpi-meta-total-contre-count` | affiché 20, recalculé 137 — #659 |

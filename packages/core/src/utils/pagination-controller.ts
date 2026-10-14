@@ -151,6 +151,26 @@ export class PaginationController {
     if (this.host.urlSync) this.syncUrl();
   }
 
+  /**
+   * Les lignes viennent d'un RELEVÉ (#1288, `stale-if-error`) : la source est
+   * en panne, l'hôte reprend ce qu'elle avait livré. Le mode serveur se relit
+   * dans la meta, que la panne ne déplace pas — un bloc monté pendant la panne
+   * ne l'a jamais reçue. La page n'est PAS ramenée à 1 en mode client : ce
+   * sont les mêmes lignes, l'usager reste où il était.
+   */
+  onStale(meta: PaginationMeta | undefined): void {
+    this._pendingPage = null;
+    this.failedPage = null;
+    if (meta && meta.serverSide && meta.pageSize > 0) {
+      this.serverMode = true;
+      this.serverTotal = meta.total;
+      this.serverPageSize = meta.pageSize;
+      this.currentPage = meta.page;
+    } else {
+      this.serverMode = false;
+    }
+  }
+
   /** Reset des états au changement de source (#284) */
   reset(): void {
     this.serverMode = false;

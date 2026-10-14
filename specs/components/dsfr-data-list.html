@@ -73,6 +73,13 @@
           page 3. » La pagination revient sur la page affichée, et redemander la page refusée relance la
           source. Voir <a href="dsfr-data-source.html#panne-partout">Quand la source est en panne</a>.
         </p>
+        <p>
+          Quand la source porte <code>stale-if-error</code>, la liste garde ses lignes pendant une panne
+          passagère, sous l'étiquette « Non actualisé » et la phrase « Chiffres relevés aujourd'hui à
+          14 h 32. » Recherche, filtres, tri et pagination locaux répondent ; en pagination ou en tri
+          serveur, les autres pages sont neutralisées. L'export reste possible, daté dans son libellé et
+          dans le nom du fichier. Voir <a href="dsfr-data-source.html#dernier-releve">Le dernier relevé, sur demande</a>.
+        </p>
 
         <h3 class="fr-mt-3w">En attente d'un filtre</h3>
         <p>

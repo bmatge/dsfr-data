@@ -171,6 +171,19 @@ export interface DataErrorState {
    * mémoire, périmées (#1272). Absent : rien n'avait été livré.
    */
   lastLoadedAt?: number;
+  /**
+   * Consigne `stale-if-error` de la source d'ORIGINE, en secondes (#1288) :
+   * l'âge maximal d'un relevé encore affichable. Relayée le long de la chaîne
+   * comme `userMessage`. Absente : aucun relevé n'est à afficher.
+   */
+  staleIfError?: number;
+  /**
+   * L'appel en échec est-il CELUI qui a produit les lignes gardées (#1288) ?
+   * Faux dès qu'un filtre, une page, un tri ou une emprise a changé entre le
+   * dernier chargement réussi et l'échec : les lignes gardées répondent alors
+   * à une autre question que celle posée. Jugé à l'origine, relayé tel quel.
+   */
+  sameRequest?: boolean;
 }
 
 /** Pourquoi des lignes gardées en mémoire ne sont plus à jour (#1272). */
@@ -181,6 +194,18 @@ export interface DataStaleness {
   cause: SourceErrorCause;
   /** Source qui a réellement échoué, au bout de la chaîne. */
   originId: string;
+  /**
+   * Consigne `stale-if-error` de la source d'origine, en secondes (#1288).
+   * Absente : l'intégrateur n'a pas demandé que ces lignes restent affichées.
+   */
+  staleIfError?: number;
+  /**
+   * Ces lignes répondent-elles à l'appel qui vient d'échouer (#1288) ? Faux
+   * quand la requête a changé depuis leur chargement (filtre, page, tri,
+   * emprise), ou quand l'étape a dû refuser un nouveau calcul pendant la
+   * panne : elles répondent alors à une question qui n'est plus celle posée.
+   */
+  sameRequest?: boolean;
 }
 
 /**
@@ -204,6 +229,13 @@ export interface LastKnownData {
 interface StaleEntry extends DataStaleness {
   data: unknown;
   loadedAt: number;
+  /** Empreinte de la requête qui a produit ces lignes (#1288), si connue. */
+  requestKey?: string;
+  /**
+   * L'étape a refusé un nouveau calcul pendant la panne (#1288) : ce qu'elle
+   * garde n'est plus la réponse à ce qu'on lui demande.
+   */
+  superseded?: boolean;
 }
 
 /** Options de `dispatchDataLoaded` (#1272). */
@@ -213,6 +245,18 @@ export interface DataLoadedOptions {
    * y reporte la date de son amont.
    */
   loadedAt?: number;
+  /**
+   * Empreinte de la requête qui a produit ces lignes (#1288) — posée par la
+   * source qui charge. Comparée à celle de l'appel en échec pour savoir si
+   * les lignes gardées répondent encore à la question posée.
+   */
+  requestKey?: string;
+  /**
+   * Ré-émission des lignes DÉJÀ au cache (commande sans effet, #276) : leur
+   * date et leur empreinte restent celles du chargement qui les a produites
+   * (#1288) — ré-émettre ne recharge rien.
+   */
+  reemit?: boolean;
 }
 
 /** Options de `dispatchDataError` (#1203). */
@@ -223,6 +267,17 @@ export interface DataErrorOptions {
   userMessage?: string;
   /** Page publique des données, posée par la source (`source-page`, #1222). */
   sourcePage?: string;
+  /** Consigne `stale-if-error` de la source, en secondes (#1288). */
+  staleIfError?: number;
+  /** Empreinte de la requête qui vient d'échouer (#1288). */
+  requestKey?: string;
+  /**
+   * L'étape refuse un nouveau calcul au moment où elle entre en erreur
+   * (#1288) : ses lignes sont rangées déjà marquées — voir
+   * `markStaleSuperseded`. L'aval lit le registre dans l'événement : la marque
+   * doit y être AVANT lui.
+   */
+  superseded?: boolean;
 }
 
 // Noms des événements custom
@@ -251,6 +306,7 @@ type WindowWithCache = Window & {
   __dsfrDataStatusBanners?: Map<string, number>;
   __dsfrDataLoadedAt?: Map<string, number>;
   __dsfrDataStale?: Map<string, StaleEntry>;
+  __dsfrDataRequestKeys?: Map<string, string>;
 };
 const _win: WindowWithCache | Record<string, never> =
   typeof window !== 'undefined' ? (window as WindowWithCache) : {};
@@ -261,6 +317,7 @@ if (!_win.__dsfrDataErrors) _win.__dsfrDataErrors = new Map<string, DataErrorSta
 if (!_win.__dsfrDataStatusBanners) _win.__dsfrDataStatusBanners = new Map<string, number>();
 if (!_win.__dsfrDataLoadedAt) _win.__dsfrDataLoadedAt = new Map<string, number>();
 if (!_win.__dsfrDataStale) _win.__dsfrDataStale = new Map<string, StaleEntry>();
+if (!_win.__dsfrDataRequestKeys) _win.__dsfrDataRequestKeys = new Map<string, string>();
 const dataCache: Map<string, unknown> = _win.__dsfrDataCache;
 const metaCache: Map<string, PaginationMeta> = _win.__dsfrDataMeta;
 /**
@@ -295,6 +352,22 @@ const loadedAtById: Map<string, number> = _win.__dsfrDataLoadedAt;
  * version antérieure chargé sur la même page).
  */
 const staleData: Map<string, StaleEntry> = _win.__dsfrDataStale;
+/**
+ * Empreinte de la requête qui a produit les lignes de `dataCache`, par étape
+ * (#1288). Seule une source qui charge en pose une ; un transformateur hérite
+ * du jugement de son amont par le registre d'erreur (`sameRequest`).
+ */
+const requestKeys: Map<string, string> = _win.__dsfrDataRequestKeys;
+
+/**
+ * Consigne `stale-if-error` exploitable (#1288) : un nombre de secondes fini
+ * et strictement positif, sinon `undefined` — pas de relevé. Il n'existe pas
+ * de « périmé pour toujours » : sans durée, pas de consigne.
+ */
+export function normalizeStaleIfError(value: unknown): number | undefined {
+  const seconds = typeof value === 'number' ? value : Number.NaN;
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
+}
 
 /** Clé de `registerStatusBanner` pour « toutes les sources de la page ». */
 export const ALL_SOURCES = '*';
@@ -350,9 +423,16 @@ export function requestSourceRetry(sourceId: string): void {
  * Enregistre des données dans le cache global, datées (#1272) : ce sont les
  * lignes COURANTES de l'étape, celles d'avant ne sont plus à garder.
  */
-export function setDataCache(sourceId: string, data: unknown, loadedAt: number = Date.now()): void {
+export function setDataCache(
+  sourceId: string,
+  data: unknown,
+  loadedAt: number = Date.now(),
+  requestKey?: string
+): void {
   dataCache.set(sourceId, data);
   loadedAtById.set(sourceId, loadedAt);
+  if (requestKey !== undefined) requestKeys.set(sourceId, requestKey);
+  else requestKeys.delete(sourceId);
   staleData.delete(sourceId);
 }
 
@@ -382,8 +462,27 @@ export function getLastKnownData(sourceId: string): LastKnownData | undefined {
   }
   const kept = staleData.get(sourceId);
   if (!kept) return undefined;
-  const { data, loadedAt, ...stale } = kept;
+  const { data, loadedAt, requestKey: _key, superseded, ...stale } = kept;
+  // Un calcul refusé pendant la panne (#1288) : ce que l'étape garde ne
+  // répond plus à ce qu'on lui demande, quoi qu'en dise son amont.
+  if (superseded) stale.sameRequest = false;
   return { data, loadedAt, stale };
+}
+
+/**
+ * L'étape a refusé un nouveau calcul pendant la panne de son amont (#1288) :
+ * un attribut, une commande ou un filtre a changé ce qu'on lui demande, et ce
+ * qu'elle garde est la réponse à la demande PRÉCÉDENTE. Ses lignes périmées
+ * restent lisibles, mais ne sont plus à afficher comme « dernier relevé ».
+ * Levé, comme le reste, par le prochain chargement réussi. Rend `true` quand
+ * la marque vient d'être posée : l'appelant prévient alors l'aval, qui a pu
+ * afficher le relevé.
+ */
+export function markStaleSuperseded(sourceId: string): boolean {
+  const kept = staleData.get(sourceId);
+  if (!kept || kept.superseded) return false;
+  staleData.set(sourceId, { ...kept, superseded: true });
+  return true;
 }
 
 /**
@@ -399,25 +498,49 @@ export function isDataStale(sourceId: string): boolean {
  * Sort les lignes d'une étape du cache courant et les garde, périmées (#1272).
  * Rend la date de leur chargement, ou `undefined` s'il n'y avait rien.
  */
-function retireDataCache(sourceId: string, state: DataErrorState): number | undefined {
-  const reason = { cause: state.cause, originId: state.originId };
+function retireDataCache(
+  sourceId: string,
+  state: DataErrorState,
+  superseded = false
+): number | undefined {
+  // La consigne et le jugement « même requête » (#1288) sont ceux du DERNIER
+  // échec, comme la cause : écrits même absents, pour qu'un échec sans
+  // consigne n'hérite pas de celle du précédent.
+  const reason: DataStaleness = {
+    since: state.at,
+    cause: state.cause,
+    originId: state.originId,
+    ...(state.staleIfError !== undefined
+      ? { staleIfError: state.staleIfError, sameRequest: Boolean(state.sameRequest) }
+      : {}),
+  };
   if (dataCache.has(sourceId)) {
     const loadedAt = loadedAtById.get(sourceId) ?? state.at;
+    const requestKey = requestKeys.get(sourceId);
     staleData.set(sourceId, {
       data: dataCache.get(sourceId),
       loadedAt,
-      since: state.at,
       ...reason,
+      ...(requestKey !== undefined ? { requestKey } : {}),
+      ...(superseded ? { superseded: true } : {}),
     });
     dataCache.delete(sourceId);
     loadedAtById.delete(sourceId);
+    requestKeys.delete(sourceId);
     return loadedAt;
   }
   // Nouvel échec d'une étape déjà périmée (relance manquée) : les lignes et
   // la date du premier échec restent, la cause est celle du dernier.
   const kept = staleData.get(sourceId);
   if (!kept) return undefined;
-  staleData.set(sourceId, { ...kept, ...reason });
+  staleData.set(sourceId, {
+    data: kept.data,
+    loadedAt: kept.loadedAt,
+    ...reason,
+    since: kept.since,
+    ...(kept.requestKey !== undefined ? { requestKey: kept.requestKey } : {}),
+    ...(kept.superseded || superseded ? { superseded: true } : {}),
+  });
   return kept.loadedAt;
 }
 
@@ -429,6 +552,7 @@ function retireDataCache(sourceId: string, state: DataErrorState): number | unde
 export function clearDataCache(sourceId: string): void {
   dataCache.delete(sourceId);
   loadedAtById.delete(sourceId);
+  requestKeys.delete(sourceId);
   staleData.delete(sourceId);
   idleSources.delete(sourceId);
   errorStates.delete(sourceId);
@@ -474,8 +598,13 @@ export function dispatchDataLoaded(
   data: unknown,
   options: DataLoadedOptions = {}
 ): void {
-  const loadedAt = options.loadedAt ?? Date.now();
-  setDataCache(sourceId, data, loadedAt);
+  // Ré-émission des lignes déjà au cache (#1288) : ni leur date ni leur
+  // empreinte ne changent — sinon une commande sans effet les rajeunirait.
+  const kept = options.reemit && dataCache.has(sourceId);
+  const loadedAt =
+    (kept ? loadedAtById.get(sourceId) : undefined) ?? options.loadedAt ?? Date.now();
+  const requestKey = kept ? requestKeys.get(sourceId) : options.requestKey;
+  setDataCache(sourceId, data, loadedAt, requestKey);
   idleSources.delete(sourceId);
   errorStates.delete(sourceId);
 
@@ -514,6 +643,19 @@ export function dispatchDataError(
   const url = attemptedUrl ?? upstream?.attemptedUrl;
   const userMessage = options.userMessage ?? upstream?.userMessage;
   const sourcePage = safeSourcePage(options.sourcePage) ?? upstream?.sourcePage;
+  // Relevé sur demande (#1288). La consigne est celle de la source d'origine ;
+  // « même requête » se juge là où l'on connaît la requête — à l'origine, en
+  // comparant l'empreinte de l'appel en échec à celle des lignes gardées — et
+  // se relaie tel quel. Un relais ne juge rien lui-même.
+  const staleIfError = upstream
+    ? upstream.staleIfError
+    : normalizeStaleIfError(options.staleIfError);
+  const linesKey = dataCache.has(sourceId)
+    ? requestKeys.get(sourceId)
+    : staleData.get(sourceId)?.requestKey;
+  const sameRequest = upstream
+    ? upstream.sameRequest
+    : options.requestKey !== undefined && options.requestKey === linesKey;
   const state: DataErrorState = {
     error,
     originId: upstream?.originId ?? options.relayedFrom ?? sourceId,
@@ -521,9 +663,12 @@ export function dispatchDataError(
     ...(url ? { attemptedUrl: url } : {}),
     ...(userMessage ? { userMessage } : {}),
     ...(sourcePage ? { sourcePage } : {}),
+    // Sans consigne, « même requête » ne sert à personne : l'état d'erreur
+    // d'une source qui ne demande rien reste celui d'avant #1288.
+    ...(staleIfError !== undefined ? { staleIfError, sameRequest: Boolean(sameRequest) } : {}),
     at: upstream?.at ?? Date.now(),
   };
-  const lastLoadedAt = retireDataCache(sourceId, state);
+  const lastLoadedAt = retireDataCache(sourceId, state, options.superseded);
   if (lastLoadedAt !== undefined) state.lastLoadedAt = lastLoadedAt;
   errorStates.set(sourceId, state);
   const event = new CustomEvent<DataErrorEvent>(DATA_EVENTS.ERROR, {

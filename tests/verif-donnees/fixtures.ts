@@ -103,6 +103,33 @@ const TABLES_GRIST = { [GRIST_TABLE_EX_AEQUO]: tableGrist(GRIST_EX_AEQUO) };
 export const RELAIS = '/donnees-relais';
 
 /**
+ * Une panne PROGRAMMÉE dans l'adresse (#1288) : `…?verif-panne=503&verif-panne-apres=1`
+ * répond normalement UNE fois, puis 503 à chaque appel suivant de cette même
+ * adresse. Le dernier relevé d'une source ne se montre que si l'appel en échec
+ * est CELUI qui a produit les lignes : changer d'adresse pour provoquer la
+ * panne (comme le font les contrôles de #1272, qui visent un jeu retiré)
+ * serait justement « une autre requête ». Les deux paramètres sont ignorés par
+ * les fixtures, qui ne lisent que le chemin : la réponse d'avant la panne est
+ * celle du jeu, sans rien de changé.
+ */
+export const PARAM_PANNE = 'verif-panne';
+export const PARAM_PANNE_APRES = 'verif-panne-apres';
+
+/** L'adresse d'un jeu, avec sa panne programmée après `apres` réponses. */
+export function avecPanne(url: string, status: number, apres: number): string {
+  const separateur = url.includes('?') ? '&' : '?';
+  return `${url}${separateur}${PARAM_PANNE}=${status}&${PARAM_PANNE_APRES}=${apres}`;
+}
+
+/** La panne programmée dans une adresse, ou `null`. */
+export function panneProgrammee(url: URL): { status: number; apres: number } | null {
+  const status = Number(url.searchParams.get(PARAM_PANNE));
+  if (!Number.isInteger(status) || status < 400) return null;
+  const apres = Number(url.searchParams.get(PARAM_PANNE_APRES) ?? '0');
+  return { status, apres: Number.isInteger(apres) && apres >= 0 ? apres : 0 };
+}
+
+/**
  * La réécriture INVERSE du relais : `<origine>/donnees-relais/<hôte>/<chemin>?<requête>`
  * → `https://<hôte>/<chemin>?<requête>`, ou `null` si l'URL n'est pas une URL de relais.
  *

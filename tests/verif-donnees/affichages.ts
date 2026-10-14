@@ -26,6 +26,7 @@ import {
   DATASET,
   HOTE_ODS,
   RELAIS,
+  avecPanne,
   RESSOURCE_TABULAR,
   TERRITOIRES,
   urlJeuPagineBorne,
@@ -269,6 +270,104 @@ const PAUSE_SONDES_CARTO = 7_500;
  * celle des deux couches, recalculée en tableaux nus.
  */
 const DEUX_COUCHES = [{ op: 'concat' as const, sources: ['main', 'main'] }];
+
+/**
+ * Horloge des contrôles du dernier relevé (#1288) : la page s'ouvre à
+ * 14 h 32 min 07 s, heure de Paris. Le harnais FIGE cet instant ; chaque page
+ * l'avance elle-même (`avance`, ci-dessous) entre le chargement et la panne.
+ */
+const HORLOGE_RELEVE = { now: '2026-10-13T14:32:07+02:00', timezone: 'Europe/Paris' } as const;
+
+/**
+ * Les communes, servies une fois puis en panne — le MÊME appel répond 200 puis
+ * 503 (service indisponible, cause passagère) ou 404 (jeu retiré). Voir
+ * `avecPanne` : changer d'adresse pour provoquer la panne serait déjà « une
+ * autre requête », que le relevé refuse.
+ */
+const URL_COMMUNES_PANNE_503 = avecPanne(urlAffichage('communes'), 503, 1);
+const URL_COMMUNES_PANNE_404 = avecPanne(urlAffichage('communes'), 404, 1);
+/** Une AUTRE requête sur le même jeu (un filtre dans l'adresse), en panne dès son premier appel. */
+const URL_COMMUNES_AUTRE_REQUETE = avecPanne(`${urlAffichage('communes')}?zone=Nord`, 503, 0);
+/** Le jeu servi au RETOUR de la source : les premières communes, d'une autre somme. */
+const COMMUNES_AU_RETOUR = 20;
+const URL_COMMUNES_RETOUR = `${urlAffichage('communes')}?premiers=${COMMUNES_AU_RETOUR}`;
+const SOMME_POPULATION_RETOUR: Step[] = [
+  { op: 'limit', n: COMMUNES_AU_RETOUR },
+  { op: 'global', columns: { valeur: { agg: 'sum', field: 'population' } } },
+];
+
+/**
+ * Outils des pages du dernier relevé (#1288, proposition B).
+ *
+ * - `avance` : l'horloge du harnais est figée ; la page l'avance, en
+ *   millisecondes, pour que la panne ne survienne pas à l'instant du
+ *   chargement — sans quoi « l'heure du relevé » et « l'heure de l'échec »
+ *   seraient la même, et un relevé daté de la mauvaise ne se verrait pas ;
+ * - `heure`, `horodatage` : l'heure d'un instant, RECALCULÉE ici à la main
+ *   (« 14 h 32 », « 2026-10-13-14h32 ») — rien n'est emprunté à la bibliothèque ;
+ * - `marque` : un bloc porte-t-il l'étiquette « Non actualisé » ET l'heure du
+ *   chargement, dans son texte et dans son `datetime` ? Rend `''` si oui, sinon
+ *   ce qui manque — un texte, que le contrôle ne peut pas lire comme un nombre ;
+ * - `fichierExporte` : le fichier qu'un bouton d'export remet au navigateur,
+ *   son NOM et la somme de sa dernière colonne.
+ */
+const OUTILS_RELEVE = `${OUTILS_PANNE}
+    var avance = 0, horloge = Date.now;
+    Date.now = function () { return horloge.call(Date) + avance; };
+    function deux(n) { return (n < 10 ? '0' : '') + n; }
+    function heure(t) { var d = new Date(t); return d.getHours() + ' h ' + deux(d.getMinutes()); }
+    function horodatage(t) {
+      var d = new Date(t);
+      return d.getFullYear() + '-' + deux(d.getMonth() + 1) + '-' + deux(d.getDate()) +
+        '-' + deux(d.getHours()) + 'h' + deux(d.getMinutes());
+    }
+    // Espaces, retours à la ligne et insécables ramenés à une espace.
+    function propre(texte) {
+      var codes = [9, 10, 13, 160, 8239], t = String(texte);
+      for (var i = 0; i < codes.length; i++) t = t.split(String.fromCharCode(codes[i])).join(' ');
+      return t.replace(/ +/g, ' ').trim();
+    }
+    function valeurKpi(id) {
+      var v = document.querySelector('#' + id + ' .dsfr-data-kpi__value');
+      if (!v) return '—';
+      var t = propre(v.textContent);
+      return t === '—' ? '—' : String(entier(t));
+    }
+    function marque(bloc, charge) {
+      var el = document.querySelector(bloc);
+      if (!el) return 'bloc absent';
+      if (!/non actualisé/i.test(propre(el.textContent))) return 'aucune étiquette « Non actualisé »';
+      var quand = el.querySelector('time');
+      if (!quand) return 'aucune heure de relevé';
+      if (quand.getAttribute('datetime') !== new Date(charge).toISOString()) {
+        return 'instant du relevé : ' + quand.getAttribute('datetime');
+      }
+      if (propre(quand.textContent).indexOf(heure(charge)) < 0) {
+        return 'heure affichée : ' + propre(quand.textContent);
+      }
+      return '';
+    }
+    function fichierExporte(selecteur, suite) {
+      var contenu = null, nom = null;
+      var creer = URL.createObjectURL;
+      var cliquer = HTMLAnchorElement.prototype.click;
+      URL.createObjectURL = function (b) { contenu = b; return 'blob:verif'; };
+      HTMLAnchorElement.prototype.click = function () { nom = this.download; };
+      try { document.querySelector(selecteur).click(); }
+      finally { URL.createObjectURL = creer; HTMLAnchorElement.prototype.click = cliquer; }
+      if (!contenu) { suite(null); return; }
+      contenu.text().then(function (csv) {
+        var lignes = csv.split(String.fromCharCode(10)).slice(1);
+        var total = 0, lues = 0;
+        for (var i = 0; i < lignes.length; i++) {
+          var cellules = lignes[i].trim().split(';');
+          if (cellules.length < 2) continue;
+          total += entier(cellules[cellules.length - 1]);
+          lues++;
+        }
+        suite({ nom: nom, somme: lues === 0 ? '—' : String(total) });
+      });
+    }`;
 
 const CHECKS: Check[] = [
   // ---------------------------------------------------------------- KPI ----
@@ -3364,6 +3463,464 @@ const CHECKS: Check[] = [
       lecture('fp-recherche', AUCUNE_LIGNE_RECUE),
       lecture('fp-avant-facettes', NOMBRE_DE_LIGNES),
       lecture('fp-avant-recherche', NOMBRE_DE_LIGNES),
+    ],
+  },
+  // -------------------------------------------------------------------------
+  // #1288, proposition B — le DERNIER RELEVÉ, sur demande (`stale-if-error`).
+  // Règle gardée : un chiffre périmé affiché est MARQUÉ comme tel, jamais pris
+  // pour frais — et sa date fait partie de ce qui est contrôlé. Sept contrôles,
+  // horloge fixée ; chaque page avance elle-même l'horloge entre le chargement
+  // et la panne, pour que l'heure du relevé ne soit pas celle de l'échec.
+  // -------------------------------------------------------------------------
+  {
+    id: 'releve-marque-et-date',
+    mode: 'deterministic',
+    clock: HORLOGE_RELEVE,
+    origin:
+      '#1288 — avec `stale-if-error`, une source qui échoue (503) après avoir livré laisse ses derniers chiffres à l’écran : la tuile, la liste et le tableau équivalent rendent la somme des populations du jeu d’AVANT la panne. Mais un ancien chiffre sans marque est exactement le défaut de #1272 : la somme n’est écrite ici que si le bloc porte l’étiquette « Non actualisé » ET l’heure de son relevé, lue dans le texte et dans l’attribut `datetime`. Cette heure est celle du CHARGEMENT (14 h 32) : la page avance l’horloge de sept minutes avant la panne, une heure prise à l’échec ou au rendu (14 h 39) fait tomber le contrôle. Dernière lecture : `getDataCache` rend toujours vide pendant la panne (ADR-158 inchangée) — le relevé n’est lu que par les afficheurs.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-rm" url="${URL_COMMUNES_PANNE_503}" relay-url="${RELAIS}" stale-if-error="3600"></dsfr-data-source>
+  <dsfr-data-kpi id="k-rm" source="s-rm" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
+  <dsfr-data-list id="l-rm" source="s-rm" columns="nom:Commune, population:Population"></dsfr-data-list>
+  <dsfr-data-a11y id="a-rm" source="s-rm" table
+    label-field="nom:Commune" value-field="population:Population"></dsfr-data-a11y>
+  <div id="rm-kpi"></div>
+  <div id="rm-liste"></div>
+  <div id="rm-tableau"></div>
+  <div id="rm-cache"></div>
+  <script>
+    (function () {${OUTILS_RELEVE}
+      var charge = 0, lu = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (charge || !e.detail || e.detail.sourceId !== 's-rm') return;
+        charge = e.detail.loadedAt;
+        apresRendu(function () {
+          avance = 7 * 60 * 1000;
+          document.getElementById('s-rm').reload();
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!charge || lu || !e.detail || e.detail.sourceId !== 's-rm') return;
+        lu = true;
+        apresRendu(function () {
+          // Garde-fou du garde-fou : si l'horloge n'a pas avancé, « l'heure du
+          // chargement » et « l'heure de l'échec » se confondent, et rien n'est prouvé.
+          var distincte = heure(charge) !== heure(Date.now());
+          function lire(bloc, valeur) {
+            var manque = distincte ? marque(bloc, charge) : 'horloge non avancée';
+            return manque || valeur();
+          }
+          ecrire('rm-kpi', lire('#k-rm', function () { return valeurKpi('k-rm'); }));
+          ecrire('rm-liste', lire('#l-rm', function () { return sommeTableau('#l-rm'); }));
+          // La LÉGENDE du tableau, pas la section : sa description masquée porte
+          // la date elle aussi, et suffirait à faire passer un tableau sans étiquette.
+          ecrire('rm-tableau', lire('#a-rm caption', function () { return sommeTableau('#a-rm'); }));
+          import('/dist/dsfr-data.esm.js').then(function (lib) {
+            ecrire('rm-cache', somme(lib.getDataCache('s-rm')));
+          });
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('rm-kpi', SOMME_POPULATION),
+      lecture('rm-liste', SOMME_POPULATION),
+      lecture('rm-tableau', SOMME_POPULATION),
+      lecture('rm-cache', AUCUNE_LIGNE_RECUE),
+    ],
+  },
+  {
+    id: 'releve-sans-opt-in',
+    mode: 'deterministic',
+    clock: HORLOGE_RELEVE,
+    origin:
+      '#1288 — le dernier relevé est une DEMANDE de l’intégrateur, pas un défaut : sans `stale-if-error` sur la source, la même panne (503 du même appel, après avoir livré) ne laisse aucun ancien chiffre — la tuile rend « — », la liste et le tableau équivalent n’ont plus aucune ligne, comme avant ce lot (proposition A). Garde-fou : la tuile avait bien sa somme avant la panne. Un relevé rendu par défaut ferait réapparaître, sur toutes les pages existantes, des chiffres que leur auteur n’a jamais demandé de garder.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-so" url="${URL_COMMUNES_PANNE_503}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-kpi id="k-so" source="s-so" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
+  <dsfr-data-list id="l-so" source="s-so" columns="nom:Commune, population:Population"></dsfr-data-list>
+  <dsfr-data-a11y id="a-so" source="s-so" table
+    label-field="nom:Commune" value-field="population:Population"></dsfr-data-a11y>
+  <div id="so-avant"></div>
+  <div id="so-kpi"></div>
+  <div id="so-liste"></div>
+  <div id="so-tableau"></div>
+  <script>
+    (function () {${OUTILS_RELEVE}
+      var charge = 0, lu = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (charge || !e.detail || e.detail.sourceId !== 's-so') return;
+        charge = e.detail.loadedAt;
+        apresRendu(function () {
+          ecrire('so-avant', valeurKpi('k-so'));
+          avance = 7 * 60 * 1000;
+          document.getElementById('s-so').reload();
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!charge || lu || !e.detail || e.detail.sourceId !== 's-so') return;
+        lu = true;
+        apresRendu(function () {
+          ecrire('so-kpi', valeurKpi('k-so'));
+          ecrire('so-liste', sommeTableau('#l-so'));
+          ecrire('so-tableau', sommeTableau('#a-so'));
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('so-kpi', AUCUNE_LIGNE_RECUE),
+      lecture('so-liste', AUCUNE_LIGNE_RECUE),
+      lecture('so-tableau', AUCUNE_LIGNE_RECUE),
+      lecture('so-avant', SOMME_POPULATION),
+    ],
+  },
+  {
+    id: 'releve-echu',
+    mode: 'deterministic',
+    clock: HORLOGE_RELEVE,
+    origin:
+      '#1288 — la valeur de `stale-if-error` EST la borne : passé cette durée, comptée depuis le relevé, le bloc revient de lui-même au message de panne. La source demande deux secondes ; elle échoue une demi-seconde après avoir livré, et la tuile montre son relevé, marqué (garde-fou : la somme, lue seulement si la marque est là). La page avance alors l’horloge d’une minute, sans geste et sans nouvel appel : c’est la minuterie du bloc qui le fait basculer. La tuile rend « — » et le tableau équivalent n’a plus de ligne. Une durée ignorée laisserait à l’écran, pour toujours, un chiffre que l’intégrateur n’a accepté de montrer que deux secondes.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-ec" url="${URL_COMMUNES_PANNE_503}" relay-url="${RELAIS}" stale-if-error="2"></dsfr-data-source>
+  <dsfr-data-kpi id="k-ec" source="s-ec" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
+  <dsfr-data-a11y id="a-ec" source="s-ec" table
+    label-field="nom:Commune" value-field="population:Population"></dsfr-data-a11y>
+  <div id="ec-pendant"></div>
+  <div id="ec-kpi"></div>
+  <div id="ec-tableau"></div>
+  <script>
+    (function () {${OUTILS_RELEVE}
+      var charge = 0, lu = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (charge || !e.detail || e.detail.sourceId !== 's-ec') return;
+        charge = e.detail.loadedAt;
+        apresRendu(function () {
+          avance = 500;
+          document.getElementById('s-ec').reload();
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!charge || lu || !e.detail || e.detail.sourceId !== 's-ec') return;
+        lu = true;
+        apresRendu(function () {
+          ecrire('ec-pendant', marque('#k-ec', charge) || valeurKpi('k-ec'));
+          // Une minute passe. Rien d'autre : ni geste, ni rechargement.
+          avance = 60 * 1000;
+          var tours = 0;
+          var veille = setInterval(function () {
+            tours++;
+            if (valeurKpi('k-ec') !== '—' && tours < 80) return;
+            clearInterval(veille);
+            apresRendu(function () {
+              ecrire('ec-kpi', valeurKpi('k-ec'));
+              ecrire('ec-tableau', sommeTableau('#a-ec'));
+            });
+          }, 100);
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('ec-kpi', AUCUNE_LIGNE_RECUE),
+      lecture('ec-tableau', AUCUNE_LIGNE_RECUE),
+      lecture('ec-pendant', SOMME_POPULATION),
+    ],
+  },
+  {
+    id: 'releve-refuse-donnees-retirees',
+    mode: 'deterministic',
+    clock: HORLOGE_RELEVE,
+    origin:
+      '#1288 — `stale-if-error` ne vaut que pour une panne PASSAGÈRE. La source le demande pour une heure, livre, puis le producteur retire le jeu : le même appel répond 404. Remontrer les lignes reviendrait à republier ce qu’il vient de retirer (même règle que C-CACHE-6 du relais) : la tuile rend « — », le tableau équivalent n’a plus de ligne. Garde-fou : la tuile avait bien sa somme avant. Une cause ignorée ferait d’un jeu dépublié un chiffre affiché une heure de plus, sous une étiquette qui le dit seulement « non actualisé ».',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-dr" url="${URL_COMMUNES_PANNE_404}" relay-url="${RELAIS}" stale-if-error="3600"></dsfr-data-source>
+  <dsfr-data-kpi id="k-dr" source="s-dr" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
+  <dsfr-data-a11y id="a-dr" source="s-dr" table
+    label-field="nom:Commune" value-field="population:Population"></dsfr-data-a11y>
+  <div id="dr-avant"></div>
+  <div id="dr-kpi"></div>
+  <div id="dr-tableau"></div>
+  <script>
+    (function () {${OUTILS_RELEVE}
+      var charge = 0, lu = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (charge || !e.detail || e.detail.sourceId !== 's-dr') return;
+        charge = e.detail.loadedAt;
+        apresRendu(function () {
+          ecrire('dr-avant', valeurKpi('k-dr'));
+          avance = 7 * 60 * 1000;
+          document.getElementById('s-dr').reload();
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!charge || lu || !e.detail || e.detail.sourceId !== 's-dr') return;
+        lu = true;
+        apresRendu(function () {
+          ecrire('dr-kpi', valeurKpi('k-dr'));
+          ecrire('dr-tableau', sommeTableau('#a-dr'));
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('dr-kpi', AUCUNE_LIGNE_RECUE),
+      lecture('dr-tableau', AUCUNE_LIGNE_RECUE),
+      lecture('dr-avant', SOMME_POPULATION),
+    ],
+  },
+  {
+    id: 'releve-refuse-autre-requete',
+    mode: 'deterministic',
+    clock: HORLOGE_RELEVE,
+    origin:
+      '#1288 — les lignes gardées répondent à UNE requête. La source (qui demande le relevé) a livré toutes les communes ; la page change alors sa requête — un filtre de zone dans l’adresse — et CET appel échoue (503). Les lignes en mémoire sont celles de la question précédente : les afficher « non actualisées » ferait lire le total de toutes les zones sous un filtre « Nord ». La tuile rend « — », le tableau n’a plus de ligne. Deux garde-fous : la tuile avait sa somme avant ; et une source TÉMOIN de la même page, dont c’est le MÊME appel qui échoue, montre bien son relevé marqué — c’est la requête changée qui refuse, pas la panne.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-ar" url="${urlAffichage('communes')}" relay-url="${RELAIS}" stale-if-error="3600"></dsfr-data-source>
+  <dsfr-data-source id="s-ar-temoin" url="${URL_COMMUNES_PANNE_503}" relay-url="${RELAIS}" stale-if-error="3600"></dsfr-data-source>
+  <dsfr-data-kpi id="k-ar" source="s-ar" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
+  <dsfr-data-kpi id="k-ar-temoin" source="s-ar-temoin" value="population:sum" format="nombre" label="Population (témoin)"></dsfr-data-kpi>
+  <dsfr-data-a11y id="a-ar" source="s-ar" table
+    label-field="nom:Commune" value-field="population:Population"></dsfr-data-a11y>
+  <div id="ar-avant"></div>
+  <div id="ar-kpi"></div>
+  <div id="ar-tableau"></div>
+  <div id="ar-temoin"></div>
+  <script>
+    (function () {${OUTILS_RELEVE}
+      var charge = {}, parti = false, tombe = {}, lu = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (parti || !e.detail) return;
+        charge[e.detail.sourceId] = e.detail.loadedAt;
+        if (!charge['s-ar'] || !charge['s-ar-temoin']) return;
+        parti = true;
+        apresRendu(function () {
+          ecrire('ar-avant', valeurKpi('k-ar'));
+          avance = 7 * 60 * 1000;
+          // La requête change, et c'est elle qui échoue…
+          document.getElementById('s-ar').setAttribute('url', '${URL_COMMUNES_AUTRE_REQUETE}');
+          // … le témoin, lui, rejoue le même appel.
+          document.getElementById('s-ar-temoin').reload();
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!parti || lu || !e.detail) return;
+        tombe[e.detail.sourceId] = true;
+        if (!tombe['s-ar'] || !tombe['s-ar-temoin']) return;
+        lu = true;
+        apresRendu(function () {
+          ecrire('ar-kpi', valeurKpi('k-ar'));
+          ecrire('ar-tableau', sommeTableau('#a-ar'));
+          ecrire('ar-temoin', marque('#k-ar-temoin', charge['s-ar-temoin']) || valeurKpi('k-ar-temoin'));
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('ar-kpi', AUCUNE_LIGNE_RECUE),
+      lecture('ar-tableau', AUCUNE_LIGNE_RECUE),
+      lecture('ar-avant', SOMME_POPULATION),
+      lecture('ar-temoin', SOMME_POPULATION),
+    ],
+  },
+  {
+    id: 'releve-leve-au-retour',
+    mode: 'deterministic',
+    clock: HORLOGE_RELEVE,
+    origin:
+      '#1288 — le relevé n’est pas un état terminal. La source livre les 48 communes, échoue (503), et la tuile montre son relevé marqué (garde-fou : la somme des 48, lue seulement si la marque est là). Puis elle recharge un AUTRE jeu — les 20 premières communes : la tuile et le tableau rendent la somme de ces 20 lignes, et plus rien ne dit « non actualisé » ; la somme n’est écrite que si l’étiquette et l’heure ont disparu des deux blocs, que `getLastKnownData` ne porte plus `stale`, et que sa date est celle du NOUVEAU chargement, postérieure au premier. Une marque qui resterait après le retour ferait douter d’un chiffre juste ; un ancien chiffre qui resterait serait pris pour le nouveau.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-lr" url="${URL_COMMUNES_PANNE_503}" relay-url="${RELAIS}" stale-if-error="3600"></dsfr-data-source>
+  <dsfr-data-kpi id="k-lr" source="s-lr" value="population:sum" format="nombre" label="Population"></dsfr-data-kpi>
+  <dsfr-data-a11y id="a-lr" source="s-lr" table
+    label-field="nom:Commune" value-field="population:Population"></dsfr-data-a11y>
+  <div id="lr-pendant"></div>
+  <div id="lr-kpi"></div>
+  <div id="lr-tableau"></div>
+  <script>
+    (function () {${OUTILS_RELEVE}
+      var charge = 0, etape = 0;
+      function sansMarque(bloc) {
+        var el = document.querySelector(bloc);
+        if (!el) return 'bloc absent';
+        if (/non actualisé/i.test(el.textContent)) return 'étiquette encore là';
+        if (el.querySelector('time')) return 'heure de relevé encore là';
+        if (el.querySelector('.dsfr-data-status--stale, .dsfr-data-kpi--stale')) return 'marque encore là';
+        return '';
+      }
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (!e.detail || e.detail.sourceId !== 's-lr') return;
+        if (etape === 0) {
+          etape = 1;
+          charge = e.detail.loadedAt;
+          apresRendu(function () {
+            avance = 5 * 60 * 1000;
+            document.getElementById('s-lr').reload();
+          });
+          return;
+        }
+        if (etape !== 2) return;
+        etape = 3;
+        var retour = e.detail.loadedAt;
+        apresRendu(function () {
+          import('/dist/dsfr-data.esm.js').then(function (lib) {
+            var dernier = lib.getLastKnownData('s-lr');
+            var leve = dernier && !dernier.stale && dernier.loadedAt === retour && retour > charge;
+            function lire(bloc, valeur) {
+              return (leve ? '' : 'marquage encore posé') || sansMarque(bloc) || valeur();
+            }
+            ecrire('lr-kpi', lire('#k-lr', function () { return valeurKpi('k-lr'); }));
+            ecrire('lr-tableau', lire('#a-lr', function () { return sommeTableau('#a-lr'); }));
+          });
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (etape !== 1 || !e.detail || e.detail.sourceId !== 's-lr') return;
+        etape = 2;
+        apresRendu(function () {
+          ecrire('lr-pendant', marque('#k-lr', charge) || valeurKpi('k-lr'));
+          // Le service revient, neuf minutes après le premier chargement.
+          avance = 9 * 60 * 1000;
+          document.getElementById('s-lr').setAttribute('url', '${URL_COMMUNES_RETOUR}');
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('lr-kpi', SOMME_POPULATION_RETOUR),
+      lecture('lr-tableau', SOMME_POPULATION_RETOUR),
+      lecture('lr-pendant', SOMME_POPULATION),
+    ],
+  },
+  {
+    id: 'export-date',
+    mode: 'deterministic',
+    clock: HORLOGE_RELEVE,
+    origin:
+      '#1288 — l’export CSV est désactivé pendant une panne, SAUF quand le relevé est demandé : le fichier sort alors, et c’est son NOM qui porte la date — son contenu reste brut (une ligne de commentaire casserait les lecteurs de CSV, une colonne changerait le schéma). La source demande le relevé, livre, puis échoue sept minutes plus tard. Le fichier produit par « Télécharger en CSV » du tableau équivalent, puis par « Exporter CSV » de la liste, est relu : la somme de ses populations — celle du jeu d’AVANT la panne — n’est écrite que si son nom est `…_relevé-2026-10-13-14h32.csv`, l’heure du chargement, recalculée ici à la main. Garde-fou : avant la panne, le même bouton rend la même somme dans un fichier nommé sans date. Un fichier non daté emporterait loin de la page des chiffres que plus rien ne dit anciens.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-ex" url="${URL_COMMUNES_PANNE_503}" relay-url="${RELAIS}" stale-if-error="3600"></dsfr-data-source>
+  <dsfr-data-a11y id="a-ex" source="s-ex" table download
+    label-field="nom:Commune" value-field="population:Population"></dsfr-data-a11y>
+  <dsfr-data-list id="l-ex" source="s-ex" columns="nom:Commune, population:Population" export="csv"></dsfr-data-list>
+  <div id="ex-avant"></div>
+  <div id="ex-export"></div>
+  <div id="ex-liste"></div>
+  <script>
+    (function () {${OUTILS_RELEVE}
+      var charge = 0, lu = false;
+      // La somme d'un fichier, écrite seulement s'il porte le nom attendu.
+      function exporte(bouton, nomAttendu, suite) {
+        fichierExporte(bouton, function (fichier) {
+          if (!fichier) { suite('aucun fichier'); return; }
+          if (fichier.nom !== nomAttendu) { suite('nom du fichier : ' + fichier.nom); return; }
+          suite(fichier.somme);
+        });
+      }
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (charge || !e.detail || e.detail.sourceId !== 's-ex') return;
+        charge = e.detail.loadedAt;
+        apresRendu(function () {
+          exporte('#a-ex button', 'données.csv', function (v) {
+            ecrire('ex-avant', v);
+            avance = 7 * 60 * 1000;
+            document.getElementById('s-ex').reload();
+          });
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!charge || lu || !e.detail || e.detail.sourceId !== 's-ex') return;
+        lu = true;
+        apresRendu(function () {
+          var date = horodatage(charge);
+          exporte('#a-ex button', 'données_relevé-' + date + '.csv', function (v) {
+            ecrire('ex-export', v);
+          });
+          exporte('#l-ex .dsfr-data-list__export-buttons button', 'export_relevé-' + date + '.csv', function (v) {
+            ecrire('ex-liste', v);
+          });
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('ex-export', SOMME_POPULATION),
+      lecture('ex-liste', SOMME_POPULATION),
+      lecture('ex-avant', SOMME_POPULATION),
+    ],
+  },
+  {
+    id: 'repeteur-source-en-panne',
+    mode: 'deterministic',
+    clock: HORLOGE_RELEVE,
+    origin:
+      '#1288 — `dsfr-data-repeat` gardait ses lignes sous le message de panne : estampées depuis le dernier chargement, elles montraient les chiffres d’avant, sans date, sous une phrase qui dit « indisponible ». Trois répéteurs sur le même jeu, dont chaque ligne écrit la population d’une commune. Le premier, sur une source qui échoue (503) sans rien demander : plus aucune ligne, la somme des populations affichées est « — » (garde-fou : il avait bien sa somme avant). Le deuxième, sur une source qui demande le relevé (`stale-if-error`) : ses lignes restent, et la somme n’est écrite que si la mention porte « Non actualisé » et l’heure du chargement. Le troisième, témoin, sur une source qui répond toujours : sa somme, au même instant — une panne ne vide que le répéteur de SA source.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  <dsfr-data-source id="s-rp" url="${URL_COMMUNES_PANNE_503}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-source id="s-rp-releve" url="${URL_COMMUNES_PANNE_503}&jeu=releve" relay-url="${RELAIS}" stale-if-error="3600"></dsfr-data-source>
+  <dsfr-data-source id="s-rp-temoin" url="${urlAffichage('communes')}" relay-url="${RELAIS}"></dsfr-data-source>
+  <dsfr-data-repeat id="rp-panne" source="s-rp" key-field="nom">
+    <template><p>{{ nom }} : <span class="pop">{{ population }}</span></p></template>
+  </dsfr-data-repeat>
+  <dsfr-data-repeat id="rp-garde" source="s-rp-releve" key-field="nom">
+    <template><p>{{ nom }} : <span class="pop">{{ population }}</span></p></template>
+  </dsfr-data-repeat>
+  <dsfr-data-repeat id="rp-sain" source="s-rp-temoin" key-field="nom">
+    <template><p>{{ nom }} : <span class="pop">{{ population }}</span></p></template>
+  </dsfr-data-repeat>
+  <div id="rp-avant"></div>
+  <div id="rp-lignes"></div>
+  <div id="rp-releve"></div>
+  <div id="rp-temoin"></div>
+  <script>
+    (function () {${OUTILS_RELEVE}
+      // Somme des populations écrites par les lignes d'un répéteur.
+      function sommeLignes(id) {
+        var lus = document.querySelectorAll('#' + id + ' .pop');
+        if (lus.length === 0) return '—';
+        var total = 0;
+        for (var i = 0; i < lus.length; i++) total += entier(lus[i].textContent);
+        return String(total);
+      }
+      var charge = {}, parti = false, tombe = {}, lu = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (parti || !e.detail) return;
+        charge[e.detail.sourceId] = e.detail.loadedAt;
+        if (!charge['s-rp'] || !charge['s-rp-releve'] || !charge['s-rp-temoin']) return;
+        parti = true;
+        apresRendu(function () {
+          ecrire('rp-avant', sommeLignes('rp-panne'));
+          avance = 7 * 60 * 1000;
+          document.getElementById('s-rp').reload();
+          document.getElementById('s-rp-releve').reload();
+        });
+      });
+      document.addEventListener('dsfr-data-error', function (e) {
+        if (!parti || lu || !e.detail) return;
+        tombe[e.detail.sourceId] = true;
+        if (!tombe['s-rp'] || !tombe['s-rp-releve']) return;
+        lu = true;
+        apresRendu(function () {
+          ecrire('rp-lignes', sommeLignes('rp-panne'));
+          ecrire('rp-releve', marque('#rp-garde .dsfr-data-repeat__status', charge['s-rp-releve']) || sommeLignes('rp-garde'));
+          ecrire('rp-temoin', sommeLignes('rp-sain'));
+        });
+      });
+    })();
+  </script>`,
+    expects: [
+      lecture('rp-lignes', AUCUNE_LIGNE_RECUE),
+      lecture('rp-releve', SOMME_POPULATION),
+      lecture('rp-avant', SOMME_POPULATION),
+      lecture('rp-temoin', SOMME_POPULATION),
     ],
   },
 ];

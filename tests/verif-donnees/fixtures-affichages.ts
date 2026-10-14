@@ -223,7 +223,13 @@ export function repondreAffichages(url: URL): unknown | null {
   }
   if (url.origin !== HOTE_AFFICHAGES) return null;
   const nom = url.pathname.replace(/^\//, '') as keyof typeof JEUX_AFFICHAGES;
-  return JEUX_AFFICHAGES[nom] ?? null;
+  const jeu = JEUX_AFFICHAGES[nom] ?? null;
+  // `?premiers=N` (#1288) : les N premières lignes du jeu — un SECOND jeu,
+  // d'une autre somme, pour le retour d'une source après une panne. L'oracle
+  // le recalcule par une étape `limit`.
+  const premiers = Number(url.searchParams.get('premiers'));
+  if (jeu && Number.isInteger(premiers) && premiers > 0) return jeu.slice(0, premiers);
+  return jeu;
 }
 
 /**

@@ -88,6 +88,15 @@
           devient « Données du graphique momentanément indisponibles. » Tout revient au chargement
           réussi. Voir <a href="dsfr-data-source.html#panne-partout">Quand la source est en panne</a>.
         </p>
+        <p>
+          Quand la source porte <code>stale-if-error</code>, le tableau <strong>reste</strong> pendant une
+          panne passagère : sa légende devient visible — « Données du graphique — « Non actualisé »
+          chiffres relevés aujourd'hui à 14 h 32 » — et la description liée au graphique se termine par
+          « Chiffres relevés aujourd'hui à 14 h 32, non actualisés. » Le téléchargement reste possible :
+          le bouton dit « Télécharger en CSV (chiffres relevés à 14 h 32) » et le fichier s'appelle
+          <code>données_relevé-2026-10-13-14h32.csv</code> (la date du relevé avant l'extension de
+          <code>filename</code>). Son contenu reste brut. Voir <a href="dsfr-data-source.html#dernier-releve">Le dernier relevé, sur demande</a>.
+        </p>
 
         <h3 class="fr-mt-3w">En attente d'un filtre</h3>
         <p>

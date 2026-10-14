@@ -11,7 +11,12 @@ import {
 } from '../utils/template-clone.js';
 import { getByPath } from '../utils/json-path.js';
 import { reportConfigError, clearConfigError } from '../utils/config-error.js';
-import { renderSourceError } from '../utils/status-templates.js';
+import {
+  renderSourceError,
+  renderStaleNotice,
+  resolveStaleNotice,
+} from '../utils/status-templates.js';
+import type { StaleReading } from '../utils/stale-reading.js';
 import { parseScale, scaleToClasses } from '../utils/grid-layout.js';
 import { sendWidgetBeacon } from '../utils/beacon.js';
 
@@ -338,7 +343,51 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
     this._renderRows();
   }
 
+  /**
+   * La source est en panne (#1288) : le répéteur lâche ses lignes, comme tout
+   * afficheur. Elles sont estampées depuis le dernier chargement — texte du
+   * gabarit, blocs branchés sur un id scopé — et restaient sous le message de
+   * panne, sans date. Les ids scopés partent avec elles (`_clearRows`).
+   *
+   * Sauf dernier relevé demandé (`stale-if-error`) : le mixin l'a déjà jugé
+   * (`_sourceStale`), les lignes en place SONT celles du relevé et restent,
+   * sous la mention qui les date.
+   */
+  onSourceError(_error: Error): void {
+    if (this._sourceStale) return;
+    this._dropRows();
+  }
+
+  /** Lâche les lignes (panne sans relevé, relevé échu). */
+  private _dropRows(): void {
+    this._data = [];
+    this._hasData = false;
+    this._clearRows();
+  }
+
+  /**
+   * Dernier relevé (#1288). Un répéteur monté pendant la panne (ou vidé par
+   * un échec précédent, sans relevé) reprend les lignes du relevé ; à
+   * l'échéance, il les lâche et revient au message de panne.
+   */
+  onSourceStale(reading: StaleReading | null): void {
+    if (!reading) {
+      this._dropRows();
+      return;
+    }
+    if (!this._hasData) this.onSourceData(reading.data);
+  }
+
   render() {
+    // Dernier relevé (#1288, `stale-if-error`) : la mention qui date les
+    // lignes prend la place du message de panne, au-dessus d'elles. Les blocs
+    // du gabarit branchés sur un id scopé portent chacun la leur.
+    if (this._sourceStale && this._hasData) {
+      return renderStaleNotice(
+        REPEAT_TAG,
+        resolveStaleNotice(this._sourceStale, this._sourceError, this.source, this._sourceLoading)
+      );
+    }
     if (this._sourceError) return renderSourceError(REPEAT_TAG, this._sourceError, this.source);
     // `loading` et `idle` : rien de visible — c'est une structure, pas une feuille.
     if (this._hasData && this._data.length === 0 && this.empty && !this._sourceLoading) {

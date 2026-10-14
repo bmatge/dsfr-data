@@ -36,10 +36,22 @@ import {
   renderSourceError,
   renderSourceIdle,
   renderSourcePageLink,
+  renderReadingTime,
+  renderStaleBadge,
+  renderStaleRetryButton,
   resolveSourceErrorKept,
+  resolveStaleNotice,
   type SourceErrorView,
+  type StaleNoticeView,
 } from '../utils/status-templates.js';
 import { inlineCauseTitle } from '../utils/source-errors.js';
+import {
+  formatReadingMoment,
+  readingAccessibleSuffix,
+  readingHead,
+  type ReadingSubject,
+  type StaleReading,
+} from '../utils/stale-reading.js';
 import { METROPOLE_FIT_ZONE, expandInsets, hasOverseasTerritory } from '../utils/territories.js';
 // @ts-expect-error — Vite ?inline import returns CSS as string
 import leafletCss from 'leaflet/dist/leaflet.css?inline';
@@ -352,6 +364,14 @@ type MapChildElement = Element & {
   isIdle?: () => boolean;
   /** Panne de la source de la couche (#1288), ou `null`. */
   getSourceFailure?: () => { error: Error; sourceId: string } | null;
+  /** Relevé que la couche trace pendant la panne (#1288, `stale-if-error`), ou `null`. */
+  getSourceStale?: () => {
+    reading: StaleReading;
+    error: Error | null;
+    sourceId: string;
+    loading: boolean;
+    subject: ReadingSubject;
+  } | null;
   getRenderedCount?: () => number;
   label?: string;
 };
@@ -362,6 +382,13 @@ interface FailedLayer {
   error: Error;
   sourceId: string;
   view: SourceErrorView;
+}
+
+/** Une couche qui trace son dernier relevé, telle que la carte la dit (#1288). */
+interface StaleLayer {
+  layer: MapChildElement;
+  notice: StaleNoticeView;
+  subject: ReadingSubject;
 }
 
 @customElement('dsfr-data-map')
@@ -727,6 +754,8 @@ export class DsfrDataMap extends LitElement {
       if (this._isFullscreen()) this._layoutFullscreenPane();
       else onResize?.();
       this._leafletMap?.invalidateSize();
+      // La légende sous la carte vient d'apparaître ou de changer de hauteur
+      this._placeLayerStatus();
     });
     this._resizeObserver.observe(this);
   }
@@ -860,6 +889,49 @@ export class DsfrDataMap extends LitElement {
     if (this._errorRoot || this._layerStatus) this._syncError();
   };
 
+  /**
+   * Couches directes qui tracent leur dernier relevé (#1288). Jamais dans un
+   * encart pour la ligne d'état : la carte hôte la porte.
+   */
+  private _staleLayers(): StaleLayer[] {
+    if (this.closest('dsfr-data-map-inset')) return [];
+    const stale: StaleLayer[] = [];
+    for (const el of this.querySelectorAll(':scope > dsfr-data-map-layer')) {
+      const layer = el as MapChildElement;
+      const kept = layer.getSourceStale?.();
+      if (!kept) continue;
+      stale.push({
+        layer,
+        subject: kept.subject,
+        notice: resolveStaleNotice(kept.reading, kept.error, kept.sourceId, kept.loading),
+      });
+    }
+    return stale;
+  }
+
+  /**
+   * « Points relevés » sur une carte à une couche ; « Couche « Bornes de
+   * recharge » : points relevés » dès qu'il y en a plusieurs — toute la carte
+   * est atténuée, la ligne dit LAQUELLE n'est pas à jour.
+   */
+  private _staleHead(stale: StaleLayer): string {
+    const head = readingHead(stale.subject);
+    if (this.querySelectorAll(':scope > dsfr-data-map-layer').length < 2) return head;
+    const name = this._layerName(stale.layer);
+    const inline = `${head.charAt(0).toLocaleLowerCase('fr-FR')}${head.slice(1)}`;
+    return `${name ? `Couche « ${name} »` : 'Une couche de cette carte'} : ${inline}`;
+  }
+
+  /** La même phrase, pour la description lue : la date AVEC « non actualisés ». */
+  private _staleDescription(stale: StaleLayer): string {
+    const { reading, now } = stale.notice;
+    const suffix = readingAccessibleSuffix(reading.loadedAt, now, stale.subject);
+    const head = this._staleHead(stale);
+    // `readingAccessibleSuffix` commence par « Points relevés » : on ne garde
+    // que ce qui suit, l'en-tête de la carte nommant déjà la couche.
+    return `${head}${suffix.slice(readingHead(stale.subject).length)}`;
+  }
+
   /** Couches directes dont la source est en panne. Jamais dans un encart : la carte hôte le dit. */
   private _failedLayers(): FailedLayer[] {
     if (this.closest('dsfr-data-map-inset')) return [];
@@ -969,7 +1041,19 @@ export class DsfrDataMap extends LitElement {
       this._errorRoot = null;
     }
 
-    if (failed.length > 0 && !central && !this.locked) {
+    // Dernier relevé (#1288, `stale-if-error`) : toute la carte est atténuée
+    // dès qu'une couche trace un relevé — une classe sur l'hôte, encart
+    // compris — et la ligne d'état le date. La ligne est du TEXTE dû à
+    // l'usager : elle se pose aussi sur une carte verrouillée, sans bouton.
+    const stale = this._staleLayers();
+    let hasStale = false;
+    for (const el of this.querySelectorAll(':scope > dsfr-data-map-layer')) {
+      if ((el as MapChildElement).getSourceStale?.()) hasStale = true;
+    }
+    this.classList.toggle('dsfr-data-map--stale', hasStale);
+    const failedLines = failed.length > 0 && !central && !this.locked ? failed : [];
+
+    if (failedLines.length > 0 || stale.length > 0) {
       if (!this._layerStatus || this._layerStatus.parentNode !== this) {
         this._layerStatus?.remove();
         this._layerStatus = document.createElement('div');
@@ -978,13 +1062,13 @@ export class DsfrDataMap extends LitElement {
       }
       // La panne est annoncée une fois : par le bandeau s'il couvre toutes
       // les sources en panne, sinon par cette ligne.
-      if (failed.every((f) => f.view.covered)) {
+      if (failedLines.every((f) => f.view.covered) && stale.every((s) => s.notice.covered)) {
         this._layerStatus.removeAttribute('role');
       } else {
         this._layerStatus.setAttribute('role', 'status');
       }
       renderTemplate(
-        html`${failed.map(
+        html`${failedLines.map(
           (f) => html`
             <p class="dsfr-data-map__layer-status-item" data-cause=${f.view.desc.cause}>
               <span class="dsfr-data-map__layer-status-text">${this._layerStatusText(f)}</span>
@@ -992,24 +1076,59 @@ export class DsfrDataMap extends LitElement {
               ${f.view.sourcePage ? renderSourcePageLink(f.view.sourcePage) : nothing}
             </p>
           `
+        )}${stale.map(
+          (s) => html`
+            <p
+              class="dsfr-data-map__layer-status-item dsfr-data-map__layer-status-item--stale dsfr-data-status--stale"
+              data-cause=${s.notice.reading.cause}
+            >
+              ${renderStaleBadge()}
+              <span class="dsfr-data-map__layer-status-text"
+                >${this._staleHead(s)}
+                ${renderReadingTime(
+                  s.notice.reading.loadedAt,
+                  formatReadingMoment(s.notice.reading.loadedAt, s.notice.now)
+                )}.${s.notice.extra ? html` ${s.notice.extra}` : nothing}</span
+              >
+              ${s.notice.showRetry && !this.locked ? renderStaleRetryButton(s.notice) : nothing}
+            </p>
+          `
         )}`,
         this._layerStatus
       );
-      // Au-dessus des bandeaux « N affichés sur M » des couches qui tracent
-      let bottom = 10;
-      for (const banner of this.querySelectorAll<HTMLElement>('.dsfr-data-map__max-items-banner')) {
-        bottom += (banner.offsetHeight || 30) + 6;
-      }
-      this._layerStatus.style.bottom = `${bottom}px`;
-      this._errorTexts = failed.map((f) => this._layerStatusText(f));
+      this._placeLayerStatus();
+      this._errorTexts = [
+        ...failedLines.map((f) => this._layerStatusText(f)),
+        ...stale.map((s) => this._staleDescription(s)),
+      ];
     } else if (this._layerStatus) {
       this._releaseFocus(this._layerStatus);
       this._layerStatus.remove();
       this._layerStatus = null;
     }
 
-    if (failed.length === 0 || (!central && this.locked)) this._errorTexts = [];
+    if (!central && failedLines.length === 0 && stale.length === 0) this._errorTexts = [];
     this.updateDescription(this._layerSummaries);
+  }
+
+  /**
+   * Place la ligne d'état en bas de la CARTE (#1288). Elle est sœur du
+   * conteneur Leaflet, donc positionnée dans l'hôte : une légende posée sous
+   * la carte allonge l'hôte, et la ligne se retrouvait sur la légende, hors de
+   * la carte. Elle reste au-dessus des bandeaux « N affichés sur M » des
+   * couches qui tracent. Rejoué quand l'hôte change de taille.
+   */
+  private _placeLayerStatus(): void {
+    if (!this._layerStatus) return;
+    let bottom = 10;
+    for (const banner of this.querySelectorAll<HTMLElement>('.dsfr-data-map__max-items-banner')) {
+      bottom += (banner.offsetHeight || 30) + 6;
+    }
+    const container = this._container;
+    const below = container
+      ? this.clientHeight - (container.offsetTop + container.offsetHeight)
+      : 0;
+    this._layerStatus.style.bottom = `${Math.max(bottom, 10 + Math.max(0, below))}px`;
   }
 
   /**
@@ -1783,6 +1902,27 @@ export class DsfrDataMap extends LitElement {
         font-size: inherit;
         line-height: inherit;
         overflow-wrap: anywhere;
+      }
+      /* Dernier relevé (issue 1288, stale-if-error) : formes désaturées et
+         contours en pointillé sur TOUTE la carte dès qu'une couche est
+         périmée — la ligne d'état nomme la couche. Désaturé, pas pâli : les
+         formes gardent leur contraste (3:1). Le fond de carte n'est pas
+         touché : il n'est pas une donnée. */
+      .dsfr-data-map--stale > .dsfr-data-map__container .leaflet-overlay-pane,
+      .dsfr-data-map--stale > .dsfr-data-map__container .leaflet-marker-pane,
+      .dsfr-data-map--stale > .dsfr-data-map__container .leaflet-shadow-pane {
+        filter: grayscale(1);
+      }
+      .dsfr-data-map--stale > .dsfr-data-map__container .leaflet-overlay-pane path {
+        stroke-dasharray: 4 3;
+      }
+      /* La légende suit : une pastille bleue sous des points gris ne
+         désignerait plus rien. */
+      .dsfr-data-map--stale > dsfr-data-map-legend {
+        filter: grayscale(1);
+      }
+      .dsfr-data-map__layer-status-item--stale time {
+        color: inherit !important;
       }
       .dsfr-data-map__layer-status-item + .dsfr-data-map__layer-status-item {
         margin-top: 0.25rem;
