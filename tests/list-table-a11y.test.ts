@@ -306,14 +306,37 @@ describe('dsfr-data-list — pagination rendue (#669)', () => {
     expect(asInternal(list)._currentPage).toBe(3);
   });
 
-  it('libellés des boutons de navigation (a11y) et désactivation aux bornes', async () => {
+  it('libellés des boutons de navigation (a11y) et bords inactifs en aria-disabled', async () => {
     const { list } = await mountList({ columns: 'id:Id', pagination: '25' }, rows(2873));
     const byLabel = (label: string) =>
       list.querySelector<HTMLButtonElement>(`.fr-pagination__list button[aria-label="${label}"]`)!;
-    expect(byLabel('Première page').disabled).toBe(true);
-    expect(byLabel('Page précédente').disabled).toBe(true);
+    // Bords inactifs en `aria-disabled`, jamais `disabled` : le bouton activé
+    // au clavier garde le focus en arrivant au bord.
+    const inactif = (label: string) => byLabel(label).getAttribute('aria-disabled') === 'true';
+    for (const label of ['Première page', 'Page précédente', 'Page suivante', 'Dernière page']) {
+      expect(byLabel(label).disabled, label).toBe(false);
+    }
+    expect(inactif('Première page')).toBe(true);
+    expect(inactif('Page précédente')).toBe(true);
+    expect(inactif('Page suivante')).toBe(false);
+    expect(inactif('Dernière page')).toBe(false);
+
+    // Clic sur un bord inactif : ignoré
+    byLabel('Page précédente').click();
+    await list.updateComplete;
+    expect(asInternal(list)._currentPage).toBe(1);
+
+    // Dernière page : les bords de fin deviennent inactifs, toujours focalisables
+    byLabel('Dernière page').click();
+    await list.updateComplete;
+    expect(asInternal(list)._currentPage).toBe(115);
+    expect(inactif('Page suivante')).toBe(true);
+    expect(inactif('Dernière page')).toBe(true);
+    expect(inactif('Première page')).toBe(false);
     expect(byLabel('Page suivante').disabled).toBe(false);
-    expect(byLabel('Dernière page').disabled).toBe(false);
+    byLabel('Page suivante').click();
+    await list.updateComplete;
+    expect(asInternal(list)._currentPage).toBe(115);
   });
 
   it('mode serveur : total et pages depuis meta.total, « Page N sur M »', async () => {

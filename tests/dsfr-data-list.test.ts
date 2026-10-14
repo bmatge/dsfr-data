@@ -465,6 +465,27 @@ describe('DsfrDataList component', () => {
       expect(result[2].score).toBe(60);
     });
 
+    it('recherche tolérante : accents et casse ignorés, comme dsfr-data-search (#1285)', () => {
+      datalist.onSourceData([
+        { nom: 'Béziers', note: null },
+        { nom: 'École Jules-Ferry', note: 'à revoir' },
+        { nom: 'Lyon', _id: 'beziers-technique' },
+      ]);
+      (datalist as any)._searchQuery = 'beziers';
+      // « beziers » trouve « Béziers » ; un champ technique `_…` n'est pas lu
+      expect(datalist.getFilteredData().map((r) => r.nom)).toEqual(['Béziers']);
+      (datalist as any)._searchQuery = 'ECOLE';
+      expect(datalist.getFilteredData().map((r) => r.nom)).toEqual(['École Jules-Ferry']);
+      (datalist as any)._searchQuery = 'A REVOIR';
+      expect(datalist.getFilteredData()).toHaveLength(1);
+      // Une valeur absente ne contient rien : « null » ne la trouve pas
+      (datalist as any)._searchQuery = 'null';
+      expect(datalist.getFilteredData()).toHaveLength(0);
+      // Un terme fait de blancs ne filtre rien
+      (datalist as any)._searchQuery = '   ';
+      expect(datalist.getFilteredData()).toHaveLength(3);
+    });
+
     it('combines search and filter', () => {
       (datalist as any)._searchQuery = 'site';
       (datalist as any)._activeFilters = { ministere: 'Education' };
@@ -613,6 +634,10 @@ describe('DsfrDataList component', () => {
     });
 
     it('_handlePageChange updates page', () => {
+      // Une page AU-DELÀ du total est ignorée (bouton de bord inactif) : il
+      // faut des données pour qu'une page 3 existe.
+      (datalist as any).pagination = 10;
+      datalist.onSourceData(Array.from({ length: 50 }, (_, i) => ({ id: i })));
       (datalist as any)._handlePageChange(3);
       expect((datalist as any)._currentPage).toBe(3);
     });
@@ -664,6 +689,7 @@ describe('DsfrDataList component', () => {
     it('preserves other URL params', () => {
       window.history.replaceState(null, '', '?region=IDF&page=2');
       urlDatalist.connectedCallback();
+      urlDatalist.onSourceData(Array.from({ length: 50 }, (_, i) => ({ id: i })));
       (urlDatalist as any)._handlePageChange(5);
       const params = new URLSearchParams(window.location.search);
       expect(params.get('region')).toBe('IDF');

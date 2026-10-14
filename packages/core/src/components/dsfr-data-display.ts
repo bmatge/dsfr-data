@@ -25,7 +25,7 @@ import {
 import { getDataMeta } from '../utils/data-bridge.js';
 import type { StaleReading } from '../utils/stale-reading.js';
 import { formatCountWithLabel } from '../utils/count-label.js';
-import { PaginationController } from '../utils/pagination-controller.js';
+import { PaginationController, paginationEdgeStyles } from '../utils/pagination-controller.js';
 import {
   parseScale,
   scaleToClasses,
@@ -460,6 +460,8 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
   private _handlePageChange(page: number) {
     // Relevé en pagination serveur (#1288) : les autres pages ne sont pas là
     if (this._serverLocked()) return;
+    // Bouton de bord inactif (`aria-disabled`) : clic et Entrée ignorés
+    if (!this._pager.canGoTo(page, this._getTotalPages())) return;
     this._pager.changePage(page);
     this._announce(`Page ${page} sur ${this._getTotalPages()}`);
   }
@@ -590,7 +592,15 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
       pages.push(i);
     }
 
+    // Boutons de bord : `aria-disabled`, jamais `disabled` — à la première et
+    // à la dernière page comme pendant un relevé (#1288), le bouton activé au
+    // clavier garde le focus.
+    const locked = this._serverLocked();
+    const start = locked || this._pager.edgeDisabled('start', totalPages) ? 'true' : nothing;
+    const end = locked || this._pager.edgeDisabled('end', totalPages) ? 'true' : nothing;
+
     return html`
+      ${paginationEdgeStyles}
       <nav
         class="fr-pagination fr-mt-2w"
         aria-label="${
@@ -603,8 +613,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
           <li>
             <button
               class="fr-pagination__link fr-pagination__link--first"
-              ?disabled="${this._currentPage === 1}"
-              aria-disabled="${this._serverLocked() ? 'true' : nothing}"
+              aria-disabled="${start}"
               @click="${() => this._handlePageChange(1)}"
               aria-label="Première page"
               type="button"
@@ -615,8 +624,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
           <li>
             <button
               class="fr-pagination__link fr-pagination__link--prev"
-              ?disabled="${this._currentPage === 1}"
-              aria-disabled="${this._serverLocked() ? 'true' : nothing}"
+              aria-disabled="${start}"
               @click="${() => this._handlePageChange(this._currentPage - 1)}"
               aria-label="Page précédente"
               type="button"
@@ -645,8 +653,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
           <li>
             <button
               class="fr-pagination__link fr-pagination__link--next"
-              ?disabled="${this._currentPage === totalPages}"
-              aria-disabled="${this._serverLocked() ? 'true' : nothing}"
+              aria-disabled="${end}"
               @click="${() => this._handlePageChange(this._currentPage + 1)}"
               aria-label="Page suivante"
               type="button"
@@ -657,8 +664,7 @@ export class DsfrDataDisplay extends SelectionFilterMixin(SourceSubscriberMixin(
           <li>
             <button
               class="fr-pagination__link fr-pagination__link--last"
-              ?disabled="${this._currentPage === totalPages}"
-              aria-disabled="${this._serverLocked() ? 'true' : nothing}"
+              aria-disabled="${end}"
               @click="${() => this._handlePageChange(totalPages)}"
               aria-label="Dernière page"
               type="button"

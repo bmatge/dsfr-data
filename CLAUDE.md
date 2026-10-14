@@ -304,7 +304,10 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
   dans un manifeste de `tests/verif-donnees/` ou dans un recalcul : l'oracle serait alors la lib, et
   ne verifierait plus rien (ADR-122, test-garde `tests/oracle/guard.test.ts` sur tout le graphe
   d'imports). Si un recalcul a besoin d'une operation, on l'ecrit dans `tools/oracle/compute.ts`, en
-  tableaux nus. Seule exception declaree : `tests/verif-donnees/fixtures-export-studio.ts`.
+  tableaux nus. Seule exception declaree : `tests/verif-donnees/fixtures-export-studio.ts`, qui
+  importe ce qu'il VERIFIE, jamais ce qui recalcule : le generateur `shared/dashboard/` et l'outil
+  `count_where` du Studio (`shared/ia/data-tools.js`, ce module seul, #1316) — le compte annonce
+  par le Studio est controle contre l'oracle. Tout elargissement passe par le proprietaire.
 - **Jamais** de `rebase` pour integrer `main` sur une branche de travail : `git merge origin/main`
   uniquement (les branches sont partagees, une reecriture d'historique casse les PR ouvertes).
 - **Jamais** de `subscribeToSource` manuel dans un composant (utiliser `TransformerMixin` / `SourceSubscriberMixin` — test-garde statique).

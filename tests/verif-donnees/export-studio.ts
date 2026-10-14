@@ -34,11 +34,13 @@
  * l'oracle depuis les lignes brutes, ET les URL appelées, qui disent si le
  * serveur a bien fait le calcul.
  */
-import type { Check, Manifest, Step } from '../../tools/oracle/manifest.js';
+import type { Check, Manifest, Row, RowFilter, Step } from '../../tools/oracle/manifest.js';
 import { MESURES, TERRITOIRES } from './fixtures.js';
+import filtres from './jeux/export-studio-filtres.json' with { type: 'json' };
 import { TETE_CHART, urlsDe } from './fixtures-delegation.js';
 import {
   ID_SOURCE,
+  annonceStudio,
   corpsExporte,
   document_,
   nommer,
@@ -47,6 +49,104 @@ import {
   sourceEmbarquee,
   widget,
 } from './fixtures-export-studio.js';
+
+/** Le jeu des filtres du Studio : valeur nulle, champ absent, virgule, OU, chemin imbriqué. */
+const FILTRES: Row[] = filtres;
+
+/**
+ * UN SEUL FILTRE pour le Studio et la page (#1285, lot 4 mesuré, décision du
+ * propriétaire). L'outil `count_where` du Studio comptait par sa propre
+ * écriture du `where` (`applyWhereFilter`), là où la page exportée filtre par
+ * celle de la bibliothèque. Sur les 8 lignes de `export-studio-filtres.json`,
+ * le Studio annonçait 1 · 1 · 7 · 0 · 0 · 0 quand la page montrait
+ * 0 · 0 · 8 · 1 · 2 · 3 : une valeur nulle lue « null », un champ absent lu
+ * « undefined », `notcontains` qui écarte les absents, `%2C` non décodé, le OU
+ * entre champs non lu, et un chemin imbriqué (`lieu.ville`) lu comme une clé.
+ *
+ * Chaque contrôle met les DEUX chiffres face à l'oracle : le KPI de la page
+ * exportée, et le compte que le Studio annonce pour le même `where`. La ville
+ * imbriquée a sa jumelle plate (`ville`, même valeur) : l'oracle ne lit pas de
+ * chemin, il filtre la colonne plate.
+ */
+const CAS_FILTRES: Array<{ cas: string; where: string; oracle: RowFilter; origine: string }> = [
+  {
+    cas: 'valeur-nulle',
+    where: 'v:contains:nul',
+    oracle: { field: 'v', op: 'contains', value: 'nul' },
+    origine: 'une valeur NULLE ne contient rien — le Studio la lisait « null »',
+  },
+  {
+    cas: 'champ-absent',
+    where: 'v:contains:undef',
+    oracle: { field: 'v', op: 'contains', value: 'undef' },
+    origine: 'un champ ABSENT ne contient rien — le Studio le lisait « undefined »',
+  },
+  {
+    cas: 'notcontains-garde-les-absents',
+    where: 'v:notcontains:ul',
+    oracle: { field: 'v', op: 'notcontains', value: 'ul' },
+    origine: '`notcontains` garde les valeurs absentes — le Studio écartait la ligne nulle',
+  },
+  {
+    cas: 'valeur-encodee',
+    where: 'v:contains:a%2Cb',
+    oracle: { field: 'v', op: 'contains', value: 'a,b' },
+    origine:
+      'la valeur est percent-décodée (`%2C` est une virgule) — le Studio cherchait « a%2Cb »',
+  },
+  {
+    cas: 'ou-entre-champs',
+    where: 'v|id:contains:1',
+    oracle: {
+      op: 'or',
+      any: [
+        { field: 'v', op: 'contains', value: '1' },
+        { field: 'id', op: 'contains', value: '1' },
+      ],
+    },
+    origine: '`a|b` est un OU entre champs (#1026) — le Studio cherchait un champ nommé « v|id »',
+  },
+  {
+    cas: 'chemin-imbrique',
+    where: 'lieu.ville:contains:ly',
+    oracle: { field: 'ville', op: 'contains', value: 'ly' },
+    origine:
+      'un chemin pointé lit l’objet imbriqué, comme `dsfr-data-query` — le Studio lisait une clé « lieu.ville »',
+  },
+];
+
+const CHECKS_FILTRES: Check[] = CAS_FILTRES.map(({ cas, where, oracle, origine }) => ({
+  id: `studio-filtre-${cas}`,
+  mode: 'deterministic',
+  origin: `#1285 — un seul filtre pour le Studio et la page : ${origine}. Le compte annoncé par \`count_where\` et le KPI de la page exportée (\`where="${where}"\`) valent tous deux le chiffre de l’oracle.`,
+  feed: { kind: 'fixture', datasets: { main: FILTRES } },
+  markup:
+    corpsExporte(
+      document_(`Filtre ${cas}`, sourceEmbarquee(FILTRES), [
+        widget(
+          'w-compte',
+          { type: 'kpi', valueField: 'id', aggregation: 'count', where, title: where },
+          0
+        ),
+      ])
+    ) +
+    nommer([[`dsfr-data-kpi[source="q-w-compte"]`, 'w-compte']]) +
+    annonceStudio('studio-compte', FILTRES, where),
+  expects: [
+    { kind: 'kpi', id: 'w-compte', agg: 'count', pipeline: [{ op: 'filter', filters: [oracle] }] },
+    {
+      kind: 'texts',
+      id: 'studio-compte',
+      selector: '.compte',
+      numeric: true,
+      column: 'n',
+      pipeline: [
+        { op: 'filter', filters: [oracle] },
+        { op: 'global', columns: { n: { agg: 'count' } } },
+      ],
+    },
+  ],
+}));
 
 /** Taille de page d'une liste exportée (défaut du générateur). */
 const PAGE = 10;
@@ -627,4 +727,7 @@ const CHECKS: Check[] = [
   },
 ];
 
-export const EXPORT_STUDIO: Manifest = { domain: 'export-studio', checks: CHECKS };
+export const EXPORT_STUDIO: Manifest = {
+  domain: 'export-studio',
+  checks: [...CHECKS, ...CHECKS_FILTRES],
+};

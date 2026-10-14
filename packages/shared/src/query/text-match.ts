@@ -14,12 +14,14 @@
  *
  * Les lecteurs : `applyLocalFilter` (KPI, source, Builder, compute en `when`),
  * `_matchesField` de `dsfr-data-query`, `contains()` de `compute`,
- * `applyWhereFilter` des outils du Studio, `dsfr-data-search` et la source
- * (recherche du contexte). Le test-garde `tests/text-match-guard.test.ts`
+ * `dsfr-data-search`, la source (recherche du contexte) et la recherche
+ * intégrée de `dsfr-data-list` (attribut `search`). Les outils du
+ * Studio (`applyWhereFilter`) passent par `applyLocalFilter`. Le test-garde `tests/text-match-guard.test.ts`
  * refuse une nouvelle écriture de la sous-chaîne hors de ce module.
  *
- * Ce module ne décide pas du sort d'une valeur ABSENTE : chaque lecteur garde
- * le sien, écrit chez lui (voir l'écart du Studio dans `ia/data-tools.ts`).
+ * Ce module ne décide pas du sort d'une valeur ABSENTE : c'est celui du
+ * lecteur (`applyLocalFilter` et `dsfr-data-query` : une valeur absente ne
+ * contient rien). Le Studio passe par `applyLocalFilter` (#1285).
  * Il est pur, sans DOM ni réseau : lib-safe, exporté par les DEUX barrels.
  */
 

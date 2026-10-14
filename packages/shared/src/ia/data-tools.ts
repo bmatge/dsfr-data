@@ -9,14 +9,16 @@
  * Code : observer l'etat reel plutot qu'halluciner.
  *
  * Tout est PUR (data en parametre, aucun acces au DOM ni au state global) → 100 %
- * testable et reutilisable. `applyWhereFilter` est la source unique de verite du
- * filtre "champ:op:valeur" (chart-renderer l'importe aussi).
+ * testable et reutilisable. Le filtre "champ:op:valeur" (`applyWhereFilter`)
+ * est celui de la bibliotheque (`applyLocalFilter`, champs lus par chemin
+ * pointe) : le Studio compte exactement comme la page qu'il genere (#1285).
  */
 
 import { toNumber, looksLikeNumber } from '../utils/number-parser.js';
 import { maxOf, minOf } from '../utils/extremum.js';
 import { isIsoDateString } from '../utils/iso-date.js';
-import { filterTextContains } from '../query/text-match.js';
+import { applyLocalFilter } from '../query/filter-translator.js';
+import { getByPath } from '../utils/json-path.js';
 import type { ChartConfig, AggregatedResult } from '../dashboard/chart-config.js';
 
 export type Row = Record<string, unknown>;
@@ -169,67 +171,17 @@ export function buildMultiSeries(
 }
 
 /**
- * Filtre des données avec la syntaxe dsfr-data-query "champ:op:valeur".
- * Plusieurs filtres separes par virgule (logique AND).
- * Operateurs : eq, neq, gt, gte, lt, lte, contains, notcontains, in, notin,
- * isnull, isnotnull. (`in`/`notin` : valeurs separees par `|`.)
+ * Filtre des données avec la syntaxe dsfr-data-query "champ:op:valeur" — le
+ * MÊME filtre que la page générée (#1285) : `applyLocalFilter`, et chaque champ
+ * lu par chemin pointé (`getByPath`), comme `dsfr-data-query`, le `where` d'un
+ * KPI et le filtre client de la source. Plusieurs clauses séparées par virgule
+ * (ET) ; `a|b:op:v` est un OU entre champs ; valeurs percent-décodées ; une
+ * valeur absente ne satisfait ni `eq`, ni `neq`, ni `contains`, et passe
+ * `notcontains` / `notin`. Les outils du Studio (`count_where`,
+ * `diagnoseConfig`) annoncent donc le compte que la page affichera.
  */
 export function applyWhereFilter(data: Row[], where: string): Row[] {
-  const parts = where
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean);
-
-  return data.filter((record) => {
-    return parts.every((part) => {
-      const segments = part.split(':');
-      if (segments.length < 2) return true;
-      const field = segments[0];
-      const op = segments[1];
-      const rawValue = segments.slice(2).join(':');
-      const itemValue = record[field];
-
-      switch (op) {
-        case 'eq':
-          return String(itemValue) === rawValue || Number(itemValue) === Number(rawValue);
-        case 'neq':
-          return String(itemValue) !== rawValue && Number(itemValue) !== Number(rawValue);
-        case 'gt':
-          return Number(itemValue) > Number(rawValue);
-        case 'gte':
-          return Number(itemValue) >= Number(rawValue);
-        case 'lt':
-          return Number(itemValue) < Number(rawValue);
-        case 'lte':
-          return Number(itemValue) <= Number(rawValue);
-        // La comparaison est celle du filtre (`query/text-match.ts`, ADR-159).
-        // ÉCART GARDÉ (lot 4, #1285) : ici une valeur absente est comparée en
-        // texte — `String(null)` vaut « null » —, là où `applyLocalFilter` et
-        // `dsfr-data-query` disent qu'elle ne contient rien (`contains` faux,
-        // `notcontains` vrai). `x:contains:nul` retient donc une ligne nulle,
-        // et `x:notcontains:ul` l'écarte. La valeur n'est pas non plus
-        // percent-décodée, et `a|b` n'est pas un OU entre champs.
-        case 'contains':
-          return filterTextContains(String(itemValue), rawValue);
-        case 'notcontains':
-          return !filterTextContains(String(itemValue), rawValue);
-        case 'in':
-          return rawValue
-            .split('|')
-            .some((v) => String(itemValue) === v || Number(itemValue) === Number(v));
-        case 'notin':
-          return !rawValue
-            .split('|')
-            .some((v) => String(itemValue) === v || Number(itemValue) === Number(v));
-        case 'isnull':
-          return itemValue === null || itemValue === undefined;
-        case 'isnotnull':
-          return itemValue !== null && itemValue !== undefined;
-        default:
-          return true;
-      }
-    });
-  });
+  return applyLocalFilter(data, where, getByPath) as Row[];
 }
 
 /** Liste des cles (noms de champs) presentes dans les données. */

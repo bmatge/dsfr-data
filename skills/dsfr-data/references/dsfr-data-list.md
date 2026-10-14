@@ -23,7 +23,7 @@ les colonnes déclarées (libellées, en tête) puis celles des données.
 | source | String | `""` | oui | ID de la source ou query |
 | columns | String | `""` | non | Definition des colonnes : `"key:Label, key2:Label2"`. Omis : toutes les clés des données (ordre d'apparition). Alias deprecie : `colonnes` |
 | columns-auto | Boolean | `false` | non | Complète `columns` avec les clés des données absentes de la liste (libellé = clé) : colonnes figées en tête, dynamiques ensuite (#640) |
-| search | Boolean | `false` | non | Afficher la barre de recherche full-text (desactivee en pagination serveur, #304). Alias deprecie : `recherche` |
+| search | Boolean | `false` | non | Afficher la barre de recherche full-text (desactivee en pagination serveur, #304). Recherche TOLERANTE, la meme que `dsfr-data-search` : sous-chaine dans tous les champs de la ligne (hors champs `_...`), casse ET accents ignores — « beziers » trouve « Béziers » (#1285). Alias deprecie : `recherche` |
 | filters | String | `""` | non | Colonnes filtrables (dropdown) : `"col1,col2"`. Alias deprecie : `filtres` |
 | sort | String | `""` | non | Tri par défaut : `"col:asc"` ou `"col:desc"`. Alias deprecie : `tri` |
 | pagination | Number | `0` | non | Lignes par page (0 = tout afficher sans pagination) |
@@ -156,7 +156,7 @@ Fonctionne avec la pagination client et serveur. Compatible avec les autres para
 | `pagination` | `number` | `0` | Nombre d'éléments par page (0 = pas de pagination) |
 | `recherche` | `boolean` | `false` | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `search` (#300) |
 | `refine-on-click` | `string` | `""` (vide) | Champ dont la valeur de la ligne cliquée devient un filtre `eq` (#734). Premier clic = filtre, second clic sur la même ligne = retrait, clic sur une autre ligne = remplacement. Une colonne de sélection est ajoutée en tête du tableau : un bouton par ligne, atteignable au clavier, dont l'état est annoncé (`aria-pressed`) — la couleur de la ligne sélectionnée n'est jamais la seule marque. Avec `context="id"` (recommandé), le tableau s'enregistre comme filtre du dsfr-data-context : diffusion à toutes ses sources cibles au dialecte de chacune, tag dans dsfr-data-context-tags, URL portée par le contexte. Sans `context`, la clause part directement à `source` (whereKey `list-select-ID`) — sans tag ni URL, et le tableau se filtre lui-même (seule la ligne cliquée reste, jusqu'au second clic). |
-| `search` | `boolean` | `false` | Afficher un champ de recherche |
+| `search` | `boolean` | `false` | Afficher un champ de recherche. Recherche TOLÉRANTE, celle de `dsfr-data-search` : le terme est cherché comme sous-chaîne dans tous les champs de la ligne (hors champs techniques `_…`), casse ET accents ignorés — « beziers » trouve « Béziers ». Calculée dans le navigateur, sur les lignes reçues ; ignorée en pagination serveur (une `dsfr-data-search` en amont cherche alors côté serveur). |
 | `server-sort` | `boolean` | `false` | Active le tri serveur. Au lieu de trier localement, envoie une commande { orderBy } au source upstream (dsfr-data-query server-side) qui re-fetche les données triees. |
 | `server-tri` | `boolean` | `false` | **DEPRECIE** — ne pas utiliser dans du code neuf. alias français de `server-sort` (#300) |
 | `sort` | `string` | `""` (vide) | Tri par défaut: "score:desc" |

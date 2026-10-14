@@ -33,11 +33,16 @@ const ENTREES = ['tools/oracle', 'tests/verif-donnees'];
  * de la lib depuis lui (les spécifieurs `packages/` ne sont pas suivis). Rien
  * du calcul ne passe par là — l'oracle recalcule toujours depuis les lignes
  * brutes, en tableaux nus.
+ *
+ * Le même fichier lit aussi l'outil `count_where` du Studio IA
+ * (`ia/data-tools.js`, et ce module seul) : le compte que le Studio ANNONCE
+ * avant de générer est contrôlé contre l'oracle, comme le chiffre de la page
+ * exportée — c'est sa sortie réelle qu'on observe, pas une copie de son calcul.
  */
 const DEROGATIONS: Array<{ fichier: string; specifieur: RegExp }> = [
   {
     fichier: 'tests/verif-donnees/fixtures-export-studio.ts',
-    specifieur: /^\.\.\/\.\.\/packages\/shared\/src\/dashboard\//,
+    specifieur: /^\.\.\/\.\.\/packages\/shared\/src\/(dashboard\/|ia\/data-tools\.js$)/,
   },
 ];
 
@@ -191,6 +196,9 @@ describe('vérification des données — garde d’indépendance', () => {
     // Et elle ne couvre que le générateur d'export, pas la lib entière.
     const { specifieur } = DEROGATIONS[0];
     expect(specifieur.test('../../packages/shared/src/dashboard/export-html.js')).toBe(true);
+    expect(specifieur.test('../../packages/shared/src/ia/data-tools.js')).toBe(true);
+    expect(specifieur.test('../../packages/shared/src/ia/data-tools.js.bak')).toBe(false);
+    expect(specifieur.test('../../packages/shared/src/ia/agent-loop.js')).toBe(false);
     expect(specifieur.test('../../packages/core/src/utils/aggregations.js')).toBe(false);
     expect(specifieur.test('../../packages/shared/src/query/filter-translator.js')).toBe(false);
   });

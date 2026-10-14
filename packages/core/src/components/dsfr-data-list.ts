@@ -16,11 +16,17 @@ import {
   renderSourceIdle,
   IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
-import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
+import {
+  escapeHtml,
+  buildCsv,
+  formatNumberFr,
+  matchesSearch,
+  normalizeSearchText,
+} from '@dsfr-data/shared/lib';
 import { formatCountWithLabel } from '../utils/count-label.js';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { readingExportSuffix, readingFilename, type StaleReading } from '../utils/stale-reading.js';
-import { PaginationController } from '../utils/pagination-controller.js';
+import { PaginationController, paginationEdgeStyles } from '../utils/pagination-controller.js';
 import { parseCellClassRules, cellClassTokens } from '../utils/cell-class.js';
 import type { CellClassRule } from '../utils/cell-class.js';
 
@@ -116,7 +122,14 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   @property({ type: String })
   colonnes = '';
 
-  /** Afficher un champ de recherche */
+  /**
+   * Afficher un champ de recherche. Recherche TOLÉRANTE, celle de
+   * `dsfr-data-search` : le terme est cherché comme sous-chaîne dans tous les
+   * champs de la ligne (hors champs techniques `_…`), casse ET accents ignorés
+   * — « beziers » trouve « Béziers ». Calculée dans le navigateur, sur les
+   * lignes reçues ; ignorée en pagination serveur (une `dsfr-data-search` en
+   * amont cherche alors côté serveur).
+   */
   @property({ type: Boolean })
   search = false;
 
@@ -585,11 +598,13 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   getFilteredData(): Record<string, unknown>[] {
     let result = [...this._data];
 
-    if (this._searchQuery) {
-      const query = this._searchQuery.toLowerCase();
-      result = result.filter((item) =>
-        Object.values(item).some((val) => String(val).toLowerCase().includes(query))
-      );
+    // Recherche intégrée (`search`) : la recherche TOLÉRANTE de
+    // `dsfr-data-search` (`matchesSearch`, #1285) — sous-chaîne, casse ET
+    // accents ignorés, sur tous les champs de la ligne hors champs techniques
+    // (`_…`) ; une valeur absente ne contient rien.
+    const term = normalizeSearchText(this._searchQuery);
+    if (term) {
+      result = result.filter((item) => matchesSearch(item, term, [], 'contains'));
     }
 
     Object.entries(this._activeFilters).forEach(([key, value]) => {
@@ -703,6 +718,8 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   private _handlePageChange(page: number) {
     // Relevé en pagination serveur (#1288) : les autres pages ne sont pas là
     if (this._serverLocked()) return;
+    // Bouton de bord inactif (`aria-disabled`) : clic et Entrée ignorés
+    if (!this._pager.canGoTo(page, this._getTotalPages())) return;
     this._pager.changePage(page);
     this._announce(this._pagePosition(page, this._getTotalPages()));
   }
@@ -1151,8 +1168,15 @@ ${bodyRows}
     // Relevé en pagination serveur (#1288) : `aria-disabled`, pas `disabled` —
     // le bouton qui porte le focus ne le perd pas quand la panne survient.
     const locked = this._serverLocked() ? 'true' : nothing;
+    // Boutons de bord : même règle à la première et à la dernière page — le
+    // bouton activé au clavier garde le focus en arrivant au bord.
+    const start =
+      this._serverLocked() || this._pager.edgeDisabled('start', totalPages) ? 'true' : nothing;
+    const end =
+      this._serverLocked() || this._pager.edgeDisabled('end', totalPages) ? 'true' : nothing;
 
     return html`
+      ${paginationEdgeStyles}
       <nav
         class="fr-pagination"
         role="navigation"
@@ -1167,8 +1191,7 @@ ${bodyRows}
           <li>
             <button
               class="fr-pagination__link fr-pagination__link--first"
-              ?disabled="${current === 1}"
-              aria-disabled="${locked}"
+              aria-disabled="${start}"
               @click="${() => this._handlePageChange(1)}"
               aria-label="Première page"
               type="button"
@@ -1179,8 +1202,7 @@ ${bodyRows}
           <li>
             <button
               class="fr-pagination__link fr-pagination__link--prev fr-pagination__link--lg-label"
-              ?disabled="${current === 1}"
-              aria-disabled="${locked}"
+              aria-disabled="${start}"
               @click="${() => this._handlePageChange(current - 1)}"
               aria-label="Page précédente"
               type="button"
@@ -1217,8 +1239,7 @@ ${bodyRows}
           <li>
             <button
               class="fr-pagination__link fr-pagination__link--next fr-pagination__link--lg-label"
-              ?disabled="${current === totalPages}"
-              aria-disabled="${locked}"
+              aria-disabled="${end}"
               @click="${() => this._handlePageChange(current + 1)}"
               aria-label="Page suivante"
               type="button"
@@ -1232,8 +1253,7 @@ ${bodyRows}
                   <li>
                     <button
                       class="fr-pagination__link fr-pagination__link--last"
-                      ?disabled="${current === totalPages}"
-                      aria-disabled="${locked}"
+                      aria-disabled="${end}"
                       @click="${() => this._handlePageChange(totalPages)}"
                       aria-label="Dernière page"
                       type="button"
