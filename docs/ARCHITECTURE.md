@@ -220,14 +220,15 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
   `shared/query/text-match.ts` : `filterTextContains` pour le filtre (lu par `applyLocalFilter`,
   `_matchesField` de `dsfr-data-query`, `contains()` de `compute`) et
   `matchesSearch` / `normalizeSearchText` / `applySearches` pour la recherche (ex-`core/utils/search-match.ts`,
-  lue par `dsfr-data-search` et la source). Le Studio IA n'a
+  lue par `dsfr-data-search`, la source et la recherche intégrée de `dsfr-data-list` — accents ignorés
+  depuis #1285). Le Studio IA n'a
   plus de filtre à lui : `applyWhereFilter` (`ia/data-tools.ts`, outils `count_where` et diagnostic) est
   `applyLocalFilter(data, where, getByPath)`, champs lus par chemin pointé comme `dsfr-data-query` — il
   annonce le compte que la page générée affichera (contrôles `export-studio/studio-filtre-*`). `getByPath`
   vit pour cela dans `shared/utils/json-path.ts` (deux barrels), ré-exporté par `core/utils/json-path.ts`.
   `tests/text-match-guard.test.ts` refuse toute nouvelle
   écriture de `….toLowerCase().includes(` hors du module (exceptions déclarées : interfaces d'apps,
-  valeurs d'une facette, recherche intégrée de `dsfr-data-list`).
+  valeurs d'une facette).
 - **Une recherche n'est pas un filtre : le contexte la porte, chaque source la traduit (#1285,
   ADR-159, lot 3)**. `dsfr-data-search context="id"` n'émet plus de `champ:contains:terme`. Son
   filtre (`SearchContextFilter`) rend une clause colon VIDE et une recherche par la méthode

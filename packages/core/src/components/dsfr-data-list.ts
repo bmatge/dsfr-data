@@ -16,7 +16,13 @@ import {
   renderSourceIdle,
   IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
-import { escapeHtml, buildCsv, formatNumberFr } from '@dsfr-data/shared/lib';
+import {
+  escapeHtml,
+  buildCsv,
+  formatNumberFr,
+  matchesSearch,
+  normalizeSearchText,
+} from '@dsfr-data/shared/lib';
 import { formatCountWithLabel } from '../utils/count-label.js';
 import { getDataMeta } from '../utils/data-bridge.js';
 import { readingExportSuffix, readingFilename, type StaleReading } from '../utils/stale-reading.js';
@@ -116,7 +122,14 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   @property({ type: String })
   colonnes = '';
 
-  /** Afficher un champ de recherche */
+  /**
+   * Afficher un champ de recherche. Recherche TOLÉRANTE, celle de
+   * `dsfr-data-search` : le terme est cherché comme sous-chaîne dans tous les
+   * champs de la ligne (hors champs techniques `_…`), casse ET accents ignorés
+   * — « beziers » trouve « Béziers ». Calculée dans le navigateur, sur les
+   * lignes reçues ; ignorée en pagination serveur (une `dsfr-data-search` en
+   * amont cherche alors côté serveur).
+   */
   @property({ type: Boolean })
   search = false;
 
@@ -585,11 +598,13 @@ export class DsfrDataList extends SelectionFilterMixin(SourceSubscriberMixin(Lit
   getFilteredData(): Record<string, unknown>[] {
     let result = [...this._data];
 
-    if (this._searchQuery) {
-      const query = this._searchQuery.toLowerCase();
-      result = result.filter((item) =>
-        Object.values(item).some((val) => String(val).toLowerCase().includes(query))
-      );
+    // Recherche intégrée (`search`) : la recherche TOLÉRANTE de
+    // `dsfr-data-search` (`matchesSearch`, #1285) — sous-chaîne, casse ET
+    // accents ignorés, sur tous les champs de la ligne hors champs techniques
+    // (`_…`) ; une valeur absente ne contient rien.
+    const term = normalizeSearchText(this._searchQuery);
+    if (term) {
+      result = result.filter((item) => matchesSearch(item, term, [], 'contains'));
     }
 
     Object.entries(this._activeFilters).forEach(([key, value]) => {

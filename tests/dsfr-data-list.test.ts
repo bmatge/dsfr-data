@@ -465,6 +465,27 @@ describe('DsfrDataList component', () => {
       expect(result[2].score).toBe(60);
     });
 
+    it('recherche tolérante : accents et casse ignorés, comme dsfr-data-search (#1285)', () => {
+      datalist.onSourceData([
+        { nom: 'Béziers', note: null },
+        { nom: 'École Jules-Ferry', note: 'à revoir' },
+        { nom: 'Lyon', _id: 'beziers-technique' },
+      ]);
+      (datalist as any)._searchQuery = 'beziers';
+      // « beziers » trouve « Béziers » ; un champ technique `_…` n'est pas lu
+      expect(datalist.getFilteredData().map((r) => r.nom)).toEqual(['Béziers']);
+      (datalist as any)._searchQuery = 'ECOLE';
+      expect(datalist.getFilteredData().map((r) => r.nom)).toEqual(['École Jules-Ferry']);
+      (datalist as any)._searchQuery = 'A REVOIR';
+      expect(datalist.getFilteredData()).toHaveLength(1);
+      // Une valeur absente ne contient rien : « null » ne la trouve pas
+      (datalist as any)._searchQuery = 'null';
+      expect(datalist.getFilteredData()).toHaveLength(0);
+      // Un terme fait de blancs ne filtre rien
+      (datalist as any)._searchQuery = '   ';
+      expect(datalist.getFilteredData()).toHaveLength(3);
+    });
+
     it('combines search and filter', () => {
       (datalist as any)._searchQuery = 'site';
       (datalist as any)._activeFilters = { ministere: 'Education' };

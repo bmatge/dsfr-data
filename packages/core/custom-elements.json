@@ -10228,7 +10228,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Afficher un champ de recherche",
+              "description": "Afficher un champ de recherche. Recherche TOLÉRANTE, celle de\n`dsfr-data-search` : le terme est cherché comme sous-chaîne dans tous les\nchamps de la ligne (hors champs techniques `_…`), casse ET accents ignorés\n— « beziers » trouve « Béziers ». Calculée dans le navigateur, sur les\nlignes reçues ; ignorée en pagination serveur (une `dsfr-data-search` en\namont cherche alors côté serveur).",
               "attribute": "search"
             },
             {
@@ -11248,7 +11248,7 @@
                 "text": "boolean"
               },
               "default": "false",
-              "description": "Afficher un champ de recherche",
+              "description": "Afficher un champ de recherche. Recherche TOLÉRANTE, celle de\n`dsfr-data-search` : le terme est cherché comme sous-chaîne dans tous les\nchamps de la ligne (hors champs techniques `_…`), casse ET accents ignorés\n— « beziers » trouve « Béziers ». Calculée dans le navigateur, sur les\nlignes reçues ; ignorée en pagination serveur (une `dsfr-data-search` en\namont cherche alors côté serveur).",
               "fieldName": "search"
             },
             {

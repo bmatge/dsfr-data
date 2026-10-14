@@ -49,19 +49,11 @@ interface Exception {
 
 /**
  * Comparaisons qui ne portent PAS sur les lignes d'un jeu filtré par la
- * bibliothèque : interface d'une application, ou recherche propre d'un
- * composant laissée hors du lot 4.
+ * bibliothèque : interface d'une application, valeurs d'une facette.
  */
+// La recherche intégrée de `dsfr-data-list` n'est plus une exception (#1285) :
+// elle appelle `matchesSearch`, accents ignorés comme `dsfr-data-search`.
 const EXCEPTIONS: readonly Exception[] = [
-  {
-    file: 'packages/core/src/components/dsfr-data-list.ts',
-    count: 1,
-    reason:
-      'Recherche intégrée de dsfr-data-list (attribut `search`) : tous les champs, casse ' +
-      'ignorée, accents RESPECTÉS — ce n’est ni le filtre ni la recherche tolérante de ' +
-      'dsfr-data-search. La rapprocher de `matchesSearch` changerait des résultats : hors du ' +
-      'lot 4, à trancher (#1285).',
-  },
   {
     file: 'packages/core/src/components/dsfr-data-facets.ts',
     count: 2,

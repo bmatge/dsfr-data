@@ -43,7 +43,7 @@
               <!-- ATTRS:dsfr-data-list fields="source,columns,search,filters,sort,pagination,export,caption,decimals,url-sync,url-page-param,server-sort,columns-auto,idle-message,count-label" -->
                 <tr><td><code>source</code></td><td>String</td><td>Id de la source (ou du transformateur) dont ce tableau consomme les données.</td></tr>
                 <tr><td><code>columns</code></td><td>String</td><td>Définition des colonnes : <code>"clé:Label, cle2:Label2"</code>. Omis : toutes les clés présentes dans les données deviennent colonnes, dans leur ordre d'apparition, libellé = clé — le tableau suit un schéma dynamique (aval d'un <code>dsfr-data-pivot</code>, #255).</td></tr>
-                <tr><td><code>search</code></td><td>Boolean</td><td>Afficher un champ de recherche</td></tr>
+                <tr><td><code>search</code></td><td>Boolean</td><td>Afficher un champ de recherche. Recherche TOLÉRANTE, celle de <code>dsfr-data-search</code> : le terme est cherché comme sous-chaîne dans tous les champs de la ligne (hors champs techniques <code>_…</code>), casse ET accents ignorés — « beziers » trouve « Béziers ». Calculée dans le navigateur, sur les lignes reçues ; ignorée en pagination serveur (une <code>dsfr-data-search</code> en amont cherche alors côté serveur).</td></tr>
                 <tr><td><code>filters</code></td><td>String</td><td>Colonnes filtrables: "ministere,statut"</td></tr>
                 <tr><td><code>sort</code></td><td>String</td><td>Tri par défaut: "score:desc"</td></tr>
                 <tr><td><code>pagination</code></td><td>Number</td><td>Nombre d'éléments par page (0 = pas de pagination)</td></tr>
@@ -197,6 +197,13 @@
         <section class="demo-section" id="search">
           <h3>2. Tableau + recherche</h3>
           <p>Ajoute un champ de recherche pour filtrer les données en temps reel.</p>
+          <p>
+            La recherche est <strong>tolérante</strong>, comme celle de <code>dsfr-data-search</code> : le terme
+            est cherché comme sous-chaîne dans tous les champs de la ligne (hors champs techniques
+            <code>_…</code>), casse <em>et</em> accents ignorés — « beziers » trouve « Béziers », « ECOLE »
+            trouve « École ». Une valeur absente ne contient rien. Calculée dans le navigateur, sur les lignes
+            reçues.
+          </p>
 
           <dsfr-data-list
             source="sites"

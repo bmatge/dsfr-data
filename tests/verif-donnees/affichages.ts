@@ -2568,6 +2568,45 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'liste-recherche-sans-accents',
+    mode: 'deterministic',
+    origin:
+      '#1285 — la recherche intégrée de `dsfr-data-list` (attribut `search`) est la recherche TOLÉRANTE de `dsfr-data-search` : casse ET accents ignorés, sur tous les champs de la ligne. « evr » tapé sans accent trouve « Évreux » et « Évry » ; avant, elle respectait les accents et ne trouvait rien.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-rech', 'communes')}
+  <dsfr-data-list id="l-rech" source="s-rech" columns="nom:Commune, population:Habitants"
+    search sort="population:desc" pagination="20"></dsfr-data-list>`,
+    actions: [{ kind: 'fill', selector: '#l-rech input[type="search"]', value: 'evr' }],
+    expects: [
+      {
+        kind: 'list',
+        id: 'l-rech',
+        columns: [{ column: 'nom' }, { column: 'population', numeric: true }],
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                // Tous les champs de la ligne : un OU, repliement compris
+                op: 'or',
+                any: Object.keys(COMMUNES[0]).map((field) => ({
+                  field,
+                  op: 'contains' as const,
+                  value: 'evr',
+                  fold: true,
+                })),
+              },
+            ],
+          },
+          { op: 'order-by', column: 'population', dir: 'desc' },
+          { op: 'page', size: 20, number: 1 },
+        ],
+      },
+    ],
+  },
+
+  {
     id: 'liste-tri-numerique',
     mode: 'deterministic',
     origin:

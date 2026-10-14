@@ -14,7 +14,8 @@
  *
  * Les lecteurs : `applyLocalFilter` (KPI, source, Builder, compute en `when`),
  * `_matchesField` de `dsfr-data-query`, `contains()` de `compute`,
- * `dsfr-data-search` et la source (recherche du contexte). Les outils du
+ * `dsfr-data-search`, la source (recherche du contexte) et la recherche
+ * intégrée de `dsfr-data-list` (attribut `search`). Les outils du
  * Studio (`applyWhereFilter`) passent par `applyLocalFilter`. Le test-garde `tests/text-match-guard.test.ts`
  * refuse une nouvelle écriture de la sous-chaîne hors de ce module.
  *

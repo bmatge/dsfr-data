@@ -2100,7 +2100,7 @@ les colonnes déclarées (libellées, en tête) puis celles des données.
 | source | String | \`""\` | oui | ID de la source ou query |
 | columns | String | \`""\` | non | Definition des colonnes : \`"key:Label, key2:Label2"\`. Omis : toutes les clés des données (ordre d'apparition). Alias deprecie : \`colonnes\` |
 | columns-auto | Boolean | \`false\` | non | Complète \`columns\` avec les clés des données absentes de la liste (libellé = clé) : colonnes figées en tête, dynamiques ensuite (#640) |
-| search | Boolean | \`false\` | non | Afficher la barre de recherche full-text (desactivee en pagination serveur, #304). Alias deprecie : \`recherche\` |
+| search | Boolean | \`false\` | non | Afficher la barre de recherche full-text (desactivee en pagination serveur, #304). Recherche TOLERANTE, la meme que \`dsfr-data-search\` : sous-chaine dans tous les champs de la ligne (hors champs \`_...\`), casse ET accents ignores — « beziers » trouve « Béziers » (#1285). Alias deprecie : \`recherche\` |
 | filters | String | \`""\` | non | Colonnes filtrables (dropdown) : \`"col1,col2"\`. Alias deprecie : \`filtres\` |
 | sort | String | \`""\` | non | Tri par défaut : \`"col:asc"\` ou \`"col:desc"\`. Alias deprecie : \`tri\` |
 | pagination | Number | \`0\` | non | Lignes par page (0 = tout afficher sans pagination) |
