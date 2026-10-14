@@ -654,3 +654,92 @@ describe('#1288 B — dsfr-data-a11y : tableau daté, export daté', () => {
     expect(accompagne.querySelector('[role="status"]')).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// #1306 — `aria-details` ne désigne le tableau que quand il existe
+// ---------------------------------------------------------------------------
+
+describe('#1306 — dsfr-data-a11y : aria-details suit la présence du tableau', () => {
+  const ROWS = [
+    { region: 'Occitanie', n: 1640 },
+    { region: 'Bretagne', n: 902 },
+  ];
+
+  async function monter(src: string): Promise<{ el: DsfrDataA11y; cible: HTMLElement }> {
+    const cible = document.createElement('div');
+    cible.id = `cible-${src}`;
+    document.body.appendChild(cible);
+    const el = document.createElement('dsfr-data-a11y') as DsfrDataA11y;
+    el.setAttribute('source', src);
+    el.setAttribute('for', cible.id);
+    el.setAttribute('table', '');
+    document.body.appendChild(el);
+    await el.updateComplete;
+    return { el, cible };
+  }
+
+  /** L'élément que `aria-details` désigne, ou `null` : la référence doit mener quelque part. */
+  const designe = (cible: Element) => {
+    const id = cible.getAttribute('aria-details');
+    return id === null ? null : document.getElementById(id);
+  };
+
+  it('chargement, données, panne, retour : posé seulement quand le tableau est là', async () => {
+    const src = source('a11y-details');
+    const { el, cible } = await monter(src);
+
+    // Premier chargement : aucun tableau, aucun aria-details
+    dispatchDataLoading(src);
+    await el.updateComplete;
+    expect(el.querySelector('table')).toBeNull();
+    expect(cible.hasAttribute('aria-details')).toBe(false);
+
+    // Données : le tableau, et aria-details vers lui
+    charge(src, ROWS);
+    await el.updateComplete;
+    expect(cible.getAttribute('aria-details')).toBe(`${el.id}-table`);
+    expect(designe(cible)?.querySelector('table')).not.toBeNull();
+
+    // Panne sans relevé : tableau retiré, aria-details aussi
+    panne(src, { consigne: null });
+    await el.updateComplete;
+    expect(el.querySelector('table')).toBeNull();
+    expect(cible.hasAttribute('aria-details')).toBe(false);
+
+    // Nouvel essai pendant la panne : toujours rien à désigner
+    dispatchDataLoading(src);
+    await el.updateComplete;
+    expect(el.querySelector('table')).toBeNull();
+    expect(cible.hasAttribute('aria-details')).toBe(false);
+
+    // Retour des données : remis
+    charge(src, ROWS);
+    await el.updateComplete;
+    expect(designe(cible)?.querySelector('table')).not.toBeNull();
+  });
+
+  it('relevé stale-if-error : le tableau gardé reste désigné, puis retiré à l’échéance', async () => {
+    const src = source('a11y-details-releve');
+    const { el, cible } = await monter(src);
+    charge(src, ROWS);
+    await el.updateComplete;
+    panne(src, { consigne: 120 });
+    await el.updateComplete;
+    expect(el.querySelector('table')).not.toBeNull();
+    expect(designe(cible)?.querySelector('table')).not.toBeNull();
+
+    vi.advanceTimersByTime(3 * MINUTE);
+    await el.updateComplete;
+    expect(el.querySelector('table')).toBeNull();
+    expect(cible.hasAttribute('aria-details')).toBe(false);
+  });
+
+  it('un aria-details posé par l’intégrateur vers autre chose n’est pas retiré', async () => {
+    const src = source('a11y-details-tiers');
+    const { el, cible } = await monter(src);
+    cible.setAttribute('aria-details', 'note-de-methode');
+    panne(src, { consigne: null });
+    await el.updateComplete;
+    expect(cible.getAttribute('aria-details')).toBe('note-de-methode');
+  });
+});

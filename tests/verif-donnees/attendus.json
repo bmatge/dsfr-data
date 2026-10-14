@@ -269,6 +269,7 @@
 {"domaine": "affichages", "controle": "releve-sans-opt-in", "cle": "texts:so-kpi:.valeur", "kind": "texts", "valeur": [null], "decimals": 0, "couvert": true},
 {"domaine": "affichages", "controle": "releve-sans-opt-in", "cle": "texts:so-liste:.valeur", "kind": "texts", "valeur": [null], "decimals": 0, "couvert": true},
 {"domaine": "affichages", "controle": "releve-sans-opt-in", "cle": "texts:so-tableau:.valeur", "kind": "texts", "valeur": [null], "decimals": 0, "couvert": true},
+{"domaine": "affichages", "controle": "repeteur-scopes-construit-par-script", "cle": "texts:rps-hote:.dsfr-data-kpi__value", "kind": "texts", "valeur": [30, 27, 25, 18, 0], "decimals": 0, "couvert": true, "invariants": [{"kind": "count-equals", "reference": {}, "tenu": null}, {"kind": "sum-preserved", "field": "montant", "reference": {"sum": 100}, "tenu": null}]},
 {"domaine": "affichages", "controle": "repeteur-source-en-panne", "cle": "texts:rp-avant:.valeur", "kind": "texts", "valeur": [15909531], "decimals": 0, "couvert": true},
 {"domaine": "affichages", "controle": "repeteur-source-en-panne", "cle": "texts:rp-lignes:.valeur", "kind": "texts", "valeur": [null], "decimals": 0, "couvert": true},
 {"domaine": "affichages", "controle": "repeteur-source-en-panne", "cle": "texts:rp-releve:.valeur", "kind": "texts", "valeur": [15909531], "decimals": 0, "couvert": true},

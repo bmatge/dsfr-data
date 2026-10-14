@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fixture E2E — chargement d'une page serveur (#1305)</title>
+  <!--
+    #1305 : en pagination serveur, un changement de page remplaçait tout le
+    corps de la liste et des fiches par le sablier, pagination comprise — le
+    bouton cliqué quittait le DOM et le focus clavier était perdu à chaque page.
+
+    Le spec sert les pages par `page.route`, avec un délai qu'il tient ouvert
+    le temps de mesurer : hauteur de l'afficheur avant et pendant le
+    chargement, focus, compte, région live. Deux montages, l'un en `url-sync`.
+  -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/dsfr.min.css" integrity="sha384-atVZ+aK6VI0nWyTEhKgze5InDJ+SWRRqa0BCZ2MTNyoOcBiHj1c3dGPdi6ML65B3" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.14.4/dist/utility/utility.min.css" integrity="sha384-5P5DFFqorcEBpfnK9WHu/Ralfr7ZxyCZh0ryaJbgucSvc71+qRYdGvNEcyMqQwa/" crossorigin="anonymous">
+  <script type="module" src="/dist/dsfr-data.esm.js"></script>
+</head>
+<body>
+  <main class="fr-container fr-my-4w">
+    <h1>Chargement d'une page serveur</h1>
+    <dsfr-data-source id="pages" url="/e2e/pagination-serveur/pages" paginate page-size="3"></dsfr-data-source>
+    <dsfr-data-source id="pages-fiches" url="/e2e/pagination-serveur/pages-fiches" paginate page-size="3"></dsfr-data-source>
+
+    <section id="s-liste">
+      <h2 class="fr-h5">Liste</h2>
+      <dsfr-data-list id="liste" source="pages" colonnes="nom:Commune,population:Population"></dsfr-data-list>
+    </section>
+
+    <section id="s-fiches">
+      <h2 class="fr-h5">Fiches, url-sync</h2>
+      <dsfr-data-display id="fiches" source="pages-fiches" cols="3" url-sync url-page-param="p">
+        <template><p class="fiche">{{nom}} — {{population}}</p></template>
+      </dsfr-data-display>
+    </section>
+  </main>
+</body>
+</html>

@@ -532,6 +532,7 @@ Accessibilité : pas d'auto-play, prefers-reduced-motion respecte, ARIA labels, 
 | `getLeafletLib()` | `typeof import('leaflet') \| null` | Retourne le module Leaflet charge (pour les layers) |
 | `getLeafletMap()` | `LeafletMap \| null` | Retourne l'instance Leaflet L.Map (ou null si pas encore prête) |
 | `isIdle()` | `boolean` | Une couche directe de la carte attend-elle un filtre ? |
+| `placeOverlays()` | `void` | Replace au bas de la carte les bandeaux des couches et la ligne d'état (appelé par les couches) |
 | `registerLayerBounds(layerKey: string, bounds: import('leaflet').LatLngBounds)` | `void` | Notifie la carte qu'un layer a ses bounds prets (pour fit-bounds). Stockes PAR layer avec remplacement a chaque rendu (#294) : l'ancien push cumulait les bounds HISTORIQUES — la carte ne pouvait jamais retrecir sa vue quand les données diminuaient, et le tableau grossissait a chaque refresh / frame de timeline / pan en bbox client. |
 | `resolveFitZone()` | `string` | Zone de clip du fit (#687) : `fit-zone` explicite (`none` = aucune), sinon `max-bounds`, sinon la metropole des qu'un encart ultramarin est present (raccourci `insets` ou enfant dsfr-data-map-inset explicite) — le clip ne touche que le fit, jamais le pan. Expose pour les tests. |
 | `unregisterLayerBounds(layerKey: string)` | `void` | Libere les bounds d'un layer retire (#294) |

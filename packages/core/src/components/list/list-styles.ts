@@ -78,6 +78,27 @@ export const listStyles = html`
     .dsfr-data-list__error {
       color: var(--text-default-error, #ce0500);
     }
+    /* Changement de page serveur (#1305) : les lignes de la page précédente
+       gardent leur place, masquées, et le sablier se pose par-dessus — pas de
+       saut de mise en page, pagination et compte intacts autour. */
+    .dsfr-data-list__rows {
+      position: relative;
+    }
+    .dsfr-data-list__rows--loading tbody {
+      visibility: hidden;
+    }
+    .dsfr-data-list__page-loading {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      color: var(--text-mention-grey, #666);
+      font-size: 0.875rem;
+      pointer-events: none;
+    }
     .dsfr-data-list__empty {
       text-align: center;
       color: var(--text-mention-grey);

@@ -124,6 +124,31 @@ describe('dsfr-data-repeat — scopes, états, lazy (#891)', () => {
       expect(host.querySelectorAll('[data-dsfr-config-error]').length).toBe(0);
     });
 
+    it('construit par script sur des sources déjà chargées : tuiles alimentées à l’insertion (#1308)', async () => {
+      dispatchDataLoaded('scores', SCORES);
+      dispatchDataLoaded('questions', QUESTIONS);
+      host.innerHTML = sources;
+
+      // Gabarit en place AVANT l'insertion : la source répétée est au cache,
+      // les lignes sont estampées dès la connexion — `scopes` doit être lu avant.
+      const rep = document.createElement(REPEAT_TAG) as DsfrDataRepeat;
+      rep.setAttribute('source', 'questions');
+      rep.setAttribute('key-field', 'code');
+      rep.setAttribute('scopes', 'scores:code:q');
+      const tpl = document.createElement('template');
+      tpl.innerHTML = `<dsfr-data-kpi id="k-{{code}}" source="{{$scope.q}}" value="score:sum"></dsfr-data-kpi>`;
+      rep.appendChild(tpl);
+      host.appendChild(rep);
+      await rep.updateComplete;
+      await tick();
+
+      const kpi = (id: string) => host.querySelector(`#${id}`);
+      expect(kpi('k-001')?.getAttribute('source')).toBe('q-001');
+      expect(kpi('k-001')?.querySelector('.dsfr-data-kpi__value')?.textContent?.trim()).toBe('30');
+      expect(kpi('k-002')?.querySelector('.dsfr-data-kpi__value')?.textContent?.trim()).toBe('120');
+      expect(host.querySelectorAll('[data-dsfr-config-error]').length).toBe(0);
+    });
+
     it('deux entrées, deux familles d’ids, une seule partition par champ', async () => {
       dispatchDataLoaded('scores', SCORES);
       dispatchDataLoaded('effectifs', EFFECTIFS);

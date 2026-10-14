@@ -66,6 +66,21 @@ name: E2E layout
 # desatures dont le contraste est mesure sur les pixels reellement peints
 # (3:1, en clair et en sombre), la tuile de KPI qui garde ses 140 px, le
 # fichier exporte date dans son nom. Memes criteres : deterministe, aucun reseau.
+#
+# `map-bandeau-max-items.spec.ts` (#1307) mesure ou tombe le bandeau
+# « N affichés sur M » d'une couche tronquee quand une legende (et des encarts)
+# sont poses sous la carte : dans l'emprise du volet Leaflet, hors de la
+# legende, bandeaux de deux couches empiles sans se chevaucher, a 1280 et a
+# 375 px. Frere du conteneur Leaflet, il est positionne dans l'hote, que la
+# legende allonge : aucune hauteur n'existe sous happy-dom. Donnees inline,
+# tuiles absentes.
+#
+# `pagination-serveur-chargement.spec.ts` (#1305) tient une page serveur en
+# chargement (le faux serveur la retient jusqu'a ce que le test la libere) et
+# mesure : la pagination ne descend pas d'un pixel, le bouton « Page suivante »
+# garde le focus clavier (Entree, puis Entree de nouveau), le compte reste et la
+# region live annonce la page, `url-sync` ecrit la page demandee. Liste et
+# fiches, 1280 et 375 px. Donnees servies par `page.route`.
 
 on:
   pull_request:
@@ -121,6 +136,8 @@ jobs:
           e2e/map-insets.spec.ts
           e2e/panne-partout.spec.ts
           e2e/dernier-releve.spec.ts
+          e2e/map-bandeau-max-items.spec.ts
+          e2e/pagination-serveur-chargement.spec.ts
           --project=chromium
 
       - name: Upload traces on failure
