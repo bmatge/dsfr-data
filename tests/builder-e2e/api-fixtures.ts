@@ -318,6 +318,43 @@ function analyserOdsql(where: string): PredicatOdsql {
   const comparaison = (): PredicatOdsql => {
     const champ = identifiant();
     blancs();
+    // `champ is [not] null` et `champ in ("a", "b")` (#1312), lus comme le
+    // vrai portail (remesure du 2026-10-14, `retours-formulaire-votre-avis-copie`,
+    // 176 lignes dont 21 nulles) : `is null` → 21, `is not null` → 155 ; une
+    // valeur absente n'est dans aucune liste (`in ("zzz")` → 0).
+    if (motCle('is')) {
+      const negation = motCle('not');
+      if (!motCle('null')) throw refus(where, i, 'null attendu apres is');
+      return (ligne) => {
+        const absent = ligne[champ] === null || ligne[champ] === undefined;
+        return negation ? !absent : absent;
+      };
+    }
+    if (motCle('in')) {
+      blancs();
+      if (where[i] !== '(') throw refus(where, i, 'liste attendue apres in');
+      i++;
+      const valeurs: string[] = [];
+      for (;;) {
+        blancs();
+        if (where[i] !== '"' && where[i] !== "'")
+          throw refus(where, i, 'litteral de liste attendu');
+        valeurs.push(chaine());
+        blancs();
+        if (where[i] === ',') {
+          i++;
+          continue;
+        }
+        if (where[i] !== ')') throw refus(where, i, 'liste non fermee');
+        i++;
+        break;
+      }
+      return (ligne) => {
+        const brut = ligne[champ];
+        if (brut === null || brut === undefined) return false;
+        return valeurs.includes(String(brut));
+      };
+    }
     if (motCle('like')) {
       blancs();
       if (where[i] !== '"' && where[i] !== "'") throw refus(where, i, 'motif de like attendu');
@@ -372,6 +409,14 @@ function analyserOdsql(where: string): PredicatOdsql {
 
   const facteur = (): PredicatOdsql => {
     blancs();
+    // `NOT <clause>` (#1312) : le complément BOOLÉEN de la clause, qui GARDE
+    // les valeurs absentes — la seule négation à deux valeurs d'ODSQL, mesurée
+    // le 2026-09-20 et remesurée le 2026-10-14 : `NOT themes_attendus in
+    // ("zzz")` → 176 lignes sur 176 dont 21 nulles, quand `!= "zzz"` → 155.
+    if (motCle('not')) {
+      const nie = facteur();
+      return (ligne) => !nie(ligne);
+    }
     if (where[i] !== '(') return comparaison();
     i++;
     const dedans = expression();
@@ -793,7 +838,7 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
       continue;
     }
     const filtre =
-      /^(.+)__(exact|differs|strictly_greater|greater|strictly_less|less|contains|notcontains|in|notin)$/.exec(
+      /^(.+)__(exact|differs|strictly_greater|greater|strictly_less|less|contains|notcontains|in|notin|isnull|isnotnull)$/.exec(
         cle
       );
     if (filtre) {
@@ -927,10 +972,17 @@ export function repondreTabular(url: URL, jeu: Ligne[] = JEU): EnveloppeTabular 
 function filtrerOuTabular(lignes: Ligne[], groupe: string): Ligne[] | string {
   const malforme = (membre: string) => `Malformed query: argument '${membre}' could not be parsed`;
   if (!groupe.startsWith('(') || !groupe.endsWith(')')) return malforme(groupe);
+  const predicats = predicatsDuGroupe(groupe.slice(1, -1), malforme);
+  if (typeof predicats === 'string') return predicats;
+  return lignes.filter((ligne) => predicats.some((p) => p(ligne)));
+}
+
+/** Membres d'un groupe, découpés sur les virgules HORS parenthèses, comme l'API. */
+function membresDuGroupe(interieur: string): string[] {
   const membres: string[] = [];
   let courant = '';
   let profondeur = 0;
-  for (const car of groupe.slice(1, -1)) {
+  for (const car of interieur) {
     if (car === '(') profondeur++;
     if (car === ')') profondeur--;
     if (car === ',' && profondeur === 0) {
@@ -939,9 +991,33 @@ function filtrerOuTabular(lignes: Ligne[], groupe: string): Ligne[] | string {
     } else courant += car;
   }
   if (courant) membres.push(courant);
+  return membres;
+}
 
+/**
+ * Le prédicat de chaque membre d'un groupe `or=(…)` ou `and(…)`. Un membre
+ * `and(…)` / `or(…)` est un groupe imbriqué, que l'API lit récursivement
+ * (`parse_operator`) — mesuré le 2026-10-14 (#1312) :
+ * `or=(and(c__differs.Corse,c__isnotnull),and(c__differs.Guyane,c__isnotnull))`
+ * → 498 élus, 34 826 sans les `and`.
+ */
+function predicatsDuGroupe(
+  interieur: string,
+  malforme: (membre: string) => string
+): Array<(ligne: Ligne) => boolean> | string {
   const predicats: Array<(ligne: Ligne) => boolean> = [];
-  for (const membre of membres) {
+  for (const membre of membresDuGroupe(interieur)) {
+    const imbrique = /^(and|or)\((.*)\)$/.exec(membre);
+    if (imbrique) {
+      const sous = predicatsDuGroupe(imbrique[2], malforme);
+      if (typeof sous === 'string') return sous;
+      predicats.push(
+        imbrique[1] === 'and'
+          ? (ligne) => sous.every((p) => p(ligne))
+          : (ligne) => sous.some((p) => p(ligne))
+      );
+      continue;
+    }
     const nul = /^"?(.+?)"?__(isnull|isnotnull)$/.exec(membre);
     if (nul) {
       const [, champ, operateur] = nul;
@@ -971,7 +1047,7 @@ function filtrerOuTabular(lignes: Ligne[], groupe: string): Ligne[] | string {
     const [, champ, operateur] = filtre;
     predicats.push((ligne) => filtrerTabular([ligne], champ, operateur, valeur).length === 1);
   }
-  return lignes.filter((ligne) => predicats.some((p) => p(ligne)));
+  return predicats;
 }
 
 function filtrerTabular(
@@ -982,11 +1058,26 @@ function filtrerTabular(
 ): Ligne[] {
   return lignes.filter((ligne) => {
     const gauche = ligne[champ];
+    // VALEURS ABSENTES (#1312), comme l'API — mesure du 2026-10-14 sur les
+    // elus municipaux (34 826 lignes, une colonne nulle sur 34 328, « Corse »
+    // sur 359) et relu dans `api_tabular/core/query.py` :
+    //   `differs` est un `isdistinct` (IS DISTINCT FROM) : il GARDE les
+    //   absents — `__differs=Corse` → 34 467 ;
+    //   `notin` (`not.in`), `notcontains` (`not.ilike`), `exact`, `in` et les
+    //   comparaisons d'ordre les ECARTENT — `__notin=Corse` → 139 ;
+    //   `isnull` / `isnotnull` les nomment, valeur ignoree (`__isnull=` et le
+    //   flag nu → 34 328).
+    // Le faux serveur gardait les absents sous `notin` et les comptait pour 0
+    // sous une comparaison : il aurait fait passer pour juste une negation
+    // confiee a tort.
+    const absent = gauche === null || gauche === undefined;
+    if (operateur === 'isnull') return absent;
+    if (operateur === 'isnotnull') return !absent;
+    if (operateur === 'differs') return absent || String(gauche) !== valeur;
+    if (absent && operateur !== 'contains' && operateur !== 'notcontains') return false;
     switch (operateur) {
       case 'exact':
         return String(gauche) === valeur;
-      case 'differs':
-        return String(gauche) !== valeur;
       // `ilike.*valeur*` (#1285, ADR-159 lot 2, mesuré le 2026-10-14) : `*`,
       // `%` et `_` de la valeur sont des jokers, `\` échappe, et une valeur
       // absente n'est retenue ni par `contains` ni par `notcontains`.

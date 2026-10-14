@@ -972,7 +972,7 @@ interface SourceConsumer {
   /**
    * Le filtre propre du consommateur (grammaire colon). Une clause que l'API
    * de la source ne calcule pas comme le navigateur (#1285, ADR-159 :
-   * `contains` / `notcontains` sur Opendatasoft, `notcontains` sur Tabular)
+   * `contains` / `notcontains` sur Opendatasoft, `notcontains` et `notin` sur Tabular)
    * est calculee dans le navigateur, sur le jeu charge — incompatible avec une
    * source qui ne livre qu'une page (`computedInBrowser`).
    */
@@ -1297,7 +1297,7 @@ export function serverPaginatedSources(dashboard: DashboardData): Map<string, nu
     if (only.need !== 'liste-paginee') continue;
     const source = byId.get(id);
     if (!source || !supportsServerPagination(source)) continue;
-    // `contains` sur Opendatasoft, `notcontains` sur Tabular (#1285, ADR-159) :
+    // `contains` sur Opendatasoft, `notcontains` ou `notin` sur Tabular (#1285, #1312) :
     // la clause est calculee dans le navigateur, sur le jeu charge. Derriere
     // `server-side`, la bibliotheque la refuse (erreur de configuration) : la
     // source charge donc le jeu, et la liste pagine dans le navigateur.

@@ -289,10 +289,25 @@ describe('GristAdapter — SQL mode utilities', () => {
       expect(args).toEqual(['IDF', 'OCC', 'BRE']);
     });
 
-    it('converts notin to NOT IN', () => {
+    it('converts notin to NOT IN, valeurs absentes gardées (#1312)', () => {
       const args: (string | number)[] = [];
-      expect(adapter._colonWhereToSql('region:notin:IDF|OCC', args)).toBe('"region" NOT IN (?,?)');
+      expect(adapter._colonWhereToSql('region:notin:IDF|OCC', args)).toBe(
+        '("region" IS NULL OR "region" NOT IN (?,?))'
+      );
       expect(args).toEqual(['IDF', 'OCC']);
+    });
+
+    it('notin multi-champs : chaque champ garde ses absents (#1312)', () => {
+      const args: (string | number)[] = [];
+      expect(adapter._colonWhereToSql('a|b:notin:x', args)).toBe(
+        '(("a" IS NULL OR "a" NOT IN (?)) OR ("b" IS NULL OR "b" NOT IN (?)))'
+      );
+      expect(args).toEqual(['x', 'x']);
+    });
+
+    it('neq reste `!=`, qui écarte les absents comme le navigateur (#1312)', () => {
+      const args: (string | number)[] = [];
+      expect(adapter._colonWhereToSql('region:neq:IDF', args)).toBe('"region" != ?');
     });
 
     it('converts isnull', () => {

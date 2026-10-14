@@ -1,0 +1,14 @@
+[
+  {"rang":1,"groupe":"a","statut":"actif","region":"IDF","montant":10},
+  {"rang":2,"groupe":"a","statut":"actif","region":"OCC","montant":20},
+  {"rang":3,"groupe":"b","statut":"actif","region":null,"montant":30},
+  {"rang":4,"groupe":"a","statut":"clos","region":"IDF","montant":40},
+  {"rang":5,"groupe":"b","statut":"clos","region":null,"montant":50},
+  {"rang":6,"groupe":"b","statut":"clos","region":"BRE","montant":60},
+  {"rang":7,"groupe":"a","statut":"archive","region":"IDF","montant":70},
+  {"rang":8,"groupe":"b","statut":"archive","region":null,"montant":80},
+  {"rang":9,"groupe":"a","statut":null,"region":"OCC","montant":90},
+  {"rang":10,"groupe":"b","statut":null,"region":null,"montant":100},
+  {"rang":11,"groupe":"a","statut":"","region":"BRE","montant":110},
+  {"rang":12,"groupe":"b","statut":null,"region":"","montant":120}
+]

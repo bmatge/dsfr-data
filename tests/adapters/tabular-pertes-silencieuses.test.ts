@@ -342,7 +342,9 @@ describe('PG-034 — in/notin à parenthèse ou à virgule : délégué entre gu
 
   it('est jugé délégable, comme une liste ordinaire', () => {
     expect(adapter.supportsServerWhere(IN)).toBe(true);
-    expect(adapter.supportsServerWhere('cat:notin:Vols (avec violence)')).toBe(true);
+    // `notin` ne part plus, quelle que soit sa liste : `not.in` écarte les
+    // valeurs absentes, que le navigateur garde (#1312).
+    expect(adapter.supportsServerWhere('cat:notin:Vols (avec violence)')).toBe(false);
     expect(adapter.supportsServerWhere('cat:in:A%2CB|C')).toBe(true);
     expect(adapter.supportsServerWhere('cat:in:Homicides|Cambriolages')).toBe(true);
     expect(adapter.supportsServerWhere('cat:eq:Usage de stupéfiants (AFD)')).toBe(true);

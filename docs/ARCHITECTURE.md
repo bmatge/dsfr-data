@@ -284,13 +284,18 @@ règle sans le tableau, ou le tableau sans la règle, fait échouer le test.
 | `contains` (`champ:contains:aliment`) | navigateur : le `like` du portail compare des mots | serveur : `ilike`, `\` `%` `_` échappés | serveur : `LIKE ? ESCAPE '\'`, `\` `%` `_` échappés |
 | `contains`, valeur à étoile (`champ:contains:a*b`) | navigateur | navigateur : l'API lit `*` comme un joker | serveur |
 | `notcontains` (`champ:notcontains:aliment`) | navigateur | navigateur : `NOT ILIKE` écarte les valeurs absentes | navigateur : `NOT LIKE` écarte les valeurs absentes |
-| `eq` `neq` `gt` `gte` `lt` `lte` `in` `notin` `isnull` `isnotnull` | serveur | serveur | serveur |
+| `neq` (`champ:neq:archive`) | serveur : `!=` écarte les valeurs absentes, comme le navigateur | serveur : `__differs` et `__isnotnull` (`__differs` seul garde les valeurs absentes) | serveur : `!=` écarte les valeurs absentes, comme le navigateur |
+| `notin` (`champ:notin:archive`) | serveur : `NOT … in (…)` garde les valeurs absentes, comme le navigateur | navigateur : `not.in` écarte les valeurs absentes | serveur : `(champ IS NULL OR champ NOT IN (…))` garde les valeurs absentes |
+| `eq` `gt` `gte` `lt` `lte` `in` `isnull` `isnotnull` | serveur | serveur | serveur |
 | casse, clause confiée | sans objet | ignorée | ignorée pour les lettres ASCII seulement (`É` n'est pas `é`) |
 | accents, clause confiée | sans objet | respectés | respectés |
 | recherche de `dsfr-data-search` en mode `context` | serveur : `search(champ, "q")`, début de mot, casse et accents ignorés | serveur : `champ:contains:q`, sous-chaîne, accents respectés ; terme à étoile : navigateur | serveur : `champ:contains:q`, sous-chaîne, casse ASCII ignorée, accents respectés |
 <!-- CAPACITES-TEXTE:fin -->
 
 **serveur** : la clause part à l'API, et c'est sa comparaison qui s'applique (lignes casse et accents).
+**Valeurs absentes** (`null`, champ manquant ; une chaîne vide est une valeur) : `neq` les écarte,
+`notin` et `notcontains` les gardent (#958, #1312) — une négation n'est confiée à un serveur que s'il
+leur fait le même sort, au besoin par une écriture équivalente mesurée (Tabular `neq`, Grist `notin`).
 **navigateur** : la source la calcule sur les lignes que le reste du filtre laisse passer, sous
 `max-records` — sous-chaîne, casse ignorée pour toutes les lettres, accents respectés
 (`filterTextContains`) ; une source en `server-side`, un `group-by` / `aggregate` / `select` calculé posé

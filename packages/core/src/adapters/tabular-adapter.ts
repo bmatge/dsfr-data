@@ -1814,6 +1814,14 @@ export class TabularAdapter implements ApiAdapter {
         }
         continue;
       }
+      // `champ:isnull` / `champ:isnotnull` s'ecrivent SANS valeur (deux
+      // segments) : ils etaient ignores, et la clause n'etait appliquee nulle
+      // part sur une source (#1312). L'API lit `champ__isnull=` comme le flag
+      // nu (mesure du 2026-10-14, elus : 34 328 lignes dans les deux formes).
+      if (parts.length === 2 && (parts[1] === 'isnull' || parts[1] === 'isnotnull')) {
+        url.searchParams.append(`${parts[0]}__${this._mapOperator(parts[1])}`, '');
+        continue;
+      }
       if (parts.length >= 3) {
         const field = parts[0];
         const op = this._mapOperator(parts[1]);
@@ -1835,6 +1843,11 @@ export class TabularAdapter implements ApiAdapter {
         if (!quoteIn && inValueUnsafe(filter)) this._warnInRefused(filter);
         // append : deux filtres meme champ+op sont AND-es comme Grist/ODS (#289)
         url.searchParams.append(`${field}__${op}`, value);
+        // `neq` (#1312) : `__differs` est un `IS DISTINCT FROM`, qui GARDE les
+        // valeurs absentes ; le navigateur les ecarte (#958). La condition
+        // `__isnotnull` les ecarte aussi cote API — mesure du 2026-10-14,
+        // elus : `__differs=Corse` → 34 467, avec `__isnotnull=` → 139.
+        if (parts[1] === 'neq') url.searchParams.append(`${field}__isnotnull`, '');
       }
     }
   }
@@ -1875,7 +1888,12 @@ export class TabularAdapter implements ApiAdapter {
     for (const field of splitColonFields(fieldPart)) {
       if (field.includes('"') || !parenthesesBalanced(field)) return null;
       const column = field.includes('.') ? `"${field}"` : field;
-      members.push(noValue ? `${column}__${native}` : `${column}__${native}.${value}`);
+      // `neq` : la condition `__isnotnull` du membre, dans un `and(…)` que le
+      // parseur de l'API lit (#1312, mesure du 2026-10-14 : 498 lignes pour
+      // `or=(and(c__differs.Corse,c__isnotnull),and(c__differs.Guyane,c__isnotnull))`,
+      // 34 826 sans les `and`).
+      if (op === 'neq') members.push(`and(${column}__${native}.${value},${column}__isnotnull)`);
+      else members.push(noValue ? `${column}__${native}` : `${column}__${native}.${value}`);
     }
     return `(${members.join(',')})`;
   }
@@ -1917,6 +1935,12 @@ export class TabularAdapter implements ApiAdapter {
    * - `notcontains` reste au navigateur : `not.ilike` ecarte les valeurs
    *   absentes, que le navigateur garde (498 lignes au lieu de 34 826 sur les
    *   elus municipaux, mesure du 2026-10-14).
+   * - `notin` reste au navigateur pour la meme raison (#1312) : `not.in`
+   *   ecarte les valeurs absentes (`__notin=Corse` → 139 elus, 34 467 dans le
+   *   navigateur), et aucune ecriture d'une liste ne les garde.
+   * - `neq` part, en `__differs` ET `__isnotnull` (`_applyColonFilters`,
+   *   `_orGroup`) : `__differs` seul est un `IS DISTINCT FROM`, qui garde les
+   *   valeurs absentes que le navigateur ecarte (34 467 au lieu de 139).
    *
    * Tous les autres operateurs partent comme avant.
    */

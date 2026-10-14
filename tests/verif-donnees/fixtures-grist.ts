@@ -187,64 +187,120 @@ function likeSqlite(valeur: unknown, motif: string, echappement: string | null):
   return likeSql(valeur, motif, { casse: 'ascii', echappement });
 }
 
-/** `WHERE` : des clauses `"col" op ?` reliées par `AND`. */
-function filtrer(where: string, args: unknown[], lignes: Row[]): Row[] | null {
-  let reste = lignes;
-  let rang = 0;
-  for (const clause of where.split(' AND ')) {
-    const nul = new RegExp(`^${IDENT} IS (NOT )?NULL$`).exec(clause);
-    if (nul) {
-      const champ = nu(nul[1]);
-      reste = reste.filter((l) => (l[champ] === null || l[champ] === undefined) === !nul[2]);
-      continue;
+type Predicat = (l: Row) => boolean;
+
+/** Découpe `texte` sur `separateur` HORS parenthèses. */
+function decouperHorsParentheses(texte: string, separateur: string): string[] {
+  const morceaux: string[] = [];
+  let profondeur = 0;
+  let debut = 0;
+  for (let i = 0; i < texte.length; i++) {
+    if (texte[i] === '(') profondeur++;
+    else if (texte[i] === ')') profondeur--;
+    else if (profondeur === 0 && texte.startsWith(separateur, i)) {
+      morceaux.push(texte.slice(debut, i));
+      debut = i + separateur.length;
+      i += separateur.length - 1;
     }
-    const liste = new RegExp(`^${IDENT} (NOT )?IN \\(([?,]+)\\)$`).exec(clause);
-    if (liste) {
-      const champ = nu(liste[1]);
-      const n = liste[3].split(',').length;
-      const valeurs = args.slice(rang, rang + n).map(String);
-      rang += n;
-      reste = reste.filter((l) => valeurs.includes(String(l[champ])) === !liste[2]);
-      continue;
-    }
-    const semblable = new RegExp(`^${IDENT} (NOT )?LIKE \\?(?: ESCAPE '(.)')?$`).exec(clause);
-    if (semblable) {
-      const champ = nu(semblable[1]);
-      const motif = String(args[rang++]);
-      const echappement = semblable[3] ?? null;
-      // `NOT LIKE` écarte les valeurs absentes (mesuré : 89 lignes sur 101
-      // quand 12 valeurs sont nulles) — logique SQL à trois valeurs.
-      reste = reste.filter((l) => {
-        const lu = likeSqlite(l[champ], motif, echappement);
-        return lu !== null && lu === !semblable[2];
-      });
-      continue;
-    }
-    const m = new RegExp(`^${IDENT} (=|!=|>=|<=|>|<) \\?$`).exec(clause);
-    if (!m) return null;
-    const champ = nu(m[1]);
-    const valeur = args[rang++] as Valeur;
-    reste = reste.filter((l) => {
-      const c = comparer(l[champ] as Valeur, valeur);
-      // Égalité à la SQLite d'une colonne sans type : `'3'` vaut `3`
-      const egal = String(l[champ]) === String(valeur);
-      switch (m[2]) {
-        case '=':
-          return egal;
-        case '!=':
-          return !egal;
-        case '>':
-          return c > 0;
-        case '>=':
-          return c >= 0;
-        case '<':
-          return c < 0;
-        default:
-          return c <= 0;
-      }
-    });
   }
-  return reste;
+  morceaux.push(texte.slice(debut));
+  return morceaux;
+}
+
+/** `(…)` qui entoure TOUT le texte (et non `(a) OR (b)`). */
+function entreParentheses(texte: string): boolean {
+  if (!texte.startsWith('(') || !texte.endsWith(')')) return false;
+  let profondeur = 0;
+  for (let i = 0; i < texte.length; i++) {
+    if (texte[i] === '(') profondeur++;
+    else if (texte[i] === ')' && --profondeur === 0 && i < texte.length - 1) return false;
+  }
+  return true;
+}
+
+/**
+ * Une clause SQL lue en prédicat, les `?` consommés DANS L'ORDRE du texte
+ * (`curseur`), comme SQLite les lie. `null` hors de la grammaire.
+ *
+ * VALEURS ABSENTES (#1312) : logique SQL à TROIS valeurs, comme SQLite — une
+ * valeur absente ne vérifie ni `=` ni `!=`, ni `IN` ni `NOT IN`, ni `LIKE` ni
+ * `NOT LIKE`, ni une comparaison d'ordre ; seuls `IS NULL` / `IS NOT NULL` la
+ * nomment. Mesuré le 2026-10-14 sur grist.numerique.gouv.fr (101 lignes, une
+ * colonne dérivée nulle sur 12 et vide sur 13) : `c != 'zzz'` → 89,
+ * `c NOT IN ('zzz')` → 89, `c NOT LIKE '%zzz%'` → 89, `n > 0` → 89 ;
+ * `(c IS NULL OR c NOT IN ('zzz'))` → 101. Le faux Grist gardait les absents
+ * sous `!=` et `NOT IN`, et les rangeait avant tout nombre sous `<` : il aurait
+ * fait passer pour juste une négation qui ne l'était pas.
+ */
+function predicat(clause: string, args: unknown[], curseur: { rang: number }): Predicat | null {
+  const texte = clause.trim();
+  if (entreParentheses(texte)) return predicat(texte.slice(1, -1), args, curseur);
+  const ou = decouperHorsParentheses(texte, ' OR ');
+  if (ou.length > 1) {
+    const membres = ou.map((m) => predicat(m, args, curseur));
+    if (membres.some((m) => m === null)) return null;
+    return (l) => membres.some((m) => (m as Predicat)(l));
+  }
+  const absent = (v: unknown) => v === null || v === undefined;
+  const nul = new RegExp(`^${IDENT} IS (NOT )?NULL$`).exec(texte);
+  if (nul) {
+    const champ = nu(nul[1]);
+    return (l) => absent(l[champ]) === !nul[2];
+  }
+  const liste = new RegExp(`^${IDENT} (NOT )?IN \\(([?,]+)\\)$`).exec(texte);
+  if (liste) {
+    const champ = nu(liste[1]);
+    const n = liste[3].split(',').length;
+    const valeurs = args.slice(curseur.rang, curseur.rang + n).map(String);
+    curseur.rang += n;
+    return (l) => !absent(l[champ]) && valeurs.includes(String(l[champ])) === !liste[2];
+  }
+  const semblable = new RegExp(`^${IDENT} (NOT )?LIKE \\?(?: ESCAPE '(.)')?$`).exec(texte);
+  if (semblable) {
+    const champ = nu(semblable[1]);
+    const motif = String(args[curseur.rang++]);
+    const echappement = semblable[3] ?? null;
+    return (l) => {
+      const lu = likeSqlite(l[champ], motif, echappement);
+      return lu !== null && lu === !semblable[2];
+    };
+  }
+  const m = new RegExp(`^${IDENT} (=|!=|>=|<=|>|<) \\?$`).exec(texte);
+  if (!m) return null;
+  const champ = nu(m[1]);
+  const valeur = args[curseur.rang++] as Valeur;
+  return (l) => {
+    if (absent(l[champ])) return false;
+    const c = comparer(l[champ] as Valeur, valeur);
+    // Égalité à la SQLite d'une colonne sans type : `'3'` vaut `3`
+    const egal = String(l[champ]) === String(valeur);
+    switch (m[2]) {
+      case '=':
+        return egal;
+      case '!=':
+        return !egal;
+      case '>':
+        return c > 0;
+      case '>=':
+        return c >= 0;
+      case '<':
+        return c < 0;
+      default:
+        return c <= 0;
+    }
+  };
+}
+
+/** `WHERE` : des clauses reliées par `AND`, chacune éventuellement un `(… OR …)`. */
+function filtrer(where: string, args: unknown[], lignes: Row[]): Row[] | null {
+  const curseur = { rang: 0 };
+  const predicats: Predicat[] = [];
+  for (const clause of decouperHorsParentheses(where, ' AND ')) {
+    const p = predicat(clause, args, curseur);
+    if (!p) return null;
+    predicats.push(p);
+  }
+  return lignes.filter((l) => predicats.every((p) => p(l)));
 }
 
 /**
