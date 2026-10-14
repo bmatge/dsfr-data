@@ -121,6 +121,15 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
      */
     private _subscriberMountCycleDone = false;
 
+    /**
+     * `source` lu au dernier (ré)abonnement, `null` sans abonnement en cours
+     * (#1314). Le cycle de montage s'y compare : `source` changé ENTRE la
+     * connexion et le premier rendu (élément créé par script, inséré, puis
+     * réglé dans la même tâche) figure dans changedProperties comme au montage
+     * ordinaire — seul l'écart avec la valeur abonnée distingue les deux.
+     */
+    private _subscribedSource: string | null = null;
+
     connectedCallback() {
       super.connectedCallback();
       // Un attribut inconnu du bundle chargé est ignoré en silence (#727) :
@@ -198,9 +207,19 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
 
     willUpdate(changedProperties: Map<string, unknown>) {
       super.willUpdate(changedProperties);
-      // Cycle de montage : déjà abonné via connectedCallback (#281)
+      // Cycle de montage : déjà abonné via connectedCallback (#281) — sauf si
+      // `source` a changé depuis (#1314). Un élément sorti du document avant
+      // son premier rendu n'est pas réabonné : sa reconnexion s'en chargera.
       if (!this._subscriberMountCycleDone) {
         this._subscriberMountCycleDone = true;
+        const source = (this as unknown as SourceSubscriberInterface).source;
+        if (
+          changedProperties.has('source') &&
+          this.isConnected &&
+          source !== this._subscribedSource
+        ) {
+          this._subscribeToSource();
+        }
         return;
       }
       if (changedProperties.has('source')) {
@@ -210,6 +229,7 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
 
     private _subscribeToSource() {
       this._cleanupSubscription();
+      this._subscribedSource = (this as unknown as SourceSubscriberInterface).source;
 
       // Purge des états : changer de source (y compris vers une source sans
       // cache) ne doit pas laisser un affichage périmé sans indicateur (#284)
@@ -307,6 +327,7 @@ export function SourceSubscriberMixin<T extends Constructor<LitElement>>(superCl
     }
 
     private _cleanupSubscription() {
+      this._subscribedSource = null;
       if (this._unsubscribeSource) {
         this._unsubscribeSource();
         this._unsubscribeSource = null;

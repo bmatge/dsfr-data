@@ -264,7 +264,7 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
     // aucune variable `{{$scope}}` : les tuiles naissaient sans source, et le
     // rattrapage du premier `willUpdate` arrivait après leur abonnement —
     // elles restaient à « — » jusqu'à la prochaine émission de la source.
-    this._scopes.configure(this.scopes, this.keyField);
+    this._configureScopes();
     super.connectedCallback();
     sendWidgetBeacon(REPEAT_TAG);
     if (!this.source) this._report('attribut "source" requis');
@@ -286,10 +286,22 @@ export class DsfrDataRepeat extends SourceSubscriberMixin(LitElement) {
    */
   willUpdate(changedProperties: Map<string, unknown>) {
     super.willUpdate(changedProperties);
-    if (changedProperties.has('scopes') && changedProperties.get('scopes') !== undefined) {
-      this._scopes.configure(this.scopes, this.keyField);
+    // Comparé à la valeur CONFIGURÉE, pas à l'ancienne valeur de Lit (#1314) :
+    // au premier rendu, celle-ci vaut `undefined` même quand `scopes` a changé
+    // depuis la connexion — un répéteur créé par script, inséré puis réglé
+    // dans la même tâche, gardait la partition de son insertion.
+    if (changedProperties.has('scopes') && this.scopes !== this._configuredScopes) {
+      this._configureScopes();
       if (this._hasData) this._renderRows();
     }
+  }
+
+  /** Valeur de `scopes` lue au dernier `configure` de l'émetteur (#1314). */
+  private _configuredScopes: string | null = null;
+
+  private _configureScopes(): void {
+    this._configuredScopes = this.scopes;
+    this._scopes.configure(this.scopes, this.keyField);
   }
 
   /**

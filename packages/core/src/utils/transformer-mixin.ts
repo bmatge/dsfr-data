@@ -141,6 +141,16 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
      */
     protected _transformerMountCycleDone = false;
 
+    /**
+     * Valeurs des props de (ré)init et de retraitement lues au dernier
+     * `reinitTransformer` (#1314). Le cycle de montage s'y compare : une prop
+     * changée ENTRE la connexion et le premier rendu (élément créé par script,
+     * inséré, puis réglé dans la même tâche) figure dans changedProperties
+     * comme au montage ordinaire — seul l'écart avec la valeur branchée
+     * distingue les deux. `null` tant que rien n'a été branché.
+     */
+    private _transformerInitValues: Map<string, unknown> | null = null;
+
     // --- Hooks à surcharger par l'hôte ---
 
     /** Nom du composant pour les messages d'erreur (défaut : tag name) */
@@ -432,6 +442,12 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
       // vidée au runtime) ne doit pas laisser l'ancien abonnement vivant
       // (fuite historique de facets/search).
       this._cleanup();
+      this._transformerInitValues = new Map(
+        [...this.transformerReinitProps(), ...this.transformerReprocessProps()].map((p) => [
+          p,
+          (this as unknown as Record<string, unknown>)[p],
+        ])
+      );
 
       // Purge de l'attente : changer de `source` ne doit pas laisser le
       // message « choisissez un filtre » d'un amont qu'on vient de quitter
@@ -643,14 +659,22 @@ export function TransformerMixin<T extends Constructor<LitElement>>(superClass: 
     willUpdate(changedProperties: Map<PropertyKey, unknown>) {
       super.willUpdate(changedProperties);
 
-      // Cycle de montage : l'init a déjà eu lieu dans connectedCallback (#281)
+      // Cycle de montage : l'init a déjà eu lieu dans connectedCallback (#281).
+      // Seules comptent les props changées DEPUIS cette init (#1314) ; un
+      // élément sorti du document avant son premier rendu n'est pas rebranché
+      // — sa reconnexion s'en chargera.
+      let changed = (p: string) => changedProperties.has(p);
       if (!this._transformerMountCycleDone) {
         this._transformerMountCycleDone = true;
-        return;
+        const initValues = this._transformerInitValues;
+        if (!this.isConnected || !initValues) return;
+        changed = (p) =>
+          changedProperties.has(p) &&
+          !Object.is((this as unknown as Record<string, unknown>)[p], initValues.get(p));
       }
 
-      const reinit = this.transformerReinitProps().some((p) => changedProperties.has(p));
-      const reprocess = this.transformerReprocessProps().some((p) => changedProperties.has(p));
+      const reinit = this.transformerReinitProps().some(changed);
+      const reprocess = this.transformerReprocessProps().some(changed);
       // Un attribut qui change la demande PENDANT la panne de l'amont (#1288) :
       // ce que l'étape garde en mémoire répond à l'ancienne — son dernier
       // résultat ne s'affichera plus comme « relevé ». Sans effet hors panne.

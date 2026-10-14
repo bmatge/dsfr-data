@@ -149,6 +149,61 @@ describe('dsfr-data-repeat — scopes, états, lazy (#891)', () => {
       expect(host.querySelectorAll('[data-dsfr-config-error]').length).toBe(0);
     });
 
+    /** Répéteur créé par script, gabarit KPI posé, pas encore inséré. */
+    const repeteurParScript = (source: string, scopes: string) => {
+      const rep = document.createElement(REPEAT_TAG) as DsfrDataRepeat;
+      rep.setAttribute('source', source);
+      rep.setAttribute('key-field', 'code');
+      rep.setAttribute('scopes', scopes);
+      const tpl = document.createElement('template');
+      tpl.innerHTML = `<dsfr-data-kpi id="k-{{code}}" source="{{$scope.q}}" value="score:sum"></dsfr-data-kpi>`;
+      rep.appendChild(tpl);
+      return rep;
+    };
+    const tuile = (id: string) =>
+      host.querySelector(`#${id} .dsfr-data-kpi__value`)?.textContent?.trim();
+
+    it('construit par script, `source` changé entre l’insertion et le premier rendu (#1314)', async () => {
+      dispatchDataLoaded('scores', SCORES);
+      dispatchDataLoaded('questions', QUESTIONS);
+      dispatchDataLoaded('effectifs', EFFECTIFS);
+      host.innerHTML = sources;
+
+      // Inséré sur `effectifs` (deux lignes au cache), réglé sur `questions`
+      // dans la même tâche : les lignes répétées doivent être celles de la
+      // NOUVELLE source — trois tuiles, dont `003` sans score.
+      const rep = repeteurParScript('effectifs', 'scores:code:q');
+      host.appendChild(rep);
+      rep.setAttribute('source', 'questions');
+      await rep.updateComplete;
+      await tick();
+
+      expect(host.querySelectorAll('dsfr-data-kpi').length).toBe(3);
+      expect(tuile('k-001')).toBe('30');
+      expect(tuile('k-002')).toBe('120');
+      expect(host.querySelector('#k-003')).not.toBeNull();
+    });
+
+    it('construit par script, `scopes` changé entre l’insertion et le premier rendu (#1314)', async () => {
+      dispatchDataLoaded('scores', SCORES);
+      dispatchDataLoaded('questions', QUESTIONS);
+      dispatchDataLoaded('effectifs', EFFECTIFS);
+      host.innerHTML = sources;
+
+      // Inséré en partitionnant `effectifs`, réglé sur `scores` : l'alias est
+      // le même, seule la source scopée change — `q-001` doit porter les
+      // lignes de `scores`, pas celles d'`effectifs`.
+      const rep = repeteurParScript('questions', 'effectifs:code:q');
+      host.appendChild(rep);
+      rep.setAttribute('scopes', 'scores:code:q');
+      await rep.updateComplete;
+      await tick();
+
+      expect((getDataCache('q-001') as unknown[]).length).toBe(2);
+      expect(tuile('k-001')).toBe('30');
+      expect(tuile('k-002')).toBe('120');
+    });
+
     it('deux entrées, deux familles d’ids, une seule partition par champ', async () => {
       dispatchDataLoaded('scores', SCORES);
       dispatchDataLoaded('effectifs', EFFECTIFS);
