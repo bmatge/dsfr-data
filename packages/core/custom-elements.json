@@ -20894,6 +20894,26 @@
             },
             {
               "kind": "field",
+              "name": "_configuredScopes",
+              "type": {
+                "text": "string | null"
+              },
+              "privacy": "private",
+              "default": "null",
+              "description": "Valeur de `scopes` lue au dernier `configure` de l'émetteur (#1314)."
+            },
+            {
+              "kind": "method",
+              "name": "_configureScopes",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "field",
               "name": "_templateObserver",
               "type": {
                 "text": "MutationObserver | null"

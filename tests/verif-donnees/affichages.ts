@@ -4019,6 +4019,108 @@ const CHECKS: Check[] = [
       },
     ],
   },
+  {
+    id: 'repeteur-scopes-change-avant-premier-rendu',
+    mode: 'deterministic',
+    origin:
+      '#1314, pendant de `repeteur-scopes-construit-par-script` (#1308) — un `dsfr-data-repeat` créé par script, inséré en partitionnant une AUTRE source, puis dont `scopes` change dans la même tâche, avant son premier rendu, gardait la partition de l’insertion : son `willUpdate` ne reconfigurait `scopes` que si Lit en donnait une ancienne valeur, et au premier rendu elle vaut `undefined`. À l’insertion, l’alias `qs` partitionne les questions (aucun `montant`), puis il est réglé sur les scores : chaque KPI de ligne doit valoir la somme de SA clé dans les scores — cinq tuiles, et la somme des cinq rend la somme brute.',
+    feed: {
+      kind: 'fixture',
+      datasets: { main: BAROMETRE_SCORES, questions: BAROMETRE_QUESTIONS },
+    },
+    markup: `
+  <dsfr-data-source id="s-rsc-q" data='${inline(BAROMETRE_QUESTIONS)}'></dsfr-data-source>
+  <dsfr-data-source id="s-rsc-s" data='${inline(BAROMETRE_SCORES)}'></dsfr-data-source>
+  <div id="rsc-hote"></div>
+  <script>
+    (function () {
+      var charge = {}, parti = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (parti || !e.detail) return;
+        charge[e.detail.sourceId] = true;
+        if (!charge['s-rsc-q'] || !charge['s-rsc-s']) return;
+        parti = true;
+        setTimeout(function () {
+          var rep = document.createElement('dsfr-data-repeat');
+          rep.setAttribute('source', 's-rsc-q');
+          rep.setAttribute('key-field', 'code');
+          rep.setAttribute('scopes', 's-rsc-q:code:qs');
+          var gabarit = document.createElement('template');
+          gabarit.innerHTML =
+            '<dsfr-data-kpi id="krsc-{{code}}" source="{{$scope.qs}}" value="montant:sum"' +
+            ' format="nombre" label="Total"></dsfr-data-kpi>';
+          rep.appendChild(gabarit);
+          document.getElementById('rsc-hote').appendChild(rep);
+          rep.setAttribute('scopes', 's-rsc-s:code:qs');
+        }, 0);
+      });
+    })();
+  </script>`,
+    expects: [
+      {
+        kind: 'texts',
+        id: 'rsc-hote',
+        selector: '.dsfr-data-kpi__value',
+        pipeline: [
+          { op: 'group-by', by: 'code', columns: { montant: { agg: 'sum', field: 'montant' } } },
+          { op: 'order-by', column: 'code', dir: 'asc' },
+        ],
+        column: 'montant',
+        numeric: true,
+        invariants: [
+          { kind: 'count-equals', n: 5 },
+          { kind: 'sum-preserved', field: 'montant' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'source-changee-avant-premier-rendu',
+    mode: 'deterministic',
+    origin:
+      '#1314 — un afficheur CONSTRUIT PAR SCRIPT, inséré, puis dont `source` change dans la même tâche — avant son premier rendu — restait abonné à la source de l’insertion : `SourceSubscriberMixin` sautait le premier `willUpdate`, qui portait pourtant le changement (contournement amont dans le répéteur, #1308). `TransformerMixin` avait le même défaut. La page attend que les deux sources aient livré, insère un KPI sur l’ANCIENNE (trois communes) et le règle sur la NOUVELLE (les 48), puis fait de même pour une `dsfr-data-query` lue par un KPI écrit dans le balisage. Les deux doivent rendre la somme de la NOUVELLE source ; l’ancienne en donne une autre, si bien que le contrôle ne peut pas passer sur le mauvais abonnement.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    markup: `
+  ${source('s-spr-nouvelle', 'communes')}
+  <dsfr-data-source id="s-spr-ancienne" data='${inline(COMMUNES.slice(0, 3))}'></dsfr-data-source>
+  <div id="spr-hote"></div>
+  <dsfr-data-kpi id="k-spr-query" source="q-spr" value="total" format="nombre" label="Population"></dsfr-data-kpi>
+  <script>
+    (function () {
+      var charge = {}, parti = false;
+      document.addEventListener('dsfr-data-loaded', function (e) {
+        if (parti || !e.detail) return;
+        charge[e.detail.sourceId] = true;
+        if (!charge['s-spr-ancienne'] || !charge['s-spr-nouvelle']) return;
+        parti = true;
+        // Une macrotâche plus tard : les deux sources sont au cache et
+        // n'émettront plus — seul l'abonnement relu peut donner la nouvelle.
+        setTimeout(function () {
+          var hote = document.getElementById('spr-hote');
+          var kpi = document.createElement('dsfr-data-kpi');
+          kpi.id = 'k-spr-direct';
+          kpi.setAttribute('source', 's-spr-ancienne');
+          kpi.setAttribute('value', 'population:sum');
+          kpi.setAttribute('format', 'nombre');
+          kpi.setAttribute('label', 'Population');
+          hote.appendChild(kpi);
+          kpi.setAttribute('source', 's-spr-nouvelle');
+
+          var q = document.createElement('dsfr-data-query');
+          q.id = 'q-spr';
+          q.setAttribute('source', 's-spr-ancienne');
+          q.setAttribute('aggregate', 'population:sum:total');
+          hote.appendChild(q);
+          q.setAttribute('source', 's-spr-nouvelle');
+        }, 0);
+      });
+    })();
+  </script>`,
+    expects: [
+      { kind: 'kpi', id: 'k-spr-direct', agg: 'sum', field: 'population', pattern: MILLIERS },
+      { kind: 'kpi', id: 'k-spr-query', agg: 'sum', field: 'population', pattern: MILLIERS },
+    ],
+  },
 ];
 
 export const AFFICHAGES: Manifest = { domain: 'affichages', checks: CHECKS };
