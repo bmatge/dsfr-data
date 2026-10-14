@@ -326,7 +326,12 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    * server-search`). Sur une chaîne partagée rien n'est délégué, ni cette
    * clause ni les autres : le filtre porte sur les lignes reçues, comme pour
    * tout opérateur (#765). Tabular et Grist gardent leur délégation de
-   * `contains` (sous-chaîne sur ces deux API).
+   * `contains` (sous-chaîne sur ces deux API) : `%`, `_` et `\` de la valeur
+   * y sont échappés, chaque caractère vaut pour lui-même (#1285, lot 2). Sur
+   * ces deux API, `notcontains` est calculé dans le navigateur, comme sur
+   * Opendatasoft (leur `NOT LIKE` écarterait les valeurs absentes, que le
+   * filtre garde) ; sur Tabular, un `contains` dont la valeur porte `*` aussi
+   * (l'API le lit comme un joker).
    *
    * LISTE À PARENTHÈSE OU À VIRGULE (#1233) : `champ:in:a|b (c)` part au
    * serveur comme toute liste — l'adaptateur Tabular écrit entre guillemets

@@ -48,7 +48,7 @@ le traduit :
 | Source cible | Qui cherche | Comment |
 |---|---|---|
 | Opendatasoft | le moteur du portail, borne au champ (`search(champ, "terme")`) | par DEBUT DE MOT, casse et accents ignores : « aliment » trouve « alimentation », « mentation » non. Le champ doit etre du TEXTE (un champ numerique : recherche calculee dans le navigateur) |
-| Tabular, Grist | l'API (`champ:contains:terme`) | sous-chaine, casse ignoree, accents RESPECTES : « ecole » ne trouve pas « École » |
+| Tabular, Grist | l'API (`champ:contains:terme`) | sous-chaine, casse ignoree (Grist : lettres ASCII seulement), accents RESPECTES : « ecole » ne trouve pas « École ». `%` et `_` du terme valent pour eux-memes ; sur Tabular, un terme a `*` est cherche dans le navigateur |
 | INSEE Melodi, adaptateur tiers | la source, dans le navigateur | sur les lignes chargees (sous `max-records`), avec `operator`, casse et accents ignores |
 | source en mode URL (sans `api-type`) | personne : la commande est refusee et signalee en console | brancher la recherche SUR cette source (`source="…"`, sans `context`) : elle filtre alors ses lignes elle-meme |
 
@@ -89,8 +89,9 @@ Sur **Tabular** (#1026), le template par défaut est `{fields}:contains:{q}` : `
 champs de `fields` séparés par `|` (un OU entre champs), traduit en
 `or=(nom__contains.q,commune__contains.q)`. Le compteur lit alors le total serveur, juste sur tout le
 jeu. `fields` est donc obligatoire. `contains` y est insensible à la casse mais SENSIBLE aux accents :
-« ecole » ne trouve pas « École » côté serveur. Un terme que l'API ne sait pas transmettre (`,` `.`
-`(` `)` `"` `&`) retombe sur une recherche locale, signalée en console.
+« ecole » ne trouve pas « École » côté serveur. `%` et `_` du terme sont échappés (#1285). Un terme
+que l'API ne sait pas transmettre (`,` `.` `(` `)` `"` `&`, ou `*`, qu'elle lirait comme un
+joker) retombe sur une recherche locale, signalée en console.
 
 ```html
 <dsfr-data-source id="src" api-type="tabular" resource="…" server-side page-size="20"></dsfr-data-source>

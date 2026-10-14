@@ -478,7 +478,18 @@ mot avec \`like "alim*"\`). Consequences a connaitre AVANT de generer :
   \`contains\`, elle est confiee au moteur du portail et reste compatible avec \`server-side\` et
   \`server-facets\`).
 Ne JAMAIS ecrire \`champ like "%x%"\` dans le \`where\` ODSQL d'une source pour « contient » : le
-portail n'y lit pas une sous-chaine. Tabular et Grist gardent \`contains\` delegue.
+portail n'y lit pas une sous-chaine.
+
+**Tabular et Grist (#1285, lot 2)** : \`contains\` reste confie a leur \`LIKE\` SQL, et chaque
+caractere de la valeur y vaut pour lui-meme — \`%\`, \`_\` et \`\\\` sont echappes par la bibliotheque
+(\`nom:contains:50%\` trouve « 50% », pas « 500 »). Deux clauses y sont calculees DANS LE NAVIGATEUR,
+avec les memes consequences que sur Opendatasoft (\`max-records\`, erreur de configuration derriere
+\`server-side\` ou \`server-facets\`) :
+- \`notcontains\`, sur les deux : le \`NOT LIKE\` du serveur ecarterait les lignes dont la valeur est
+  ABSENTE, que le filtre garde ;
+- sur Tabular, un \`contains\` dont la valeur porte \`*\` : l'API le lit comme un joker.
+Cela vaut aussi pour le \`where\` ecrit sur une source Tabular ou Grist. Pour paginer au serveur un
+tableau filtre par « ne contient pas », ecrire plutot la liste des valeurs gardees (\`in\`).
 
 **Champs multiples — un OU entre champs (#1026)** : \`"nom|commune:contains:martin"\` applique le
 MÊME opérateur et la MÊME valeur à plusieurs champs ; la ligne passe dès qu'UN champ satisfait la
@@ -1317,7 +1328,7 @@ le traduit :
 | Source cible | Qui cherche | Comment |
 |---|---|---|
 | Opendatasoft | le moteur du portail, borne au champ (\`search(champ, "terme")\`) | par DEBUT DE MOT, casse et accents ignores : « aliment » trouve « alimentation », « mentation » non. Le champ doit etre du TEXTE (un champ numerique : recherche calculee dans le navigateur) |
-| Tabular, Grist | l'API (\`champ:contains:terme\`) | sous-chaine, casse ignoree, accents RESPECTES : « ecole » ne trouve pas « École » |
+| Tabular, Grist | l'API (\`champ:contains:terme\`) | sous-chaine, casse ignoree (Grist : lettres ASCII seulement), accents RESPECTES : « ecole » ne trouve pas « École ». \`%\` et \`_\` du terme valent pour eux-memes ; sur Tabular, un terme a \`*\` est cherche dans le navigateur |
 | INSEE Melodi, adaptateur tiers | la source, dans le navigateur | sur les lignes chargees (sous \`max-records\`), avec \`operator\`, casse et accents ignores |
 | source en mode URL (sans \`api-type\`) | personne : la commande est refusee et signalee en console | brancher la recherche SUR cette source (\`source="…"\`, sans \`context\`) : elle filtre alors ses lignes elle-meme |
 
@@ -1358,8 +1369,9 @@ Sur **Tabular** (#1026), le template par défaut est \`{fields}:contains:{q}\` :
 champs de \`fields\` séparés par \`|\` (un OU entre champs), traduit en
 \`or=(nom__contains.q,commune__contains.q)\`. Le compteur lit alors le total serveur, juste sur tout le
 jeu. \`fields\` est donc obligatoire. \`contains\` y est insensible à la casse mais SENSIBLE aux accents :
-« ecole » ne trouve pas « École » côté serveur. Un terme que l'API ne sait pas transmettre (\`,\` \`.\`
-\`(\` \`)\` \`"\` \`&\`) retombe sur une recherche locale, signalée en console.
+« ecole » ne trouve pas « École » côté serveur. \`%\` et \`_\` du terme sont échappés (#1285). Un terme
+que l'API ne sait pas transmettre (\`,\` \`.\` \`(\` \`)\` \`"\` \`&\`, ou \`*\`, qu'elle lirait comme un
+joker) retombe sur une recherche locale, signalée en console.
 
 \`\`\`html
 <dsfr-data-source id="src" api-type="tabular" resource="…" server-side page-size="20"></dsfr-data-source>

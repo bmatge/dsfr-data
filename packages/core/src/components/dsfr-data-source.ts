@@ -373,9 +373,14 @@ export class DsfrDataSource extends LitElement {
    * `dsfr-data-search` en mode `context`) ou du `where` d'une
    * `dsfr-data-query` seule lectrice de la source — n'est donc jamais confiée
    * au portail : c'est la source qui la calcule, sur les lignes que le reste
-   * du filtre a laissées passer. Cet attribut-ci n'est pas concerné : sur
-   * Opendatasoft il est écrit en ODSQL et part tel quel (y écrire un `like`
-   * reste possible, avec sa sémantique de mots). Le résultat est juste, au
+   * du filtre a laissées passer. Sur Tabular et Grist (#1285, lot 2),
+   * `contains` reste confié à leur `LIKE` SQL, jokers de la valeur échappés ;
+   * `notcontains` (leur `NOT LIKE` écarterait les valeurs absentes) et, sur
+   * Tabular, un `contains` dont la valeur porte `*` sont calculés par la
+   * source. Cet attribut-ci suit la même règle quand il est écrit en
+   * grammaire colon (Tabular, Grist) ; sur Opendatasoft il est écrit en ODSQL
+   * et part tel quel (y écrire un `like` reste possible, avec sa sémantique
+   * de mots). Le résultat est juste, au
    * prix d'un chargement plus large : toutes les lignes des autres clauses,
    * sous `max-records` (au-delà, le filtre ne porte que sur les lignes lues,
    * et la source le signale comme une troncature). Deux montages ne lui

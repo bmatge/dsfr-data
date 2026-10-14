@@ -96,6 +96,18 @@ const ELUS_NOMS_URL =
 const ARR_RESSOURCE = 'e3bd015d-7593-4bc5-a236-8410167e4599';
 const ARR_URL = `https://tabular-api.data.gouv.fr/api/resources/${ARR_RESSOURCE}/data/?page_size=200`;
 
+/**
+ * Tabular — les mêmes élus, relevés par les deux colonnes du lot 2 de
+ * l'ADR-159 (#1285) : « Libellé de la collectivité à statut particulier »,
+ * NULLE hors de Corse (34 328 lignes sur 34 826 au 2026-10-14), et « Libellé de
+ * la catégorie socio-professionnelle », dont aucun libellé ne porte de « _ ».
+ */
+const ELUS_JOKERS_URL =
+  `https://tabular-api.data.gouv.fr/api/resources/${ELUS_RESSOURCE}/data/` +
+  `?Code%20du%20d%C3%A9partement__in=01,02,03` +
+  `&columns=Libell%C3%A9%20de%20la%20collectivit%C3%A9%20%C3%A0%20statut%20particulier,` +
+  `Libell%C3%A9%20de%20la%20cat%C3%A9gorie%20socio-professionnelle&page_size=200`;
+
 /** Le OU entre les deux colonnes, pour l'oracle (Tabular : `ilike`, sans repliement d'accents). */
 const MARTIN_NOM_OU_PRENOM = {
   op: 'or' as const,
@@ -944,6 +956,121 @@ const CHECKS: Check[] = [
         among: 'pU5HXX7VJC6jdgU6oBJRxn/sql',
         contains: '/sql',
         verdict: 'last',
+      },
+    ],
+  },
+
+  {
+    id: 'tabular-elus-jokers-et-absents-vivant',
+    mode: 'live',
+    origin:
+      'data.gouv / Répertoire national des élus — #1285, ADR-159 lot 2, contre la vraie API. Deux écarts mesurés le 2026-10-14. `__notcontains` part en `not.ilike`, qui écarte les valeurs ABSENTES : la colonne « Libellé de la collectivité à statut particulier » est nulle hors de Corse, `__notcontains=zzz` rend 498 élus sur 34 826. Et `__contains` part en `ilike.*valeur*`, où `_` est un joker : `contains:_` retenait tous les élus. Sur les trois départements du relevé : « sans Corse » doit garder tous les élus (le navigateur calcule la clause, l’API n’en rendrait aucun) ; « contient _ », écrit sur la source et confié à l’API ÉCHAPPÉ, n’en garde aucun (aucun libellé ne porte de « _ »). L’oracle relève les lignes brutes et filtre seul.',
+    feed: {
+      kind: 'raw',
+      source: { url: ELUS_JOKERS_URL, rowsPath: 'data', nextPath: 'links.next' },
+    },
+    markup: `
+  <dsfr-data-source id="s-elus-sans" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|02|03"></dsfr-data-source>
+  <dsfr-data-query id="q-elus-sans" source="s-elus-sans"
+    where="Libellé de la collectivité à statut particulier:notcontains:Corse"></dsfr-data-query>
+  <dsfr-data-kpi id="k-elus-sans" source="q-elus-sans" value="count" format="nombre" label="Hors Corse"></dsfr-data-kpi>
+  <dsfr-data-source id="s-elus-joker" api-type="tabular" resource="${ELUS_RESSOURCE}"
+    where="Code du département:in:01|02|03, Libellé de la catégorie socio-professionnelle:contains:_"></dsfr-data-source>
+  <dsfr-data-kpi id="k-elus-joker" source="s-elus-joker" value="count" format="nombre" label="Souligné"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-elus-sans',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                field: 'Libellé de la collectivité à statut particulier',
+                op: 'notcontains',
+                value: 'Corse',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-elus-joker',
+        agg: 'count',
+        pipeline: [
+          {
+            op: 'filter',
+            filters: [
+              {
+                field: 'Libellé de la catégorie socio-professionnelle',
+                op: 'contains',
+                value: '_',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        kind: 'urls',
+        id: 'elus-notcontains-jamais-confie',
+        among: `/api/resources/${ELUS_RESSOURCE}/data/`,
+        contains: '__notcontains',
+        verdict: 'none',
+      },
+      {
+        kind: 'urls',
+        id: 'elus-souligne-echappe',
+        among: `/api/resources/${ELUS_RESSOURCE}/data/`,
+        // Le journal de la page consigne les URL DÉCODÉES
+        contains: 'socio-professionnelle__contains=\\_',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'grist-like-jokers-vivant',
+    mode: 'live',
+    origin:
+      "Grist (grist.numerique.gouv.fr, document public) — #1285, ADR-159 lot 2, contre la vraie API. Le SQL `LIKE` de Grist lit `_` comme un joker (`nom_dept LIKE '%Co_se%'` → 2, mesuré le 2026-10-14), et n'échappe rien sans clause `ESCAPE` (`'%Co\\_se%'` → 0, même pour « Co_se »). Trois clauses écrites sur la source : « Co_se », que plus aucun département ne doit vérifier ; « Corse », que les deux départements corses vérifient, ce qui prouve que `ESCAPE '\\'` ne casse pas une valeur ordinaire ; et « sans Corse », calculé dans le navigateur. Si l'échappement disparaissait, le premier chiffre passerait à 2 ; si la clause `ESCAPE` disparaissait, le deuxième resterait juste mais le premier aussi — c'est le déterministe qui tient ce cas-là.",
+    feed: { kind: 'raw', source: GRIST_SOURCE },
+    markup: `
+  <dsfr-data-source id="s-grist-joker" api-type="grist" base-url="${GRIST_RECORDS}"
+    where="nom_dept:contains:Co_se"></dsfr-data-source>
+  <dsfr-data-kpi id="k-grist-joker" source="s-grist-joker" value="count" format="nombre" label="Co_se"></dsfr-data-kpi>
+  <dsfr-data-source id="s-grist-corse" api-type="grist" base-url="${GRIST_RECORDS}"
+    where="nom_dept:contains:Corse"></dsfr-data-source>
+  <dsfr-data-kpi id="k-grist-corse" source="s-grist-corse" value="count" format="nombre" label="Corse"></dsfr-data-kpi>
+  <dsfr-data-source id="s-grist-sans" api-type="grist" base-url="${GRIST_RECORDS}"
+    where="nom_dept:notcontains:Corse"></dsfr-data-source>
+  <dsfr-data-kpi id="k-grist-sans" source="s-grist-sans" value="count" format="nombre" label="Sans Corse"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-grist-joker',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'nom_dept', op: 'contains', value: 'Co_se' }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-grist-corse',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'nom_dept', op: 'contains', value: 'Corse' }] },
+        ],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-grist-sans',
+        agg: 'count',
+        pipeline: [
+          { op: 'filter', filters: [{ field: 'nom_dept', op: 'notcontains', value: 'Corse' }] },
+        ],
       },
     ],
   },

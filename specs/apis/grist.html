@@ -164,7 +164,7 @@
 {
   "sql": "SELECT \"region\", SUM(\"population\") as \"total\"
           FROM \"Table1\"
-          WHERE \"nom\" LIKE ?
+          WHERE \"nom\" LIKE ? ESCAPE '\\'
           GROUP BY \"region\"
           ORDER BY \"total\" DESC
           LIMIT 20",
@@ -259,7 +259,8 @@
                 <tr><td><code>neq</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>status:neq:archive</code></td></tr>
                 <tr><td><code>gt</code>, <code>gte</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>age:gt:18</code></td></tr>
                 <tr><td><code>lt</code>, <code>lte</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>prix:lt:50</code></td></tr>
-                <tr><td><code>contains</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>nom:contains:Paris</code></td></tr>
+                <tr><td><code>contains</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui — <code>LIKE ? ESCAPE '\'</code>, <code>%</code> <code>_</code> <code>\</code> de la valeur échappés</td><td><code>nom:contains:Paris</code></td></tr>
+                <tr><td><code>notcontains</code></td><td class="capability-no">Non</td><td class="capability-no">Non — calculé dans le navigateur (<code>NOT LIKE</code> écarterait les valeurs absentes)</td><td><code>nom:notcontains:Paris</code></td></tr>
                 <tr><td><code>isnull</code></td><td class="capability-no">Non</td><td class="capability-yes">Oui</td><td><code>email:isnull:</code></td></tr>
               </tbody>
             </table>
