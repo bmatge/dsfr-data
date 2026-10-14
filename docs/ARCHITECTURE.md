@@ -218,11 +218,14 @@ Pour les cas sans transformation (datalist, display), `dsfr-data-query` peut etr
   dialecte ODSQL par défaut (`where-dialect.ts`), `splitFilterForOdsql`, `filterSplit` du Builder,
   `computedInBrowser` du tableau de bord. La comparaison elle-même est écrite une fois,
   `shared/query/text-match.ts` : `filterTextContains` pour le filtre (lu par `applyLocalFilter`,
-  `_matchesField` de `dsfr-data-query`, `contains()` de `compute`, `applyWhereFilter` du Studio) et
+  `_matchesField` de `dsfr-data-query`, `contains()` de `compute`) et
   `matchesSearch` / `normalizeSearchText` / `applySearches` pour la recherche (ex-`core/utils/search-match.ts`,
-  lue par `dsfr-data-search` et la source). Le sort d'une valeur absente reste écrit chez chaque lecteur :
-  le Studio compare `String(null)` (« null ») là où les deux autres disent « ne contient rien » — écart
-  gardé, commenté dans `ia/data-tools.ts`. `tests/text-match-guard.test.ts` refuse toute nouvelle
+  lue par `dsfr-data-search` et la source). Le Studio IA n'a
+  plus de filtre à lui : `applyWhereFilter` (`ia/data-tools.ts`, outils `count_where` et diagnostic) est
+  `applyLocalFilter(data, where, getByPath)`, champs lus par chemin pointé comme `dsfr-data-query` — il
+  annonce le compte que la page générée affichera (contrôles `export-studio/studio-filtre-*`). `getByPath`
+  vit pour cela dans `shared/utils/json-path.ts` (deux barrels), ré-exporté par `core/utils/json-path.ts`.
+  `tests/text-match-guard.test.ts` refuse toute nouvelle
   écriture de `….toLowerCase().includes(` hors du module (exceptions déclarées : interfaces d'apps,
   valeurs d'une facette, recherche intégrée de `dsfr-data-list`).
 - **Une recherche n'est pas un filtre : le contexte la porte, chaque source la traduit (#1285,

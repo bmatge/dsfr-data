@@ -290,6 +290,9 @@ tests/verif-donnees/     LES CONTRÔLES, par domaine
                                `search()` aussi : début de mot, champs nommés, texte seulement)
   fixtures-delegation.ts       les balisages du lot délégation (paires avec / sans server-side)
   fixtures-export-studio.ts    les documents exportés — SEUL fichier autorisé à importer la lib
+                               (le générateur `shared/dashboard/`, et l'outil `count_where` du
+                               Studio, `shared/ia/data-tools.js`, dont le compte ANNONCÉ est
+                               contrôlé contre l'oracle, #1285)
   fixtures-affichages.ts       le faux serveur du domaine `affichages`
   fixtures-canari.ts           le faux serveur du canari — tableau nu, export et /records ODS
                                sur canari.json, canari-ref.json (doublon de clé),
@@ -1003,6 +1006,9 @@ Chaque ligne a été constatée en échec, puis le défaut retiré.
 | export-studio | seule `valueField` est agrégée, les autres mesures désignées par leur nom brut (`generateBuilderChartHTML`, `shared/dashboard/export-html.ts`) | `multi-series-agrege`, `bar-line-agrege`, `multi-series-agrege-serveur` | « série 1, point 0 (est) : graphique —, oracle 1450 » ; « graphique —, oracle 483.333333 » pour la ligne d'un barres + ligne ; « (PARIS) : graphique —, oracle 16776000 » sur Opendatasoft — la seconde série se trace vide, sans erreur (#1081) |
 | export-studio | le `select` d'un tableau Tabular oublie sa première colonne affichée (`datalistColumns`, `shared/dashboard/export-html.ts`) | `tableau-tabular-colonnes-demandees` | « ligne 0 / region : affiché « — », recalculé « Val-d'Oise » », et 0/1 URL porte `columns=region,population` : la colonne n'est plus demandée, la cellule est vide (#1225) |
 | export-studio | la règle « chaque consommateur énumère ses colonnes » retirée de `tabularProjectedSources` (`shared/dashboard/export-html.ts`) | `tableau-tabular-source-partagee-sans-select` | KPI 0 au lieu de 127 684 000, et 1/1 URL porte `columns=` : le `select` calé sur le tableau a retiré `population` des lignes que le KPI partage, sans erreur (#1225) |
+| export-studio | `applyWhereFilter` du Studio rendu à son écriture propre (l'état d'avant #1285 : `String(valeur)`, champ lu par clé, valeur non décodée, pas de OU entre champs — `shared/ia/data-tools.ts`) | les six `studio-filtre-*` | le compte annoncé par `count_where` : 1 au lieu de 0 (valeur nulle, champ absent), 7 au lieu de 8 (`notcontains`), 0 au lieu de 1 (`a%2Cb`), 0 au lieu de 2 (`v\|id`), 0 au lieu de 3 (`lieu.ville`) ; le KPI de la page reste juste (#1285) |
+| export-studio | le Studio lit le champ par clé directe (`applyLocalFilter(data, where)`, sans `getByPath`) | `studio-filtre-chemin-imbrique` | « affiché « 0 », recalculé 3 » : `lieu.ville` cherché comme une clé de la ligne (#1285) |
+| export-studio | `contains` de `dsfr-data-query` ne garde plus l'absent (`value !== null && …` retiré) | `studio-filtre-valeur-nulle`, `studio-filtre-champ-absent` | « KPI affiché 1, recalculé 0 » : la PAGE lit la valeur nulle « null » — le contrôle tient les deux côtés (#1285) |
 | affichages | `map-summary-field` ignoré, retour à `_valueFieldKey()` (`dsfr-data-chart.ts`) | `carte-resume-champ-de-calcul-929` | lib 43,57, oracle 43,07 : le résumé repasse sur la colonne d'affichage arrondie, et le chiffre reste plausible (#929) |
 | affichages | `toNumber` décale chaque nombre d'une unité (`shared/utils/number-parser.ts`) | 28 contrôles du domaine | mutation large : tout ce qui affiche un nombre recalculé tombe |
 | affichages | `formatNumberFr` ignore `decimals` (`shared/utils/formatters.ts`) | `liste-decimales-des-cellules` | « 43,25 » ne vérifie plus `^-?\d+,\d{3}$` |

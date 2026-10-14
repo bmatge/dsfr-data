@@ -11,8 +11,15 @@
  *
  * Rien du CALCUL ne passe par là : l'oracle recalcule toujours depuis les
  * lignes brutes, en tableaux nus, sans rien emprunter à la lib.
+ *
+ * Seconde importation, même raison : `countWhere`, l'outil `count_where` du
+ * Studio IA (`packages/shared/src/ia/data-tools.ts`). Le compte qu'il ANNONCE
+ * au modèle avant de générer est un chiffre comme un autre — le Studio s'en
+ * sert pour décider qu'un filtre « matche » — et c'est sa sortie réelle qu'on
+ * pose dans la page ({@link annonceStudio}), pas une copie de son calcul.
  */
 import { generateDashboardHTML } from '../../packages/shared/src/dashboard/export-html.js';
+import { countWhere } from '../../packages/shared/src/ia/data-tools.js';
 import type {
   DashboardData,
   DashboardSource,
@@ -160,4 +167,24 @@ export function corpsExporte(dashboard: DashboardData): string {
   // Le module DSFR de fin de corps est purement cosmetique et vient d'un CDN :
   // le garder ferait compter une fuite reseau sans rien apporter au controle.
   return corps.replace(/<script[^>]+src="https?:[^"]*"[^>]*><\/script>/g, '');
+}
+
+/**
+ * Ce que l'outil `count_where` du Studio ANNONCE pour un filtre, posé dans la
+ * page pour être lu comme un chiffre affiché : `<p id>` porte le texte entier
+ * de l'outil (attribut `data-annonce`), son `<span class="compte">` le nombre
+ * de lignes retenues.
+ *
+ * Le Studio compte sur les lignes qu'il a chargées ; la page exportée compte
+ * sur les mêmes lignes, par son propre filtre. Les deux chiffres doivent être
+ * celui de l'oracle : un Studio qui annonce « 1 ligne » quand la page en
+ * montre 0 fait générer un graphique vide en croyant l'avoir vérifié.
+ */
+export function annonceStudio(id: string, lignes: Row[], where: string): string {
+  const texte = countWhere(lignes, where);
+  const m = /→ (\d+) \/ \d+ enregistrements/.exec(texte);
+  if (!m) throw new Error(`count_where a changé de forme : ${texte}`);
+  const attr = texte.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  return `
+  <p id="${id}" data-annonce="${attr}"><span class="compte">${m[1]}</span></p>`;
 }

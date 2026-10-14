@@ -86,6 +86,25 @@ describe('data-tools', () => {
       expect(applyWhereFilter(DATA, 'region:contains:bret')).toHaveLength(2);
       expect(applyWhereFilter(DATA, 'code:in:75|13')).toHaveLength(2);
     });
+    // #1285 : le filtre du Studio est celui de la page (applyLocalFilter, champ
+    // lu par chemin pointé). Chiffres de la page : contrôle de donnée
+    // export-studio/studio-filtre-*.
+    it('compte comme la page générée : absents, encodage, OU entre champs, chemin', () => {
+      const rows = [
+        { id: 1, v: 'alpha', lieu: { ville: 'Lyon' } },
+        { id: 2, v: null, lieu: { ville: 'Paris' } },
+        { id: 3, lieu: { ville: 'Lyon' } },
+        { id: 4, v: 'a,b', lieu: null },
+        { id: 5, v: 'b1', lieu: { ville: 'Lille' } },
+      ];
+      expect(applyWhereFilter(rows, 'v:contains:nul')).toHaveLength(0);
+      expect(applyWhereFilter(rows, 'v:contains:undef')).toHaveLength(0);
+      expect(applyWhereFilter(rows, 'v:notcontains:ul')).toHaveLength(5);
+      expect(applyWhereFilter(rows, 'v:contains:a%2Cb')).toHaveLength(1);
+      expect(applyWhereFilter(rows, 'v|id:contains:1')).toHaveLength(2);
+      expect(applyWhereFilter(rows, 'lieu.ville:contains:ly')).toHaveLength(2);
+      expect(applyWhereFilter(rows, 'v:neq:alpha')).toHaveLength(2);
+    });
   });
 
   describe('inspectData', () => {

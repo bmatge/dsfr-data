@@ -66,6 +66,12 @@ tables de correspondance du faux serveur, pas des lignes que l'oracle recalcule.
 | `affichages-ratios.json` | 14 | Texte des cellules de tableau (#1282) : des ratios NON NULS sous le centième (0,00123 ; 0,0000456) qu'un arrondi à deux décimales annonce « 0 », un négatif (« -0 »), les deux côtés du seuil (0,0099 et 0,00999 dessous, 0,0149 dessus), le demi-centième (0,005, qui s'arrondissait à « 0,01 »), un VRAI zéro, une valeur infime (1e-12 : jamais de notation scientifique), un entier, un grand nombre à séparateur de milliers, un négatif ordinaire et une absence (`null`). Aucune valeur ne tombe sur un demi-pas de l'arrondi attendu : les deux oracles n'ont pas à s'accorder sur un cas d'égalité. |
 | `affichages-encarts.json` | 10 | Carte à encarts (BUG-034, #1229) : quatre lieux en métropole, trois à La Réunion, deux en Guadeloupe, un en Guyane, aucun à Mayotte. Chaque lieu est à plus de 30 px du bord de son encart, ou sur un autre continent : l'appartenance à une emprise ne dépend ni d'un pixel ni de la marge des symboles. `type` (quatre « Musée », six « Théâtre ») est le filtre : après lui, un encart doit porter exactement ses entités filtrées — pas les anciennes en plus. Lignes entrelacées. |
 
+## Domaine `export-studio`
+
+| Fichier | Lignes | Taillé pour |
+|---|---|---|
+| `export-studio-filtres.json` | 8 | UN SEUL FILTRE pour le Studio et la page (#1285) : `v` porte une valeur `null` (ligne 2), un champ ABSENT (ligne 3, clé manquante), une chaîne vide, une valeur à virgule (`a,b`, cherchée encodée `a%2Cb`) et un `1` (`b1`) qui, avec l'`id` 1, fait deux lignes au OU `v\|id:contains:1`. Aucune valeur ne contient « nul », « undef » ni « ul » : une absence lue en texte se voit tout de suite. `lieu` est un objet imbriqué (`lieu.ville`, `null` ligne 7) et `ville` sa jumelle plate, même valeur partout : l'oracle ne lit pas de chemin, il filtre `ville`. Contrôles `export-studio/studio-filtre-*`. |
+
 ## Domaine `transformations`
 
 | Fichier | Lignes | Taillé pour |

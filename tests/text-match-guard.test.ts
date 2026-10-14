@@ -8,7 +8,9 @@ import { join, relative } from 'path';
  * `contains` (sous-chaîne, casse ignorée, accents respectés) et la recherche
  * tolérante. Il y en avait trois pour le filtre (`applyLocalFilter`,
  * `_matchesFilter` de `dsfr-data-query`, `applyWhereFilter` du Studio), plus
- * `contains()` de `compute` et la recherche de `dsfr-data-search`.
+ * `contains()` de `compute` et la recherche de `dsfr-data-search`. Le
+ * Studio n'en a plus aucune : `applyWhereFilter` appelle `applyLocalFilter`
+ * (#1285).
  *
  * Recherche statique, commentaires retirés : toute forme
  * `….toLowerCase().includes(` ou `….toLowerCase().indexOf(` hors du module
@@ -165,15 +167,22 @@ describe('une seule écriture de la comparaison de texte (ADR-159, lot 4)', () =
     expect(stale).toEqual([]);
   });
 
-  it('les trois anciennes écritures du filtre appellent le module', () => {
+  it('les anciennes écritures du filtre appellent le module', () => {
     const lecteurs = [
       'packages/shared/src/query/filter-translator.ts',
       'packages/core/src/components/dsfr-data-query.ts',
-      'packages/shared/src/ia/data-tools.ts',
       'packages/shared/src/utils/compute.ts',
     ];
     for (const file of lecteurs) {
       expect(readFileSync(join(ROOT, file), 'utf-8'), file).toMatch(/filterTextContains\(/);
     }
+  });
+
+  it('le Studio filtre par le filtre de la bibliothèque, champs lus par chemin (#1285)', () => {
+    // Plus d'écriture propre du `where` dans les outils du Studio : ses
+    // comptes sont ceux de la page générée.
+    const code = readFileSync(join(ROOT, 'packages/shared/src/ia/data-tools.ts'), 'utf-8');
+    expect(code).toMatch(/applyLocalFilter\(data, where, getByPath\)/);
+    expect(stripComments(code)).not.toMatch(/filterTextContains|case 'contains'/);
   });
 });

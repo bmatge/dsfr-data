@@ -98,6 +98,7 @@ export {
   COMPUTE_MAX_EXPRESSION_LENGTH,
 } from './utils/compute.js';
 export { isUnsafeKey } from './utils/security.js';
+export { getByPath } from './utils/json-path.js';
 // Analyse de schéma (#727) — `debug/summarize.ts` s'en sert déjà pour résumer
 // une charge, et le contrôle de nommage pour dire quels champs existent. Pur,
 // sans DOM ni réseau : lib-safe, contrairement au reste de `ia/` qui pilote
