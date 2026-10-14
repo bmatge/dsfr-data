@@ -23,8 +23,34 @@
  * page 3. » au lieu de garder l'ancienne page sans un mot. Un échec qui n'est
  * PAS un changement de page (rafraîchissement, tri, filtre) ne laisse aucune
  * page affichée : `failedPage` reste `null` et l'hôte rend le message de panne.
+ *
+ * Boutons de BORD (première, précédente, suivante, dernière) : à la première
+ * ou à la dernière page, ils restent focalisables et portent
+ * `aria-disabled="true"` ({@link PaginationController.edgeDisabled}) — jamais
+ * `disabled`, qui retirait le focus au bouton activé au clavier en arrivant
+ * sur la dernière page. Clic et Entrée y sont ignorés
+ * ({@link PaginationController.canGoTo}).
  */
 import { dispatchSourceCommand, requestSourceRetry, type PaginationMeta } from './data-bridge.js';
+import { html } from 'lit';
+
+/**
+ * Apparence INACTIVE d'un bouton de pagination en `aria-disabled` : celle que
+ * le DSFR donne à un bouton `disabled` (texte et icône en
+ * `--text-disabled-grey`, curseur interdit). La feuille DSFR ne lit que
+ * `:disabled` sur un `<button>` — sans cette règle, un bouton de bord inactif
+ * mais focalisable aurait l'air actif. Rendue par chaque hôte à côté de sa
+ * pagination (rendu en light DOM : la règle est bornée aux deux composants).
+ */
+export const paginationEdgeStyles = html`
+  <style>
+    :is(dsfr-data-list, dsfr-data-display)
+      .fr-pagination__link[aria-disabled='true']:not([aria-current]) {
+      color: var(--text-disabled-grey, #929292);
+      cursor: not-allowed;
+    }
+  </style>
+`;
 
 /** Surface minimale attendue du composant hôte */
 export interface PaginationHostLike {
@@ -248,6 +274,28 @@ export class PaginationController {
   resetToFirstPage(): void {
     this.currentPage = 1;
     if (this.host.urlSync) this.syncUrl();
+  }
+
+  /**
+   * La page visée est-elle atteignable depuis la page courante ? Faux pour la
+   * page déjà affichée, sous la page 1, et AU-DELÀ de la dernière page : un
+   * bouton de bord inactif (`aria-disabled`, toujours focalisable) ignore
+   * ainsi le clic et Entrée sans avoir besoin de `disabled`. Reculer reste
+   * permis quand la page courante dépasse le total (`?page=9` restauré par
+   * l'URL avant l'arrivée des données) : « Première page » y ramène.
+   */
+  canGoTo(page: number, totalPages: number): boolean {
+    if (page < 1 || page === this.currentPage) return false;
+    return page <= totalPages || page < this.currentPage;
+  }
+
+  /**
+   * Un bouton de bord est-il inactif ? `start` : première et précédente,
+   * inactives en page 1 ; `end` : suivante et dernière, inactives en dernière
+   * page. L'hôte rend `aria-disabled="true"`, jamais `disabled`.
+   */
+  edgeDisabled(edge: 'start' | 'end', totalPages: number): boolean {
+    return edge === 'start' ? this.currentPage <= 1 : this.currentPage >= totalPages;
   }
 
   /** Écrit la page courante dans l'URL (replaceState) */

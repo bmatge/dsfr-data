@@ -27,12 +27,16 @@ async function serveur(page: Page) {
     const url = new URL(route.request().url());
     const p = Number(url.searchParams.get('page') ?? 1);
     const taille = Number(url.searchParams.get('page_size') ?? 3);
-    if (p > 1) await new Promise<void>((suite) => enAttente.push(suite));
+    // Les sources des boutons de bord (`/bords…`) sont servies tout de suite,
+    // sur 7 lignes : trois pages, la dernière incomplète.
+    const bords = url.pathname.includes('/bords');
+    const lignes = bords ? COMMUNES.slice(0, 7) : COMMUNES;
+    if (p > 1 && !bords) await new Promise<void>((suite) => enAttente.push(suite));
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
-        data: COMMUNES.slice((p - 1) * taille, p * taille),
-        meta: { page: p, page_size: taille, total: COMMUNES.length },
+        data: lignes.slice((p - 1) * taille, p * taille),
+        meta: { page: p, page_size: taille, total: lignes.length },
       }),
     });
   });
@@ -126,6 +130,110 @@ for (const [nom, viewport] of [
         await expect(bloc.locator(ligne).first()).toContainText('Commune 07');
         expect(await focusSurSuivante(page, id)).toBe(true);
         if (urlSync) expect(new URL(page.url()).searchParams.get('p')).toBe('3');
+      });
+    }
+  });
+}
+
+/**
+ * Boutons de BORD (première, précédente, suivante, dernière) : à la première
+ * et à la dernière page, ils restent focalisables, portent
+ * `aria-disabled="true"`, prennent l'apparence inactive du DSFR et ignorent
+ * clic et Entrée. Avant : `disabled` — arrivé sur la dernière page par
+ * « Page suivante », le bouton se désactivait sous le focus, et le focus
+ * clavier retombait sur le corps de la page.
+ *
+ * Mesuré en navigateur : le focus réel (`document.activeElement`), et la
+ * couleur calculée par la feuille DSFR, que happy-dom n'applique pas.
+ */
+const focusSur = (page: Page, id: string, classe: string) =>
+  page.evaluate(([i, c]) => document.activeElement === document.querySelector(`#${i} .${c}`), [
+    id,
+    classe,
+  ] as const);
+
+const couleur = (page: Page, id: string, classe: string) =>
+  page.evaluate(([i, c]) => getComputedStyle(document.querySelector(`#${i} .${c}`)!).color, [
+    id,
+    classe,
+  ] as const);
+
+for (const [nom, viewport] of [
+  ['bureau 1280 px', BUREAU],
+  ['téléphone 375 px', TELEPHONE],
+] as const) {
+  test.describe(`pagination, boutons de bord — ${nom}`, () => {
+    for (const [id, ligne, tag, mode] of [
+      ['liste-client', 'tbody tr td:first-child', 'dsfr-data-list', 'cliente'],
+      ['fiches-client', '.fiche', 'dsfr-data-display', 'cliente'],
+      ['liste-serveur', 'tbody tr td:first-child', 'dsfr-data-list', 'serveur'],
+      ['fiches-serveur', '.fiche', 'dsfr-data-display', 'serveur'],
+    ] as const) {
+      test(`${tag}, pagination ${mode} : Entrée jusqu'au bord, le focus reste sur le bouton`, async ({
+        page,
+      }) => {
+        await serveur(page);
+        await page.setViewportSize(viewport);
+        await page.goto('/e2e/pagination-serveur-chargement.html');
+        const bloc = page.locator(`#${id}`);
+        await expect(bloc.locator(ligne).first()).toContainText('Commune 01');
+
+        const premiere = bloc.locator('.fr-pagination__link--first');
+        const precedente = bloc.locator('.fr-pagination__link--prev');
+        const suivante = bloc.locator('.fr-pagination__link--next');
+        const derniere = bloc.locator('.fr-pagination__link--last');
+        const actif = await couleur(page, id, 'fr-pagination__link--next');
+
+        // Page 1 : les boutons de début sont inactifs, mais là — jamais `disabled`
+        for (const bouton of [premiere, precedente]) {
+          await expect(bouton).toHaveAttribute('aria-disabled', 'true');
+          await expect(bouton).not.toHaveAttribute('disabled', /.*/);
+        }
+        const inactif = await couleur(page, id, 'fr-pagination__link--prev');
+        expect(inactif).not.toBe(actif);
+
+        // Clavier seul : Entrée répétée sur « Page suivante » jusqu'à la dernière page
+        await suivante.scrollIntoViewIfNeeded();
+        await suivante.focus();
+        await page.keyboard.press('Enter');
+        await expect(bloc.locator(ligne).first()).toContainText('Commune 04');
+        expect(await focusSur(page, id, 'fr-pagination__link--next')).toBe(true);
+        await page.keyboard.press('Enter');
+        await expect(bloc.locator(ligne).first()).toContainText('Commune 07');
+        await expect(bloc.locator('[aria-current="page"]')).toHaveText('3');
+
+        // Dernière page : le bouton n'a pas lâché le focus, il se dit inactif
+        expect(await focusSur(page, id, 'fr-pagination__link--next')).toBe(true);
+        for (const bouton of [suivante, derniere]) {
+          await expect(bouton).toHaveAttribute('aria-disabled', 'true');
+          await expect(bouton).not.toHaveAttribute('disabled', /.*/);
+        }
+        expect(await couleur(page, id, 'fr-pagination__link--next')).toBe(inactif);
+        for (const bouton of [premiere, precedente]) {
+          await expect(bouton).not.toHaveAttribute('aria-disabled', /.*/);
+        }
+
+        // Entrée et clic de plus ignorés : on reste sur la page 3, focus compris
+        // (`force` : Playwright tient un `aria-disabled` pour non cliquable et
+        // attendrait ; c'est justement le clic d'un usager qu'on veut voir ignoré.)
+        await page.keyboard.press('Enter');
+        await derniere.click({ force: true });
+        await expect(bloc.locator('[aria-current="page"]')).toHaveText('3');
+        await expect(bloc.locator(ligne).first()).toContainText('Commune 07');
+        await suivante.focus();
+        expect(await focusSur(page, id, 'fr-pagination__link--next')).toBe(true);
+
+        // Retour par « Page précédente » jusqu'à la première page
+        await precedente.focus();
+        await page.keyboard.press('Enter');
+        await expect(bloc.locator(ligne).first()).toContainText('Commune 04');
+        await page.keyboard.press('Enter');
+        await expect(bloc.locator(ligne).first()).toContainText('Commune 01');
+        expect(await focusSur(page, id, 'fr-pagination__link--prev')).toBe(true);
+        await expect(precedente).toHaveAttribute('aria-disabled', 'true');
+        await page.keyboard.press('Enter');
+        await expect(bloc.locator('[aria-current="page"]')).toHaveText('1');
+        expect(await focusSur(page, id, 'fr-pagination__link--prev')).toBe(true);
       });
     }
   });

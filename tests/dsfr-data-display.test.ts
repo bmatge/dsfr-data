@@ -557,6 +557,7 @@ describe('DsfrDataDisplay', () => {
     it('preserves other URL params', () => {
       window.history.replaceState(null, '', '?region=IDF&page=2');
       urlDisplay.connectedCallback();
+      urlDisplay.onSourceData(Array.from({ length: 50 }, (_, i) => ({ id: i })));
       (urlDisplay as any)._handlePageChange(5);
       const params = new URLSearchParams(window.location.search);
       expect(params.get('region')).toBe('IDF');

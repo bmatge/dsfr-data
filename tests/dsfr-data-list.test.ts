@@ -613,6 +613,10 @@ describe('DsfrDataList component', () => {
     });
 
     it('_handlePageChange updates page', () => {
+      // Une page AU-DELÀ du total est ignorée (bouton de bord inactif) : il
+      // faut des données pour qu'une page 3 existe.
+      (datalist as any).pagination = 10;
+      datalist.onSourceData(Array.from({ length: 50 }, (_, i) => ({ id: i })));
       (datalist as any)._handlePageChange(3);
       expect((datalist as any)._currentPage).toBe(3);
     });
@@ -664,6 +668,7 @@ describe('DsfrDataList component', () => {
     it('preserves other URL params', () => {
       window.history.replaceState(null, '', '?region=IDF&page=2');
       urlDatalist.connectedCallback();
+      urlDatalist.onSourceData(Array.from({ length: 50 }, (_, i) => ({ id: i })));
       (urlDatalist as any)._handlePageChange(5);
       const params = new URLSearchParams(window.location.search);
       expect(params.get('region')).toBe('IDF');

@@ -80,7 +80,11 @@ name: E2E layout
 # mesure : la pagination ne descend pas d'un pixel, le bouton « Page suivante »
 # garde le focus clavier (Entree, puis Entree de nouveau), le compte reste et la
 # region live annonce la page, `url-sync` ecrit la page demandee. Liste et
-# fiches, 1280 et 375 px. Donnees servies par `page.route`.
+# fiches, 1280 et 375 px. Donnees servies par `page.route`. Le meme spec tient
+# les boutons de BORD : Entree repetee sur « Page suivante » jusqu'a la derniere
+# page (et « Page precedente » jusqu'a la premiere), le focus reste sur le
+# bouton, `aria-disabled="true"` et jamais `disabled`, couleur inactive du DSFR
+# calculee par la vraie feuille. Pagination cliente et serveur.
 
 on:
   pull_request:

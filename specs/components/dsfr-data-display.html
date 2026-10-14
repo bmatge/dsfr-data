@@ -303,6 +303,13 @@
             la pagination serveur. Chaque changement de page declenche un nouvel appel API au lieu de paginer en local.
             Le nombre total de pages est calcule depuis les metadonnees de l'API (<code>meta.total</code>).
           </p>
+          <p>
+            <strong>Boutons de bord.</strong> À la première et à la dernière page, « Première page »,
+            « Page précédente », « Page suivante » et « Dernière page » restent atteignables au clavier :
+            ils portent <code>aria-disabled="true"</code> (jamais <code>disabled</code>), prennent
+            l'apparence inactive du DSFR et ignorent clic et Entrée. Arrivé sur la dernière page par
+            « Page suivante », le focus reste sur le bouton. Vaut en pagination cliente comme serveur.
+          </p>
 
           <div class="code-block">
             <pre>&lt;dsfr-data-source id="elus"

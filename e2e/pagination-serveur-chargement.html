@@ -34,6 +34,31 @@
         <template><p class="fiche">{{nom}} — {{population}}</p></template>
       </dsfr-data-display>
     </section>
+    <!-- Boutons de bord : aria-disabled, focus gardé à la dernière et à la
+         première page. Pagination CLIENTE (7 lignes, 3 par page). -->
+    <dsfr-data-source id="locales" data='[
+      {"nom": "Commune 01", "population": 1000},
+      {"nom": "Commune 02", "population": 2000},
+      {"nom": "Commune 03", "population": 3000},
+      {"nom": "Commune 04", "population": 4000},
+      {"nom": "Commune 05", "population": 5000},
+      {"nom": "Commune 06", "population": 6000},
+      {"nom": "Commune 07", "population": 7000}
+    ]'></dsfr-data-source>
+    <dsfr-data-source id="bords" url="/e2e/pagination-serveur/bords" paginate page-size="3"></dsfr-data-source>
+    <dsfr-data-source id="bords-fiches" url="/e2e/pagination-serveur/bords-fiches" paginate page-size="3"></dsfr-data-source>
+
+    <section id="s-bords">
+      <h2 class="fr-h5">Boutons de bord</h2>
+      <dsfr-data-list id="liste-client" source="locales" colonnes="nom:Commune,population:Population" pagination="3"></dsfr-data-list>
+      <dsfr-data-display id="fiches-client" source="locales" cols="3" pagination="3">
+        <template><p class="fiche">{{nom}} — {{population}}</p></template>
+      </dsfr-data-display>
+      <dsfr-data-list id="liste-serveur" source="bords" colonnes="nom:Commune,population:Population"></dsfr-data-list>
+      <dsfr-data-display id="fiches-serveur" source="bords-fiches" cols="3">
+        <template><p class="fiche">{{nom}} — {{population}}</p></template>
+      </dsfr-data-display>
+    </section>
   </main>
 </body>
 </html>

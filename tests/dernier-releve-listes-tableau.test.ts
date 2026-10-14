@@ -118,7 +118,9 @@ describe('#1288 B — dsfr-data-list : les lignes restent, sous la mention', () 
     (el.querySelector('.fr-pagination__link--prev') as HTMLButtonElement).click();
     await el.updateComplete;
     expect(lignes(el)).toBe(2);
-    expect(el.querySelector('.fr-pagination__link--prev')!.hasAttribute('aria-disabled')).toBe(
+    // Pagination locale : rien n'est neutralisé par le relevé. En page 1, seul
+    // le bord de début est inactif — « Page suivante » reste active.
+    expect(el.querySelector('.fr-pagination__link--next')!.hasAttribute('aria-disabled')).toBe(
       false
     );
   });
