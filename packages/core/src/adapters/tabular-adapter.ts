@@ -24,7 +24,7 @@ import {
   canServerExpress,
 } from '@dsfr-data/shared/lib';
 import { getByPath } from '../utils/json-path.js';
-import { parseAggregates } from '../utils/aggregates.js';
+import { aggregateAlias, parseAggregates } from '../utils/aggregates.js';
 import {
   buildColonFacetWhere,
   unescapeColonValue,
@@ -471,15 +471,52 @@ export class TabularAdapter implements ApiAdapter {
     }
 
     // Agrégations — l'API Tabular nomme la colonne retournee `field__func`,
-    // ce qui correspond a la convention d'alias unique du pipeline (#269).
-    // Les alias personnalises (3e segment) ne sont pas supportes server-side.
+    // l'alias par defaut du pipeline (#269). Elle n'a pas d'alias : un alias
+    // personnalise (3e segment) est pose sur les lignes recues, par
+    // `_applyAggregateAliases` (#1320). Un meme agregat sous deux alias ne
+    // part qu'une fois.
     if (params.aggregate) {
       for (const agg of parseAggregates(params.aggregate)) {
-        flags.push(`${encodeURIComponent(agg.field)}__${encodeURIComponent(agg.function)}`);
+        const flag = `${encodeURIComponent(agg.field)}__${encodeURIComponent(agg.function)}`;
+        if (!flags.includes(flag)) flags.push(flag);
       }
     }
 
     return flags;
+  }
+
+  /**
+   * Pose les alias personnalises sur des groupes rendus par l'API (#1320).
+   *
+   * L'API Tabular n'a pas d'alias : elle nomme toujours la colonne d'agregat
+   * `champ__fonction` (mesure du 2026-10-15, ressource 90e0d717…,
+   * `EPCI__groupby&NB_VP__sum` → `{ EPCI, NB_VP__sum }` ; idem `__count`,
+   * `__avg`, `__min`, `__max`). Avec `montant:sum:total`, la colonne `total`
+   * attendue en aval n'existait pas, et l'affichage rendait « — » au lieu de
+   * la somme ; `montant:sum` (alias par defaut `montant__sum`) etait juste.
+   *
+   * La colonne est renommee comme le ferait le calcul client : l'alias la
+   * remplace, la colonne `champ__fonction` n'est gardee que si un agregat
+   * sans alias la demande aussi. Sans alias personnalise, les lignes sont
+   * rendues telles quelles.
+   */
+  private _applyAggregateAliases(params: AdapterParams, rows: unknown[]): unknown[] {
+    const aggregates = parseAggregates(params.aggregate || '');
+    const renames = aggregates
+      .map((a) => ({ from: aggregateAlias(a.field, a.function), to: a.alias }))
+      .filter((r) => r.from !== r.to);
+    if (renames.length === 0) return rows;
+    const kept = new Set(
+      aggregates.map((a) => a.alias).filter((alias) => renames.some((r) => r.from === alias))
+    );
+    return rows.map((row) => {
+      if (!row || typeof row !== 'object') return row;
+      const source = row as Record<string, unknown>;
+      const out: Record<string, unknown> = { ...source };
+      for (const { from } of renames) if (!kept.has(from)) delete out[from];
+      for (const { from, to } of renames) if (from in source) out[to] = source[from];
+      return out;
+    });
   }
 
   /**
@@ -998,7 +1035,8 @@ export class TabularAdapter implements ApiAdapter {
     }
 
     return {
-      data: allResults,
+      // Groupes de l'API : alias personnalises poses ici (#1320)
+      data: serverHandled ? this._applyAggregateAliases(params, allResults) : allResults,
       totalCount: totalCount >= 0 ? totalCount : allResults.length,
       needsClientProcessing: !serverHandled,
       ...(cappedWithMore ? { truncated: true } : {}),
@@ -1574,7 +1612,9 @@ export class TabularAdapter implements ApiAdapter {
     if (unstableSort) this._warnUnstableServerSort(overlay.orderBy, 'page');
 
     const json = await response.json();
-    const data = json.data || [];
+    const rows: unknown[] = json.data || [];
+    // Groupes de l'API : alias personnalises poses ici (#1320)
+    const data = serverHandled ? this._applyAggregateAliases(params, rows) : rows;
     // Total ABSENT = total INCONNU (contrat #270), jamais 0 (#1025) : une
     // reponse agregee ne porte pas de `meta.total` (`{page, page_size}`
     // seulement, `links.next` pagine les groupes). Lu comme 0, il masquait la
