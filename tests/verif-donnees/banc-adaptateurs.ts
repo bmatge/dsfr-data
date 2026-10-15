@@ -1138,6 +1138,42 @@ const CHECKS: Check[] = [
   },
 
   {
+    id: 'grist-ordre-forme-sql-vivant',
+    mode: 'live',
+    origin:
+      "Grist (grist.numerique.gouv.fr, document public) — #1321, contre la vraie API. Une comparaison d'ordre part désormais en `(champ != '' AND champ < ?)` : une case Text vide (`''`, que SQLite range avant tout texte) en est écartée, comme dans le navigateur (mesuré le 2026-10-15 sur une colonne dérivée vide sur 13 lignes : `c < 'B'` → 21, la forme → 8, le navigateur 8). Ce document n'a pas de case vide : le contrôle garde que la forme parenthésée est lue par le vrai Grist et rend les lignes de l'oracle, sur un texte (`nom_dept < B`) et un nombre (`nb_sieges >= 7`). Le sort de la chaîne vide est tenu par le déterministe.",
+    feed: { kind: 'raw', source: GRIST_SOURCE },
+    markup: `
+  <dsfr-data-source id="s-grist-lt" api-type="grist" base-url="${GRIST_RECORDS}"
+    where="nom_dept:lt:B"></dsfr-data-source>
+  <dsfr-data-kpi id="k-grist-lt" source="s-grist-lt" value="count" format="nombre" label="Avant B"></dsfr-data-kpi>
+  <dsfr-data-source id="s-grist-gte" api-type="grist" base-url="${GRIST_RECORDS}"
+    where="nb_sieges:gte:7"></dsfr-data-source>
+  <dsfr-data-kpi id="k-grist-gte" source="s-grist-gte" value="count" format="nombre" label="7 sièges et plus"></dsfr-data-kpi>`,
+    expects: [
+      {
+        kind: 'kpi',
+        id: 'k-grist-lt',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'nom_dept', op: 'lt', value: 'B' }] }],
+      },
+      {
+        kind: 'kpi',
+        id: 'k-grist-gte',
+        agg: 'count',
+        pipeline: [{ op: 'filter', filters: [{ field: 'nb_sieges', op: 'gte', value: 7 }] }],
+      },
+      {
+        kind: 'urls',
+        id: 'grist-ordre-par-sql-vivant',
+        among: 'pU5HXX7VJC6jdgU6oBJRxn',
+        contains: '/sql',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
     id: 'grist-like-jokers-vivant',
     mode: 'live',
     origin:

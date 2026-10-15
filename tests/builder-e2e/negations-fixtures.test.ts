@@ -87,6 +87,18 @@ describe('faux Grist — logique SQL à trois valeurs', () => {
   it('une comparaison d’ordre écarte les absents', () => {
     expect(lire('"n" < ?', [1])).toEqual([6]);
   });
+
+  // #1321 — mesuré le 2026-10-15 : `c < 'B'` → 21 lignes dont les 13 vides ;
+  // `(c != '' AND c < 'B')` → 8, le navigateur 8.
+  it("la chaîne vide est rangée avant tout texte ; `!= ''` l’écarte", () => {
+    expect(lire('"c" < ?', ['D'])).toEqual([1, 2, 6]);
+    expect(lire('("c" != \'\' AND "c" < ?)', ['D'])).toEqual([1, 2]);
+    expect(lire('"c" >= ?', [''])).toEqual([1, 2, 3, 6]);
+    expect(lire('("c" != \'\' AND "c" >= ?)', [''])).toEqual([1, 2, 3]);
+    // Un nombre n'est jamais égal à `''` : sans effet sur une colonne Numeric
+    expect(lire('("n" != \'\' AND "n" < ?)', [2])).toEqual([2, 6]);
+    expect(lire('"c" = \'\'', [])).toEqual([6]);
+  });
 });
 
 describe('faux Opendatasoft — les deux négations d’ODSQL', () => {

@@ -231,6 +231,10 @@ function entreParentheses(texte: string): boolean {
  * `(c IS NULL OR c NOT IN ('zzz'))` → 101. Le faux Grist gardait les absents
  * sous `!=` et `NOT IN`, et les rangeait avant tout nombre sous `<` : il aurait
  * fait passer pour juste une négation qui ne l'était pas.
+ *
+ * CHAÎNE VIDE (#1321) : une case Text vide vaut `''`, une VALEUR pour SQLite,
+ * rangée avant tout texte — `c < 'B'` la retient (mesuré le 2026-10-15 : 21
+ * lignes dont les 13 vides). Le faux Grist la range ainsi (`comparer`).
  */
 function predicat(clause: string, args: unknown[], curseur: { rang: number }): Predicat | null {
   const texte = clause.trim();
@@ -241,7 +245,21 @@ function predicat(clause: string, args: unknown[], curseur: { rang: number }): P
     if (membres.some((m) => m === null)) return null;
     return (l) => membres.some((m) => (m as Predicat)(l));
   }
+  // `(a AND b)` dans une parenthèse : la forme des comparaisons d'ordre (#1321)
+  const et = decouperHorsParentheses(texte, ' AND ');
+  if (et.length > 1) {
+    const membres = et.map((m) => predicat(m, args, curseur));
+    if (membres.some((m) => m === null)) return null;
+    return (l) => membres.every((m) => (m as Predicat)(l));
+  }
   const absent = (v: unknown) => v === null || v === undefined;
+  // Littéral chaîne vide (#1321) : `c != ''`. Logique à trois valeurs (un
+  // absent ne vérifie rien) ; un nombre n'est jamais égal à `''` en SQLite.
+  const vide = new RegExp(`^${IDENT} (=|!=) ''$`).exec(texte);
+  if (vide) {
+    const champ = nu(vide[1]);
+    return (l) => !absent(l[champ]) && (l[champ] === '') === (vide[2] === '=');
+  }
   const nul = new RegExp(`^${IDENT} IS (NOT )?NULL$`).exec(texte);
   if (nul) {
     const champ = nu(nul[1]);
