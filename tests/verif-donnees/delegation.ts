@@ -3736,6 +3736,119 @@ const NEGATIONS_ABSENTS: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// L'alias personnalisé d'un regroupement délégué (#1320)
+// ---------------------------------------------------------------------------
+
+/**
+ * L'API Tabular n'a pas d'alias d'agrégat : elle nomme toujours la colonne
+ * `champ__fonction` (mesuré le 2026-10-15, ressource 90e0d717…,
+ * `EPCI__groupby&NB_VP__sum` → `{ EPCI, NB_VP__sum }`). Opendatasoft et Grist
+ * portent l'alias dans la requête (`sum(montant) as total`). Un même
+ * regroupement, alias personnalisés, lu sur les trois serveurs : la colonne
+ * `total` doit porter la somme, et la liste l'afficher.
+ */
+const AGREGAT_ALIAS = 'montant:sum:total, rang:count:lignes';
+
+const regroupeeAlias = (
+  source: (id: string, attrs?: string) => string,
+  suffixe: string
+): string => `
+  ${source(`s-${suffixe}`)}
+  <dsfr-data-query id="q-${suffixe}" source="s-${suffixe}" group-by="groupe"
+    aggregate="${AGREGAT_ALIAS}"></dsfr-data-query>
+  <dsfr-data-list id="l-${suffixe}" source="q-${suffixe}"
+    columns="groupe:Groupe, total:Total, lignes:Lignes"></dsfr-data-list>`;
+
+const PAR_GROUPE_ALIAS: Step[] = [
+  {
+    op: 'group-by',
+    by: 'groupe',
+    columns: {
+      total: { agg: 'sum', field: 'montant' },
+      lignes: { agg: 'count', field: 'rang' },
+    },
+  },
+];
+
+const listeAlias = (id: string): Expect => ({
+  kind: 'list',
+  id,
+  columns: [
+    { column: 'groupe' },
+    { column: 'total', numeric: true },
+    { column: 'lignes', numeric: true },
+  ],
+  pipeline: PAR_GROUPE_ALIAS,
+});
+
+const parGroupeAlias = (suffixe: string): Expect[] => [
+  {
+    kind: 'rows',
+    id: `q-${suffixe}`,
+    key: 'groupe',
+    columns: ['total', 'lignes'],
+    pipeline: PAR_GROUPE_ALIAS,
+  },
+  listeAlias(`l-${suffixe}`),
+];
+
+const ALIAS_DELEGUE: Check[] = [
+  {
+    id: 'alias-regroupement-delegue-tabular',
+    mode: 'deterministic',
+    origin:
+      '#1320, vu par l’agent de #1312 — sur Tabular, un regroupement délégué avec alias personnalisé (`montant:sum:total`) affichait « — » au lieu de la somme ; sans alias (`montant:sum`, alias par défaut `montant__sum`) le chiffre était juste. L’API n’a pas d’alias : elle rend toujours `montant__sum` (mesuré le 2026-10-15 sur la ressource 90e0d717…, `EPCI__groupby&NB_VP__sum` → `NB_VP__sum`), et la colonne `total` attendue en aval n’existait pas. L’adaptateur pose désormais l’alias sur les groupes reçus, en chargement complet (query) comme en pagination serveur (regroupement porté par la source).',
+    feed: { kind: 'fixture', datasets: { main: NEGATIONS } },
+    markup:
+      regroupeeAlias(sourceTabularNegations, 'tab-alias') +
+      `
+  ${sourceTabularNegations('s-tab-alias-page', `group-by="groupe" aggregate="${AGREGAT_ALIAS}" server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-list id="l-tab-alias-page" source="s-tab-alias-page"
+    columns="groupe:Groupe, total:Total, lignes:Lignes"></dsfr-data-list>`,
+    expects: [
+      ...parGroupeAlias('tab-alias'),
+      listeAlias('l-tab-alias-page'),
+      {
+        kind: 'urls',
+        id: 'alias-tabular-somme-deleguee',
+        among: DATA_NEGATIONS,
+        contains: 'montant__sum',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'alias-regroupement-delegue-ods-grist',
+    mode: 'deterministic',
+    origin:
+      '#1320, les autres serveurs qui reçoivent un regroupement : Opendatasoft (`sum(montant) as total` dans le `select`) et Grist (`SUM(montant) as total` dans la requête SQL) portent l’alias de l’auteur eux-mêmes. Le même regroupement aliasé y rend la somme et le comptage par groupe — le défaut de Tabular ne s’y retrouve pas, et ce contrôle le garde.',
+    feed: { kind: 'fixture', datasets: { main: NEGATIONS } },
+    markup:
+      regroupeeAlias(sourceOdsNegations, 'ods-alias') +
+      regroupeeAlias(sourceGristNegations, 'gri-alias'),
+    expects: [
+      ...parGroupeAlias('ods-alias'),
+      ...parGroupeAlias('gri-alias'),
+      {
+        kind: 'urls',
+        id: 'alias-ods-group-by',
+        among: `/datasets/${DATASET_NEGATIONS}/records`,
+        contains: 'group_by=',
+        verdict: 'some',
+      },
+      {
+        kind: 'urls',
+        id: 'alias-grist-par-sql',
+        among: 'docExAequo',
+        contains: '/sql',
+        verdict: 'some',
+      },
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -3761,5 +3874,6 @@ export const DELEGATION: Manifest = {
     ...RECHERCHE_PAR_LE_CONTEXTE,
     ...JOKERS_SQL,
     ...NEGATIONS_ABSENTS,
+    ...ALIAS_DELEGUE,
   ],
 };
