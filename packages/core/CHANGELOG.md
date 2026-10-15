@@ -1,5 +1,13 @@
 # dsfr-data
 
+## 0.51.3
+
+### Patch Changes
+
+- [#1323](https://github.com/bmatge/dsfr-data/pull/1323) [`35b7498`](https://github.com/bmatge/dsfr-data/commit/35b74988f92b46d5fb370df6c697d61259271bb5) Thanks [@bmatge](https://github.com/bmatge)! - Grist : une comparaison d'ordre (`gt`, `gte`, `lt`, `lte`) confiée au serveur rend enfin les lignes du navigateur sur une colonne Text à cases vides ([#1321](https://github.com/bmatge/dsfr-data/issues/1321)). Une case vide y vaut `''`, que SQLite range avant tout texte : `champ:lt:B` la retenait (21 lignes au lieu de 8, mesuré sur grist.numerique.gouv.fr), alors que le navigateur écarte une valeur vide de toute comparaison. La clause part désormais en `(champ != '' AND champ < ?)`, mesurée identique au navigateur ; elle reste confiée à Grist, `server-side` et regroupement compris. Colonnes Numeric (vide = `null`) et Ref (vide = `0`) : inchangées, elles rendaient déjà le même chiffre.
+
+- [#1322](https://github.com/bmatge/dsfr-data/pull/1322) [`71ecad8`](https://github.com/bmatge/dsfr-data/commit/71ecad8271ac63fc6f8bd3b8cd3c311f015bfb37) Thanks [@bmatge](https://github.com/bmatge)! - Tabular : un regroupement délégué au serveur avec alias personnalisé (`aggregate="montant:sum:total"`) affiche de nouveau la valeur au lieu de « — ». L'API Tabular ne sait pas porter d'alias et nomme toujours la colonne `champ__fonction` ; l'adaptateur pose désormais l'alias de l'auteur sur les groupes reçus, en chargement complet comme en pagination serveur ([#1320](https://github.com/bmatge/dsfr-data/issues/1320)). Opendatasoft et Grist, qui portent l'alias dans leur requête, n'avaient pas le défaut : un contrôle de donnée le garde.
+
 ## 0.51.2
 
 ### Patch Changes
