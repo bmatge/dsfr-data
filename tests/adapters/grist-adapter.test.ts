@@ -238,8 +238,31 @@ describe('GristAdapter — SQL mode utilities', () => {
 
     it('converts gt with numeric value', () => {
       const args: (string | number)[] = [];
-      expect(adapter._colonWhereToSql('age:gt:18', args)).toBe('"age" > ?');
+      expect(adapter._colonWhereToSql('age:gt:18', args)).toBe('("age" != \'\' AND "age" > ?)');
       expect(args).toEqual([18]);
+    });
+
+    // #1321 — une case Text vide vaut `''` dans Grist ; SQLite la range avant
+    // tout texte, le navigateur l'écarte de toute comparaison d'ordre.
+    it.each([
+      ['lt', '<'],
+      ['lte', '<='],
+      ['gt', '>'],
+      ['gte', '>='],
+    ])("%s écarte la chaîne vide (`!= ''`), comme le navigateur", (op, sym) => {
+      const args: (string | number)[] = [];
+      expect(adapter._colonWhereToSql(`nom:${op}:B`, args)).toBe(
+        `("nom" != '' AND "nom" ${sym} ?)`
+      );
+      expect(args).toEqual(['B']);
+    });
+
+    it('comparaison d’ordre sur plusieurs champs : une parenthèse par champ', () => {
+      const args: (string | number)[] = [];
+      expect(adapter._colonWhereToSql('a|b:lt:B', args)).toBe(
+        `(("a" != '' AND "a" < ?) OR ("b" != '' AND "b" < ?))`
+      );
+      expect(args).toEqual(['B', 'B']);
     });
 
     it('converts gte', () => {
@@ -325,7 +348,7 @@ describe('GristAdapter — SQL mode utilities', () => {
     it('joins multiple clauses with AND', () => {
       const args: (string | number)[] = [];
       const result = adapter._colonWhereToSql('region:eq:IDF, age:gt:18', args);
-      expect(result).toBe('"region" = ? AND "age" > ?');
+      expect(result).toBe('"region" = ? AND ("age" != \'\' AND "age" > ?)');
       expect(args).toEqual(['IDF', 18]);
     });
 

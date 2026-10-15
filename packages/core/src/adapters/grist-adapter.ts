@@ -101,6 +101,14 @@ export interface GristTable {
   id: string;
 }
 
+/** Operateur SQL de chaque comparaison d'ordre du dialecte colon (#1321). */
+const SQL_ORDRE: Record<'gt' | 'gte' | 'lt' | 'lte', string> = {
+  gt: '>',
+  gte: '>=',
+  lt: '<',
+  lte: '<=',
+};
+
 // ---------------------------------------------------------------------------
 // GristAdapter
 // ---------------------------------------------------------------------------
@@ -810,20 +818,20 @@ export class GristAdapter implements ApiAdapter {
         sub.push(`${col} != ?`);
         args.push(value);
         break;
+      // Comparaisons d'ordre (#1321) : une case Text vide vaut `''` dans Grist,
+      // et SQLite range `''` avant tout texte — `c < 'B'` la retient, alors que
+      // le navigateur ecarte une valeur vide de toute comparaison
+      // (`compareForRange`). `c != ''` l'ecarte cote serveur aussi. Sans effet
+      // sur une colonne Numeric (vide = `null`, deja ecarte ; un nombre n'est
+      // jamais egal a `''`) ni Ref (vide = `0`, un nombre des deux cotes).
+      // Mesure du 2026-10-15 sur grist.numerique.gouv.fr (101 lignes, colonne
+      // derivee nulle sur 12 et vide sur 13) : `c < 'B'` → 21, la forme → 8,
+      // le navigateur 8 ; `c >= ''` → 89, la forme → 76, le navigateur 76.
       case 'gt':
-        sub.push(`${col} > ?`);
-        args.push(this._toNumberOrString(value));
-        break;
       case 'gte':
-        sub.push(`${col} >= ?`);
-        args.push(this._toNumberOrString(value));
-        break;
       case 'lt':
-        sub.push(`${col} < ?`);
-        args.push(this._toNumberOrString(value));
-        break;
       case 'lte':
-        sub.push(`${col} <= ?`);
+        sub.push(`(${col} != '' AND ${col} ${SQL_ORDRE[op]} ?)`);
         args.push(this._toNumberOrString(value));
         break;
       // Sous-chaine (#1285, ADR-159) : `%`, `_` et `\` de la valeur sont

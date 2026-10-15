@@ -253,7 +253,7 @@ describe('GristAdapter — pagination serveur (#1279)', () => {
       const r = await adapter.fetchAll(makeParams(avance), signal());
       expect(r.data).toHaveLength(90);
       expect(r.totalCount).toBe(90);
-      expect(recu[0].sql).toBe('SELECT * FROM "Lignes" WHERE "nombre" >= ?');
+      expect(recu[0].sql).toBe('SELECT * FROM "Lignes" WHERE ("nombre" != \'\' AND "nombre" >= ?)');
     });
 
     it("l'ancienne forme de réponse (lignes en tableaux, `columns`) reste lue", () => {

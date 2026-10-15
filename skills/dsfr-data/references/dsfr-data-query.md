@@ -136,7 +136,8 @@ source ou `server-facets` voisin deviennent une ERREUR DE CONFIGURATION.
 | `notcontains` (`champ:notcontains:aliment`) | navigateur | navigateur : `NOT ILIKE` écarte les valeurs absentes | navigateur : `NOT LIKE` écarte les valeurs absentes |
 | `neq` (`champ:neq:archive`) | serveur : `!=` écarte les valeurs absentes, comme le navigateur | serveur : `__differs` et `__isnotnull` (`__differs` seul garde les valeurs absentes) | serveur : `!=` écarte les valeurs absentes, comme le navigateur |
 | `notin` (`champ:notin:archive`) | serveur : `NOT … in (…)` garde les valeurs absentes, comme le navigateur | navigateur : `not.in` écarte les valeurs absentes | serveur : `(champ IS NULL OR champ NOT IN (…))` garde les valeurs absentes |
-| `eq` `gt` `gte` `lt` `lte` `in` `isnull` `isnotnull` | serveur | serveur | serveur |
+| `gt` `gte` `lt` `lte` | serveur | serveur | serveur : `(champ != '' AND champ < ?)` écarte une case Text vide, que SQLite range avant tout texte (#1321) |
+| `eq` `in` `isnull` `isnotnull` | serveur | serveur | serveur |
 | casse, clause confiée | sans objet | ignorée | ignorée pour les lettres ASCII seulement (`É` n'est pas `é`) |
 | accents, clause confiée | sans objet | respectés | respectés |
 | recherche de `dsfr-data-search` en mode `context` | serveur : `search(champ, "q")`, début de mot, casse et accents ignorés | serveur : `champ:contains:q`, sous-chaîne, accents respectés ; terme à étoile : navigateur | serveur : `champ:contains:q`, sous-chaîne, casse ASCII ignorée, accents respectés |

@@ -94,6 +94,14 @@ export function tabularCanExpress(clause: string): boolean {
  * grist.numerique.gouv.fr (`Scrutin_c1`, 101 lignes, colonne dérivée nulle
  * sur 12 et vide sur 13) : `c != 'zzz'` → 89, `c NOT IN ('zzz')` → 89,
  * `(c IS NULL OR c NOT IN ('zzz'))` → 101.
+ *
+ * Les comparaisons d'ordre partent en `(champ != '' AND champ < ?)` (#1321) :
+ * une case Text vide vaut `''`, que SQLite range avant tout texte, et que le
+ * navigateur écarte de toute comparaison. Mesuré le 2026-10-15 sur la même
+ * colonne dérivée : `c < 'B'` → 21 (dont les 13 vides), la forme → 8, le
+ * navigateur 8 ; `c >= ''` → 89, la forme → 76. Numeric (vide = `null`) et
+ * Ref (vide = `0`) rendaient déjà le chiffre du navigateur, sous les deux
+ * formes.
  */
 export function gristCanExpress(clause: string): boolean {
   return opAndValue(clause).op !== 'notcontains';

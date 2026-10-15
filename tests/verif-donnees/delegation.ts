@@ -3527,6 +3527,13 @@ const STATUT_NEQ_CLOS: Step[] = [
 const STATUT_NOTIN: Step[] = [
   { op: 'filter', filters: [{ field: 'statut', op: 'notin', values: ['clos', 'archive'] }] },
 ];
+/** Comparaisons d'ordre sur un texte à case vide (#1321). */
+const STATUT_LT_B: Step[] = [
+  { op: 'filter', filters: [{ field: 'statut', op: 'lt', value: 'b' }] },
+];
+const STATUT_LTE_CLOS: Step[] = [
+  { op: 'filter', filters: [{ field: 'statut', op: 'lte', value: 'clos' }] },
+];
 const STATUT_OU_REGION_NEQ_IDF: Step[] = [
   {
     op: 'filter',
@@ -3675,6 +3682,30 @@ const NEGATIONS_ABSENTS: Check[] = [
       {
         kind: 'urls',
         id: 'grist-negations-par-sql',
+        among: 'docExAequo',
+        contains: '/sql',
+        verdict: 'some',
+      },
+    ],
+  },
+
+  {
+    id: 'ordre-grist-ecarte-le-texte-vide',
+    mode: 'deterministic',
+    origin:
+      "#1321 — une comparaison d'ordre partait à Grist en `c < ?` nu. Une case Text vide y vaut `''`, que SQLite range avant tout texte : elle vérifie `lt` et `lte`, alors que le navigateur écarte une valeur vide de toute comparaison (`compareForRange`). Mesuré le 2026-10-15 sur grist.numerique.gouv.fr (101 lignes, colonne dérivée nulle sur 12 et vide sur 13) : `c < 'B'` → 21 lignes dont les 13 vides, le navigateur 8 ; `(c != '' AND c < 'B')` → 8. La clause part désormais sous cette forme, regroupement compris. Ici « statut < b » : 5 lignes (somme 210), 6 avec la ligne vide (somme 320) ; « statut ≤ clos » : 8 lignes, 9 avec elle. Lus sur un regroupement délégué et sur le `where` de la source, que rien ne refiltre.",
+    feed: { kind: 'fixture', datasets: { main: NEGATIONS } },
+    markup:
+      regroupeeNegations(sourceGristNegations, 'gri-lt', 'statut:lt:b') +
+      surLaSourceNegations(sourceGristNegations, 'gri-lt-propre', 'statut:lt:b') +
+      surLaSourceNegations(sourceGristNegations, 'gri-lte-propre', 'statut:lte:clos'),
+    expects: [
+      parGroupe('gri-lt', STATUT_LT_B),
+      ...surLaSource('gri-lt-propre', STATUT_LT_B),
+      ...surLaSource('gri-lte-propre', STATUT_LTE_CLOS),
+      {
+        kind: 'urls',
+        id: 'grist-ordre-par-sql',
         among: 'docExAequo',
         contains: '/sql',
         verdict: 'some',
