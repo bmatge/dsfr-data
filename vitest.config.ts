@@ -21,6 +21,13 @@ export default defineConfig({
     environmentOptions: {
       happyDOM: {
         url: 'http://localhost/',
+        settings: {
+          // happy-dom 21 n'ouvre plus les iframes par defaut : `about:blank`
+          // leve NotSupportedError et `contentDocument.body` vaut null. Les
+          // tests de debug/ branchent le volet sur le document d'une iframe.
+          // `disableIframePageLoading` est deprecie en 21 au profit de celui-ci.
+          enableIframePageLoading: true,
+        },
       },
     },
     globals: true,
