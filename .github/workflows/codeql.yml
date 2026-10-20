@@ -8,6 +8,9 @@ on:
   schedule:
     # Hebdomadaire — lundi 06:00 UTC (les CVE arrivent aussi après le build)
     - cron: '0 6 * * 1'
+  # Relance à la demande : indispensable pour rafraîchir les alertes du miroir
+  # mef-snum-miweb sans attendre un push sur main ni le cron hebdomadaire.
+  workflow_dispatch:
 
 jobs:
   analyze:
