@@ -563,7 +563,10 @@ describe('code généré : données intégrées', () => {
       'unit-tooltip': '%',
     });
     // Le compagnon accessible lit la même source.
-    expect(c).toContain('<dsfr-data-a11y for="chart" source="chart-data" table download>');
+    expect(c).toContain(
+      '<dsfr-data-a11y for="chart" source="chart-data" label-field="region" ' +
+        'value-field="value:budget" table download>'
+    );
   });
 
   it('barres : unité, bornes, seuil, couleur, catégorie vide', () => {
