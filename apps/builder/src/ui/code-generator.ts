@@ -6,6 +6,7 @@
 
 import {
   escapeHtml,
+  escapeColonValue,
   singleQuoteAttr,
   appendQuery,
   jsonAttr,
@@ -166,10 +167,15 @@ function cadreActionsComment(): string {
   return '<!-- Actions du cadre : chaque entrée ajoutée au menu porte un attribut data-action (son libellé en minuscules, sans accents, mots joints par des tirets). Elle n’a pas de comportement : un script de la page doit écouter son clic. -->';
 }
 
-/** Generate optional dsfr-data-a11y element for accessible data companion */
-function generateA11yElement(sourceId: string, chartId: string): string {
+/**
+ * Generate optional dsfr-data-a11y element for accessible data companion.
+ * `fields` nomme ses colonnes quand le compagnon suit un graphique (#1336) ;
+ * vide, le tableau lit toutes les colonnes des lignes reçues.
+ */
+function generateA11yElement(sourceId: string, chartId: string, fields = ''): string {
   if (!state.a11yEnabled) return '';
   const attrs: string[] = [`for="${chartId}"`, `source="${sourceId}"`];
+  if (fields) attrs.push(fields.trim());
   if (state.a11yTable) attrs.push('table');
   if (state.a11yDownload) attrs.push('download');
   if (state.a11yDescription) attrs.push(`description="${escapeHtml(state.a11yDescription)}"`);
@@ -177,10 +183,11 @@ function generateA11yElement(sourceId: string, chartId: string): string {
 }
 
 /** Generate a11y block for embedded code (inline data via dsfr-data-source) */
-function generateEmbeddedA11y(chartId: string): string {
+function generateEmbeddedA11y(chartId: string, fields = ''): string {
   if (!state.a11yEnabled) return '';
   const dataJson = jsonAttr(state.data);
   const attrs: string[] = [`for="${chartId}"`, `source="a11y-data"`];
+  if (fields) attrs.push(fields.trim());
   if (state.a11yTable) attrs.push('table');
   if (state.a11yDownload) attrs.push('download');
   if (state.a11yDescription) attrs.push(`description="${escapeHtml(state.a11yDescription)}"`);
@@ -317,6 +324,63 @@ function aliased(path: string, label: string): string {
 }
 
 /**
+ * `colonne` ou `colonne:Libellé` pour `label-field` / `value-field` du
+ * tableau accessible, chaque partie échappée : un `:` ou une `,` dans un nom
+ * de colonne ou de série est la PONCTUATION de la grammaire, pas du texte
+ * (`escapeColonValue`, décodé par `parseAliasedColumn` après découpage).
+ */
+function a11yColumn(path: string, label: string): string {
+  const key = escapeColonValue(path);
+  const l = label.trim();
+  if (!l || l === path) return key;
+  return `${key}:${escapeColonValue(l)}`;
+}
+
+/**
+ * Colonnes du tableau accessible d'un GRAPHIQUE : les mêmes que celles
+ * tracées, sous les libellés que porte déjà la légende (#1336).
+ *
+ * Sans ces attributs, `dsfr-data-a11y` retombe sur les clés brutes des lignes
+ * reçues, dans leur ordre d'apparition : le tableau annonçait « value »,
+ * « region », « value2 » là où la légende dit « Budget voté » et « Taux
+ * d'exécution », et la colonne de libellé n'était même pas la première —
+ * c'est elle, et elle seule, que vise `empty-label`. Même geste que le
+ * tableau du cadre officiel, qui a reçu l'alias en #1179.
+ *
+ * Les colonnes de valeur sont nommées dans l'ordre des séries
+ * (`seriesNames()`, celui de `name` sur le graphique). Un type qui ne trace
+ * qu'une série n'en reçoit qu'une : les colonnes suivantes n'existent pas.
+ */
+function a11yChartFields(labelField: string, valueFields: string[], seriesField: string): string {
+  const attrs: string[] = [];
+  if (labelField) {
+    // Une carte regroupe par son champ géographique : le libellé du
+    // formulaire nomme les étiquettes de l'axe, pas ce code — pas d'alias.
+    const label = labelField === state.labelField ? state.labelFieldLabel : '';
+    attrs.push(`label-field="${escapeHtml(a11yColumn(labelField, label))}"`);
+  }
+  const names = seriesNames();
+  const values = valueFields.filter(Boolean).map((f, i) => a11yColumn(f, names[i] ?? ''));
+  if (values.length > 0) attrs.push(`value-field="${escapeHtml(values.join(','))}"`);
+  // Format long (#930) : le tableau pivote comme le graphique sépare ses séries.
+  if (seriesField) attrs.push(`series-field="${escapeHtml(seriesField)}"`);
+  return attrs.length > 0 ? ` ${attrs.join(' ')}` : '';
+}
+
+/**
+ * Colonnes du tableau accessible pour les chemins à DONNÉES INTÉGRÉES d'un
+ * graphique : les lignes agrégées portent toujours `value`, `value2`… et le
+ * champ d'étiquettes (`generateChartFromLocalData`, et les mêmes alias côté
+ * requête d'API). Les tableaux de données (`dsfr-data-list`) n'en passent
+ * pas : leurs lignes sont brutes, toutes leurs colonnes se lisent.
+ */
+function a11yEmbeddedChartFields(): string {
+  const labelField = isMapType(state.chartType) ? state.codeField : state.labelField;
+  const extras = tracedExtraSeries(state).map((_, i) => `value${i + 2}`);
+  return a11yChartFields(labelField, ['value', ...extras], activeSeriesField(state));
+}
+
+/**
  * Regroupement d'une requête en format long (#1204) : le champ de séries
  * s'ajoute au regroupement, sauf s'il y figure déjà (requête avancée).
  */
@@ -381,6 +445,18 @@ interface VisualSpec {
 }
 
 /**
+ * Colonnes de valeur d'un graphique de la bibliothèque, dans l'ordre des
+ * séries : la mesure, puis les mesures supplémentaires (`value-fields`) ou la
+ * seconde seule (`value-field-2` d'un barres + ligne). Le tableau accessible
+ * en nomme les en-têtes (#1336).
+ */
+function a11yValueFields(v: VisualSpec): string[] {
+  const extras =
+    v.extraValueFields.length > 0 ? v.extraValueFields : v.valueField2 ? [v.valueField2] : [];
+  return [v.valueField, ...extras];
+}
+
+/**
  * Le composant d'affichage et son compagnon accessible, pour tout code qui
  * passe par la bibliothèque : chargement dynamique (Grist, API) et données
  * intégrées des formes de #1204. Un seul endroit décide de la balise
@@ -397,7 +473,11 @@ function visualElement(v: VisualSpec): string {
     value-field="${v.valueField}"
     max-items="${podiumPlaces()}"
     selected-palette="${effectivePalette()}">
-  </dsfr-data-podium>${generateA11yElement(v.source, 'chart')}`;
+  </dsfr-data-podium>${generateA11yElement(
+    v.source,
+    'chart',
+    a11yChartFields(v.labelField, [v.valueField], '')
+  )}`;
   }
 
   let extraFieldsAttr = '';
@@ -435,7 +515,7 @@ function visualElement(v: VisualSpec): string {
     value-field="${valueFieldAttr(v.valueField)}"${extraFieldsAttr}
     ${nameAttr}
     selected-palette="${effectivePalette()}"${lectureAttrsHtml()}${generateDataboxAttrs(v.dateField)}>
-  </dsfr-data-chart>${generateA11yElement(v.source, 'chart')}`;
+  </dsfr-data-chart>${generateA11yElement(v.source, 'chart', a11yChartFields(v.labelField, a11yValueFields(v), v.seriesField))}`;
 }
 
 /** Nombre de places du podium : entier entre 1 et 20, sinon le défaut de la bibliothèque. */
@@ -1491,7 +1571,7 @@ datalist.onSourceData(data);
     selected-palette="${state.palette}">
   </scatter-chart>`,
     'chart'
-  )}${generateEmbeddedA11y('chart')}
+  )}${generateEmbeddedA11y('chart', a11yEmbeddedChartFields())}
 </div>${dsfrDeferredScript('scatter-chart')}`;
     displayGeneratedCode(code);
     return;
@@ -1547,7 +1627,7 @@ datalist.onSourceData(data);
     selected-palette="${mapPalette}"
   ></map-chart>`,
     'chart'
-  )}${generateEmbeddedA11y('chart')}
+  )}${generateEmbeddedA11y('chart', a11yEmbeddedChartFields())}
 </div>${dsfrDeferredScript('map-chart')}`;
     displayGeneratedCode(mapCode);
     return;
@@ -1605,7 +1685,7 @@ datalist.onSourceData(data);
     selected-palette="${effectivePalette()}"${extraStr}>
   </${dsfrTag}>`,
     'chart'
-  )}${generateEmbeddedA11y('chart')}
+  )}${generateEmbeddedA11y('chart', a11yEmbeddedChartFields())}
 </div>${dsfrDeferredScript(dsfrTag)}`;
 
   displayGeneratedCode(code);
@@ -2844,7 +2924,7 @@ loadTable();
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
-  <div id="scatter-container"></div>${generateEmbeddedA11y('scatter-container')}
+  <div id="scatter-container"></div>${generateEmbeddedA11y('scatter-container', a11yEmbeddedChartFields())}
 </div>
 
 <script type="module">
@@ -2892,7 +2972,7 @@ loadChart();
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
-  <div id="map-container"></div>${generateEmbeddedA11y('map-container')}
+  <div id="map-container"></div>${generateEmbeddedA11y('map-container', a11yEmbeddedChartFields())}
 </div>
 
 <script type="module">
@@ -2991,7 +3071,7 @@ loadMap();
 <div class="fr-container fr-my-4w">
   <h2>${escapeHtml(state.title)}</h2>
   ${state.subtitle ? `<p class="fr-text--sm fr-text--light">${escapeHtml(state.subtitle)}</p>` : ''}
-  <div id="chart-container"></div>${generateEmbeddedA11y('chart-container')}
+  <div id="chart-container"></div>${generateEmbeddedA11y('chart-container', a11yEmbeddedChartFields())}
 </div>
 
 <script type="module">

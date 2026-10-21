@@ -239,7 +239,10 @@ describe('podium : code généré', () => {
 
   it('compagnon accessible : il lit la même source que le podium', () => {
     generateChartFromLocalData();
-    expect(code()).toContain('<dsfr-data-a11y for="chart" source="chart-data" table download>');
+    expect(code()).toContain(
+      '<dsfr-data-a11y for="chart" source="chart-data" label-field="region" ' +
+        'value-field="value:budget" table download>'
+    );
     state.a11yEnabled = false;
     generateChartFromLocalData();
     expect(code()).not.toContain('<dsfr-data-a11y');
