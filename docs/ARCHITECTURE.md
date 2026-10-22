@@ -1300,7 +1300,8 @@ Les fichiers de redirection (`favoris.html`, `builder.html`, etc.) assurent la r
 
 La cible desktop Tauri a ete retiree le 2026-07-31 (issue #403, ADR-070). Le savoir-faire
 complet (configuration, workflow de release, pieges, procedure de restauration) est capsule
-dans l'ADR-095 du vault ; le dernier etat fonctionnel du code est au tag `v0.16.0`
+dans la note `30-Knowledge/dsfr-data-tauri-capsule-de-restauration.md` du vault (ex-ADR-095,
+reclassee en note de connaissance le 2026-10-22) ; le dernier etat fonctionnel du code est au tag `v0.16.0`
 (`src-tauri/`, `.github/workflows/release.yml`). Les binaires historiques restent sur les
 releases GitHub `v0.4.1` a `v0.16.0`.
 
@@ -1747,7 +1748,21 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
 
 ## 13. Liens
 
-- ADR transverses : `~/Documents/Obsidian/30-Knowledge/ADR/` (ADR-026 import.meta.env, ADR-031 dsfr-data-context, ADR-036 proxy injectable, ADR-053 carte d'architecture).
+- **ADR** : elles vivent dans le vault, `~/Documents/Obsidian/30-Knowledge/ADR/` (ADR-053) ; la liste complete est
+  dans la fiche projet (section « ADRs liees »), la revue de coherence du 2026-10-22 dans
+  `30-Knowledge/dsfr-data-revue-adr-2026-10-22.md`. Les sept lignes de force a connaitre avant de toucher au code :
+  1. **Un chiffre ne depend de rien d'invisible** — ADR-139 (le client s'aligne sur le portail), ADR-158 (une ligne
+     perimee ne revient pas), ADR-159 (structure identique ou calcul local), ADR-122 (tout chiffre a un oracle).
+  2. **Etendre, jamais dupliquer ; un seul bus** — ADR-104 (facets, search, carte dans le contexte), ADR-105 (pas de
+     `dsfr-data-compute`), ADR-112 (`per-row` / `span`), ADR-135 (`display` feuille, `repeat` structure).
+  3. **La donnee fournit un nom, jamais une capacite** — ADR-138 (`picto-base`), ADR-143 (`montrer(id)` a enum ferme),
+     ADR-145 (bloc libre valide par le manifeste), ADR-031 (valeurs d'URL repassant par le chemin UI).
+  4. **Souverainete par defaut, injection au runtime** — ADR-036 (aucun domaine dans le bundle), ADR-155 (`relay-url`),
+     ADR-026 (`import.meta.env` direct), ADR-030 (knobs de deploiement), ADR-061 (OIDC opt-in), ADR-164 (export ODS opt-in).
+  5. **Genere depuis le code, jamais ecrit a la main** — ADR-107 (specs), ADR-143 §4 (reperes), ADR-137 (catalogue du
+     playground), ADR-136 (skill markdown servie par `skills.json`).
+  6. **Ids conserves, validation empirique** — ADR-096, ADR-101, ADR-108 (mesure avant decision).
+  7. **Web-first, poste de bureau** — ADR-070 (plus de desktop), ADR-108 (apps de creation hors mobile).
 - Feature vault (cross-repo) : `~/Documents/Obsidian/30-Knowledge/Features/proxy-cors-3-dimensions.md`.
 - Fiche projet : `~/Documents/Obsidian/10-Projects/dsfr-data.md`.
 - Déploiement / self-hosting : `docs/DEPLOYMENT.md`.
