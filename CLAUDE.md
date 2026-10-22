@@ -210,7 +210,7 @@ git tag "v$(node -p \"require('./package.json').version\")"
 git push && git push --tags
 ```
 
-**Publication npm** : au merge de la PR changesets (`changeset-release.yml`, `release-publish`), qui pousse aussi le tag `v*` (historique/pins ; ne déclenche plus rien — cible desktop Tauri retirée, ADR-070/ADR-095, #403). Les sous-repos de distribution (`dsfr-data-grist/proxy/mcp`) sont **archivés depuis 2026-04** — plus de publication séparée ; seul le miroir `mef-snum-miweb/dsfr-data` est synchronisé.
+**Publication npm** : au merge de la PR changesets (`changeset-release.yml`, `release-publish`), qui pousse aussi le tag `v*` (historique/pins ; ne déclenche plus rien — cible desktop Tauri retirée, ADR-070 et capsule de restauration du vault, #403). Les sous-repos de distribution (`dsfr-data-grist/proxy/mcp`) sont **archivés depuis 2026-04** — plus de publication séparée ; seul le miroir `mef-snum-miweb/dsfr-data` est synchronisé.
 
 **CI** : un warning est emis sur les PRs si `packages/core/src/` ou `packages/shared/` sont modifies sans changeset.
 
