@@ -53,6 +53,7 @@ export function getBuilderStateToSave(): Record<string, unknown> {
     sortField: state.sortField,
     title: state.title,
     subtitle: state.subtitle,
+    chartId: state.chartId,
     palette: state.palette,
     color2: state.color2,
     fields: state.fields,

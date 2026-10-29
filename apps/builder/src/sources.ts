@@ -36,7 +36,14 @@ import {
   messageEtatRefuse,
   MESSAGE_ORIGINE_INCONNUE,
 } from './etat-depose.js';
-import { state, normalizeExtraSeries, type ChartType, type Source, type Field } from './state.js';
+import {
+  state,
+  normalizeExtraSeries,
+  type ChartType,
+  type Source,
+  type Field,
+  ensureChartId,
+} from './state.js';
 import { selectChartType } from './ui/chart-type-selector.js';
 import { populateFieldSelects } from './sources-fields.js';
 import {
@@ -616,6 +623,12 @@ export async function loadFavoriteState(): Promise<void> {
     // leurs libellés. Un ancien favori n'a que `valueField2`, que
     // `restoreExtraSeriesFromState` migre en une série sans libellé.
     state.extraSeries = normalizeExtraSeries(favoriteState.extraSeries);
+    // Identifiant du graphique (#1352) : un favori d'avant ce lot n'en porte
+    // pas, il en reçoit un nouveau ; un favori récent rouvre les mêmes id.
+    if (typeof favoriteState.chartId !== 'string') state.chartId = '';
+    ensureChartId();
+    const chartIdInput = document.getElementById('chart-id') as HTMLInputElement | null;
+    if (chartIdInput) chartIdInput.value = state.chartId;
 
     // Restore source dropdown selection
     if (state.savedSource) {

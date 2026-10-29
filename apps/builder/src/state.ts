@@ -275,6 +275,14 @@ export interface BuilderState extends LectureSettings, CadreSettings {
   sortField: string;
   title: string;
   subtitle: string;
+  /**
+   * Identifiant du graphique (#1352) : suffixe accolé à chaque id du code
+   * généré et à chaque référence (`chart--a7f3`, `chart-src--a7f3`…), pour
+   * que deux extraits du Builder cohabitent sur une page sans retouche.
+   * Vide = pas encore attribué ; l'interface l'attribue au chargement
+   * (`ensureChartId`) et le garde dans les favoris.
+   */
+  chartId: string;
   palette: string;
   color2: string;
   data: DataRecord[];
@@ -427,6 +435,7 @@ export const state: BuilderState = {
   sortField: '',
   title: 'Mon graphique',
   subtitle: '',
+  chartId: '',
   palette: 'default',
   color2: '#E1000F',
   data: [],
@@ -471,3 +480,24 @@ export const state: BuilderState = {
   ...lectureDefaults(),
   ...cadreDefaults(),
 };
+
+/** Forme acceptée pour l'identifiant du graphique (#1352) : un id HTML sobre. */
+export const CHART_ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,40}$/;
+
+/**
+ * Nouvel identifiant court, une lettre puis trois caractères en base 36
+ * (`a7f3`). Assez distinct pour les quelques graphiques d'une page, assez
+ * court pour rester lisible dans le code.
+ */
+export function nouvelIdentifiant(): string {
+  const lettres = 'abcdefghijklmnopqrstuvwxyz';
+  const alphabet = lettres + '0123456789';
+  const tire = (jeu: string) => jeu[Math.floor(Math.random() * jeu.length)];
+  return tire(lettres) + tire(alphabet) + tire(alphabet) + tire(alphabet);
+}
+
+/** Attribue un identifiant si l'état n'en porte pas (ou en porte un invalide). */
+export function ensureChartId(): string {
+  if (!CHART_ID_PATTERN.test(state.chartId)) state.chartId = nouvelIdentifiant();
+  return state.chartId;
+}

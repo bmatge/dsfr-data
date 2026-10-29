@@ -465,6 +465,18 @@
           </div>
         </div>
 
+        <!-- Identifiant du graphique (#1352) : suffixe de tous les id du code généré,
+             pour poser plusieurs extraits sur une même page. Prérempli par ensureChartId(). -->
+        <div class="fr-input-group fr-input-group--sm fr-mt-1w">
+          <label class="fr-label" for="chart-id">
+            Identifiant
+            <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-chart-id" data-help="chart-id"><i class="ri-question-line" aria-hidden="true"></i></button>
+            <span class="fr-hint-text">Accolé à chaque id du code (<code>chart--<span id="chart-id-exemple">a7f3</span></code>) : plusieurs graphiques sur une même page sans retouche.</span>
+          </label>
+          <input class="fr-input" type="text" id="chart-id" data-repere="builder.apparence.identifiant" value="" placeholder="Ex : budget-2025" autocomplete="off" spellcheck="false" pattern="[A-Za-z][A-Za-z0-9_-]{0,40}">
+          <p class="fr-error-text" id="chart-id-erreur" hidden>Une lettre, puis lettres, chiffres, tirets ou soulignés (41 caractères au plus).</p>
+        </div>
+
         <!-- Unité des infobulles (#1218) : selon le type, voir ui/lecture.ts -->
         <div class="config-grid-2col fr-mt-1w" id="unit-config">
           <div class="fr-input-group fr-input-group--sm">
