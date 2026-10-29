@@ -42,7 +42,7 @@ export type KpiFormat = 'nombre' | 'pourcentage' | 'euro' | 'texte';
 
 export type ChartWidgetType = 'bar' | 'line' | 'pie' | 'radar';
 
-export type ChartPalette = 'categorical' | 'sequentialAscending' | 'divergent';
+export type ChartPalette = 'categorical' | 'sequentialAscending' | 'divergentAscending';
 
 /** Graphique configure a la main dans le dashboard. */
 export interface ManualChartWidgetConfig {
@@ -462,7 +462,11 @@ export function normalizeWidget(raw: unknown): Widget | null {
           type: oneOf(cfg.type ?? cfg.chartType, CHART_TYPES, 'bar'),
           labelField: str('labelField'),
           valueField: str('valueField'),
-          palette: oneOf(cfg.palette, CHART_PALETTES, 'categorical'),
+          palette: oneOf(
+            LEGACY_CHART_PALETTES[String(cfg.palette)] ?? cfg.palette,
+            CHART_PALETTES,
+            'categorical'
+          ),
           sourceId: optStr('sourceId'),
         },
       };
@@ -624,8 +628,17 @@ export const CHART_TYPES: readonly ChartWidgetType[] = ['bar', 'line', 'pie', 'r
 export const CHART_PALETTES: readonly ChartPalette[] = [
   'categorical',
   'sequentialAscending',
-  'divergent',
+  'divergentAscending',
 ];
+
+/**
+ * Anciens noms de palette acceptes a la lecture. `divergent` n'a jamais existe
+ * dans DSFR Chart : emis tel quel, il retombait sur categorical. Les
+ * dashboards enregistres avec le gardent ; on le lit comme la palette voulue.
+ */
+const LEGACY_CHART_PALETTES: Record<string, ChartPalette> = {
+  divergent: 'divergentAscending',
+};
 export const TEXT_STYLES: readonly TextStyle[] = ['paragraph', 'title', 'callout'];
 export const FILTER_OPERATORS: readonly FilterOperator[] = ['eq', 'in'];
 

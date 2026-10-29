@@ -57,7 +57,7 @@ Cliquez sur l'icône ⚙️ dans Grist pour configurer :
 
 **Options communes** :
 - **Type de visualisation** : choisir parmi les 10 types disponibles
-- **Palette de couleurs** : Bleu France, catégorique, séquentielle, divergente, neutre
+- **Palette de couleurs** : couleur unique, catégorielle, séquentielle, divergente, neutre
 - **Unité (tooltip)** : ex: EUR, %, habitants
 
 **Options pour graphiques** (bar, line uniquement) :

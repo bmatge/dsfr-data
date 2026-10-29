@@ -254,13 +254,13 @@ const expectedSum = 23300;
 
 | Palette | Usage recommandé |
 |---------|------------------|
-| `default` | Bleu France (par défaut) |
-| `categorical` | Graphiques avec plusieurs catégories distinctes |
+| `default` | Une seule couleur (#5C68E5) |
+| `categorical` | Plusieurs séries (une couleur par série) ; camembert |
 | `sequentialAscending` | Cartes choroplèthes (valeurs croissantes) |
 | `sequentialDescending` | Cartes choroplèthes (valeurs décroissantes) |
-| `divergentAscending` | Données avec point central (ex: -100 à +100) |
+| `divergentAscending` | Quatre tons vert → rouge, une couleur par série |
 | `divergentDescending` | Idem, ordre inversé |
-| `neutral` | Tons neutres |
+| `neutral` | Un seul gris, base de `highlight-index` |
 
 **Test manuel** :
 1. Pour chaque palette :

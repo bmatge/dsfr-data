@@ -1038,7 +1038,7 @@
                 "text": "string"
               },
               "default": "'categorical'",
-              "description": "Palette de couleurs",
+              "description": "Palette de couleurs, appliquée par DSFR Chart : `categorical` (une couleur\npar série, une par part sur un camembert), `default` (une seule couleur),\n`sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),\n`divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une\ncouleur par série), `neutral` (un gris, base de `highlight-index`). Pour\nfixer la couleur d'une série : `color-map`.",
               "attribute": "selected-palette"
             },
             {
@@ -1108,7 +1108,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Index des éléments à mettre en avant (ex: \"[0, 2]\")",
+              "description": "Index des barres à mettre en avant (ex: `\"[0, 2]\"`, type `bar`). N'agit\nqu'avec `selected-palette=\"neutral\"` : les barres citées en bleu, les\nautres en gris. Sans effet avec toute autre palette (DSFR Chart 2.1.1).",
               "attribute": "highlight-index"
             },
             {
@@ -2853,7 +2853,7 @@
                 "text": "string"
               },
               "default": "'categorical'",
-              "description": "Palette de couleurs",
+              "description": "Palette de couleurs, appliquée par DSFR Chart : `categorical` (une couleur\npar série, une par part sur un camembert), `default` (une seule couleur),\n`sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),\n`divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une\ncouleur par série), `neutral` (un gris, base de `highlight-index`). Pour\nfixer la couleur d'une série : `color-map`.",
               "fieldName": "selectedPalette"
             },
             {
@@ -2916,7 +2916,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Index des éléments à mettre en avant (ex: \"[0, 2]\")",
+              "description": "Index des barres à mettre en avant (ex: `\"[0, 2]\"`, type `bar`). N'agit\nqu'avec `selected-palette=\"neutral\"` : les barres citées en bleu, les\nautres en gris. Sans effet avec toute autre palette (DSFR Chart 2.1.1).",
               "fieldName": "highlightIndex"
             },
             {

@@ -133,7 +133,7 @@ function getConfigForm(widget: Widget): string {
           <select id="config-palette" data-repere="dashboard.widget.graphique.palette" data-prerequis="widget-graphique" data-attribut="dsfr-data-chart:selected-palette">
             <option value="categorical" ${widget.config.palette === 'categorical' ? 'selected' : ''}>Catégorielle</option>
             <option value="sequentialAscending" ${widget.config.palette === 'sequentialAscending' ? 'selected' : ''}>Séquentielle</option>
-            <option value="divergent" ${widget.config.palette === 'divergent' ? 'selected' : ''}>Divergente</option>
+            <option value="divergentAscending" ${widget.config.palette === 'divergentAscending' ? 'selected' : ''}>Vert → rouge (une couleur par série)</option>
           </select>
         </div>
         </div>

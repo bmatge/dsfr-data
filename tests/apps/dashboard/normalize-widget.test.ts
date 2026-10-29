@@ -56,6 +56,7 @@ describe('normalizeWidget (#521)', () => {
           chartType: 'line',
           labelField: 'annee',
           valueField: 'budget',
+          // Ancien nom, inconnu de DSFR Chart : lu comme divergentAscending
           palette: 'divergent',
         },
       });
@@ -65,7 +66,7 @@ describe('normalizeWidget (#521)', () => {
         type: 'line',
         labelField: 'annee',
         valueField: 'budget',
-        palette: 'divergent',
+        palette: 'divergentAscending',
       });
     });
 

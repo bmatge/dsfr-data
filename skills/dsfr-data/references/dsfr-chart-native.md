@@ -25,7 +25,7 @@ name='["Série A","Série B"]'
 ### <bar-chart>
 - horizontal : barres horizontales
 - stacked : barres empilees
-- highlight-index='[3]' : mettre en avant une barre
+- highlight-index='[3]' : mettre en avant une barre — avec selected-palette="neutral" seulement
 
 ### <line-chart>
 - x-min, x-max, y-min, y-max : bornes SUGGEREES des axes (elles ne font qu'elargir l'axe, et sont arrondies a la graduation voisine). Via dsfr-data-chart, les bornes sont posees exactement — voir « Bornes d'axe »

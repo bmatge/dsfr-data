@@ -12,6 +12,7 @@ import {
   toastInfo,
   navigateTo,
   promptDialog,
+  CHOROPLETH_SCALES,
   PALETTE_COLORS,
   isValidDeptCode,
   normalizeDeptCode,
@@ -165,10 +166,12 @@ export function syncA11yWithDatabox(databoxEnabled: boolean = state.databoxEnabl
 export function renderPaletteSwatches(paletteKey: string = state.palette): void {
   const container = document.getElementById('palette-swatches');
   if (!container) return;
-  const colors =
-    paletteKey in PALETTE_COLORS
-      ? PALETTE_COLORS[paletteKey as keyof typeof PALETTE_COLORS]
-      : (PALETTE_COLORS.default ?? []);
+  // Un podium dessine lui-meme avec CHOROPLETH_SCALES (9 pas) ; tout le reste
+  // (graphiques et cartes DSFR Chart) rend PALETTE_COLORS. Les pastilles
+  // montrent ce que le composant choisi affichera.
+  const jeu: Record<string, readonly string[]> =
+    state.chartType === 'podium' ? CHOROPLETH_SCALES : PALETTE_COLORS;
+  const colors = jeu[paletteKey] ?? PALETTE_COLORS.default;
   container.innerHTML = colors
     .map((c) => `<span class="palette-swatch" style="background:${c}"></span>`)
     .join('');

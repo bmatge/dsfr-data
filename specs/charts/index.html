@@ -83,14 +83,15 @@
       </div>
 
       <h2 class="fr-mt-4w">Palettes de couleurs</h2>
-      <p>DSFR Chart propose plusieurs palettes conformes aux recommandations d'accessibilité :</p>
+      <p>Les couleurs sont appliquées par DSFR Chart (2.1.1, thème clair) ; <code>dsfr-data-chart</code> lui transmet <code>selected-palette</code> (défaut <code>categorical</code>) :</p>
       <ul>
-        <li><strong>default</strong> : Bleu France par défaut</li>
-        <li><strong>categorical</strong> : Palette catégorielle pour comparer des groupes</li>
-        <li><strong>sequentialAscending / sequentialDescending</strong> : Gradient de couleurs</li>
-        <li><strong>divergentAscending / divergentDescending</strong> : Palette divergente</li>
-        <li><strong>neutral</strong> : Palette neutre avec mise en avant possible</li>
+        <li><strong>categorical</strong> : huit couleurs, <em>une par série</em> (une série seule est d'une seule couleur) ; une couleur par part sur un camembert</li>
+        <li><strong>default</strong> : une seule couleur, <code>#5C68E5</code> (ce n'est pas le Bleu France)</li>
+        <li><strong>sequentialAscending / sequentialDescending</strong> : dix tons, la couleur suit la valeur ; avec <em>Ascending</em> la plus grande valeur est la plus claire. Palette des cartes</li>
+        <li><strong>divergentAscending / divergentDescending</strong> : quatre tons vert → rouge, une couleur par série, sans centre</li>
+        <li><strong>neutral</strong> : un seul gris ; avec <code>highlight-index</code>, les barres citées passent en bleu</li>
       </ul>
+      <p>Pour fixer la couleur d'une série : <code>color-map</code>.</p>
 
       <h2 class="fr-mt-4w">Ressources</h2>
       <ul>

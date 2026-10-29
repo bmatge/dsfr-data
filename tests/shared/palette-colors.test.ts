@@ -61,8 +61,11 @@ describe('DSFR Palettes', () => {
   });
 
   describe('PALETTE_PRIMARY_COLOR', () => {
-    it('should have a default color', () => {
-      expect(PALETTE_PRIMARY_COLOR['default']).toBe('#000091');
+    it('est la premiere couleur de chaque palette de DSFR Chart', () => {
+      for (const [k, colors] of Object.entries(PALETTE_COLORS)) {
+        expect(PALETTE_PRIMARY_COLOR[k], k).toBe(colors[0]);
+      }
+      expect(PALETTE_PRIMARY_COLOR['default']).toBe('#5C68E5');
     });
 
     it('should have all expected palette types', () => {

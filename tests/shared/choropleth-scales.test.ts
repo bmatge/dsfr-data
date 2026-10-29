@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 /**
  * Garde-fou de la separation des deux jeux de palettes (#969).
  *
- * `PALETTE_COLORS` (5 tons, graphiques) et `CHOROPLETH_SCALES` (9 pas, cartes
+ * `PALETTE_COLORS` (rampes de DSFR Chart, graphiques) et `CHOROPLETH_SCALES` (9 pas, cartes
  * et podium) portent les MEMES noms de cles. Tant qu'elles vivaient dans le
  * meme fichier, un `grep sequentialDescending` repondait juste et faux : trois
  * tableaux de contraste errones en une journee. Elles sont desormais dans deux

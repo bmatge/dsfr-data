@@ -36,17 +36,6 @@ export const DSFR_COLORS = [
   '#3A3A3A',
 ] as const;
 
-/** Primary color per palette type */
-export const PALETTE_PRIMARY_COLOR: Record<string, string> = {
-  default: '#000091',
-  categorical: '#000091',
-  sequentialAscending: '#000091',
-  sequentialDescending: '#6A6AF4',
-  divergentAscending: '#000091',
-  divergentDescending: '#C9191E',
-  neutral: '#3A3A3A',
-};
-
 /**
  * Couleurs que DSFR Chart applique pour chaque valeur de `selected-palette`
  * (thème clair) — COPIE de `@gouvfr/dsfr-chart` 2.1.1 (`src/utils/colors.js`).
@@ -110,19 +99,37 @@ export const PALETTE_COLORS = {
 } satisfies Record<string, readonly string[]>;
 
 /**
- * Human-friendly display names per palette key.
- * Used wherever the palette appears in user-visible UI (section summaries, badges, etc.)
- * so the raw internal key (e.g. `sequentialAscending`) never leaks.
- * Stay in sync with the `<option>` labels in `apps/builder/index.html` palette select.
+ * Premiere couleur que DSFR Chart applique pour chaque palette (theme clair) :
+ * celle d'une serie unique, ou de la premiere serie. Derivee de
+ * `PALETTE_COLORS`, jamais saisie a part — elle portait jusqu'ici le Bleu
+ * France `#000091`, que DSFR Chart n'applique a aucune palette.
+ */
+export const PALETTE_PRIMARY_COLOR: Record<string, string> = Object.fromEntries(
+  Object.entries(PALETTE_COLORS).map(([k, colors]) => [k, colors[0]])
+);
+
+/**
+ * Libelles des palettes dans l'interface (resumes de section, badges…), pour
+ * que la cle interne (`sequentialAscending`) ne fuie jamais.
+ * A garder en phase avec les `<option>` du selecteur de palette de
+ * `apps/builder/index.html`.
+ *
+ * Les libelles decrivent ce que DSFR Chart fait vraiment (2.1.1) :
+ * - `default` est `#5C68E5`, pas le Bleu France ;
+ * - `categorical` donne UNE couleur PAR SERIE (une serie = une seule
+ *   couleur), et une couleur par part sur un camembert ;
+ * - les divergentes sont quatre tons vert → jaune → orange → rouge, une
+ *   couleur par serie, sans centre ni notion d'ecart ;
+ * - `neutral` est un seul gris, la base de `highlight-index`.
  */
 export const PALETTE_DISPLAY_NAMES: Record<string, string> = {
-  default: 'Bleu France',
-  categorical: 'Couleurs distinctes par catégorie',
+  default: 'Couleur unique (bleu)',
+  categorical: 'Couleurs distinctes par série',
   sequentialAscending: 'Dégradé clair → foncé',
   sequentialDescending: 'Dégradé foncé → clair',
-  divergentAscending: 'Bicolore (centre clair)',
-  divergentDescending: 'Bicolore (centre foncé)',
-  neutral: 'Tons neutres (gris)',
+  divergentAscending: 'Vert → rouge (4 tons)',
+  divergentDescending: 'Rouge → vert (4 tons)',
+  neutral: 'Gris neutre (mise en avant)',
 };
 
 export type PaletteType = keyof typeof PALETTE_COLORS;

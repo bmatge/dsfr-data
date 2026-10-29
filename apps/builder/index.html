@@ -483,13 +483,13 @@
             <button type="button" class="help-btn app-btn--icon app-btn--icon--sm" aria-label="Aide" aria-describedby="help-chart-palette" data-help="chart-palette"><i class="ri-question-line" aria-hidden="true"></i></button>
           </label>
           <select class="fr-select" id="chart-palette" data-repere="builder.apparence.palette" data-attribut="dsfr-data-chart:selected-palette">
-            <option value="default">Bleu France</option>
-            <option value="categorical">Couleurs distinctes par catégorie</option>
+            <option value="default">Couleur unique (bleu)</option>
+            <option value="categorical">Couleurs distinctes par série</option>
             <option value="sequentialAscending">Dégradé clair → foncé</option>
             <option value="sequentialDescending">Dégradé foncé → clair</option>
-            <option value="divergentAscending">Bicolore (centre clair)</option>
-            <option value="divergentDescending">Bicolore (centre foncé)</option>
-            <option value="neutral">Tons neutres (gris)</option>
+            <option value="divergentAscending">Vert → rouge (4 tons)</option>
+            <option value="divergentDescending">Rouge → vert (4 tons)</option>
+            <option value="neutral">Gris neutre (mise en avant)</option>
           </select>
           <!-- Aperçu visuel des couleurs de la palette sélectionnée. Rendu par renderPaletteSwatches(). -->
           <div id="palette-swatches" class="palette-swatches" role="img" aria-label="Aperçu des couleurs de la palette"></div>

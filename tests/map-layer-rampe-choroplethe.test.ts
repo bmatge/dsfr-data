@@ -7,7 +7,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
  * consommateur des echelles choroplethes, n'en avait AUCUN. Or les deux
  * constantes de palettes portent les memes noms de cles
  * (`sequentialAscending`, `sequentialDescending`, …) pour des rampes
- * differentes — 9 pas pour `CHOROPLETH_SCALES`, 5 tons pour `PALETTE_COLORS`.
+ * differentes — 9 pas pour `CHOROPLETH_SCALES`, 10 tons (ceux de DSFR Chart) pour `PALETTE_COLORS`.
  * Rien, dans le rendu, ne distinguerait une couche qui lirait la mauvaise :
  * les deux sont des degrades Bleu France plausibles.
  *
@@ -127,12 +127,12 @@ describe('#969 — map-layer sert CHOROPLETH_SCALES, pas PALETTE_COLORS', () => 
     ]);
     expect(servies).toEqual(attendu('sequentialAscending'));
     // Et surtout : chaque couleur vient de la rampe a 9 pas, aucune de la
-    // rampe homonyme a 5 tons qui ne partage avec elle que `#6A6AF4`.
+    // rampe homonyme de DSFR Chart (10 tons, aucune couleur commune).
     for (const c of servies) expect(CHOROPLETH_SCALES.sequentialAscending).toContain(c);
     expect(servies).not.toEqual(PALETTE_COLORS.sequentialAscending);
   });
 
-  it('sequentialDescending : la rampe a 9 pas, pas celle a 5 tons', async () => {
+  it('sequentialDescending : la rampe a 9 pas, pas celle de DSFR Chart', async () => {
     const { mock, internals } = makeLayer({
       fillField: 'val',
       selectedPalette: 'sequentialDescending',
@@ -167,7 +167,7 @@ describe('#969 — map-layer sert CHOROPLETH_SCALES, pas PALETTE_COLORS', () => 
     }
   });
 
-  it('classes=5 : sous-echantillonnage de la rampe a 9 pas, pas la rampe a 5 tons', async () => {
+  it('classes=5 : sous-echantillonnage de la rampe a 9 pas, pas la rampe de DSFR Chart', async () => {
     const { mock, internals } = makeLayer({
       fillField: 'val',
       selectedPalette: 'sequentialDescending',
@@ -180,7 +180,7 @@ describe('#969 — map-layer sert CHOROPLETH_SCALES, pas PALETTE_COLORS', () => 
     // 5 classes sur une echelle de 9 : pas 1, 3, 5, 7, 9.
     expect(distinctes).toEqual([...samplePalette(CHOROPLETH_SCALES.sequentialDescending, 5)]);
     expect(distinctes).toEqual(['#000091', '#4747E5', '#8585F6', '#C1C1FB', '#F5F5FE']);
-    // Une rampe a 5 tons sous-echantillonnee ne donnerait pas ces couleurs.
+    // La rampe de DSFR Chart ne contient aucune de ces couleurs.
     expect(distinctes).not.toEqual(PALETTE_COLORS.sequentialDescending);
   });
 
