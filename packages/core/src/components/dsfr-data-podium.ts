@@ -24,9 +24,10 @@ import {
   IDLE_MESSAGE_DEFAULT,
 } from '../utils/status-templates.js';
 
-// Palettes : source unique @dsfr-data/shared (#302) — la categorical locale
-// differait de PALETTE_COLORS : meme attribut selected-palette que chart,
-// couleurs differentes (dashboard incoherent visuellement).
+// Palettes : source unique @dsfr-data/shared (#302), CHOROPLETH_SCALES. Sa
+// categorical (DSFR_COLORS, dix couleurs contrastees) n'est pas celle que
+// DSFR Chart applique a dsfr-data-chart (PALETTE_COLORS.categorical) : le
+// podium dessine lui-meme et garde la palette la plus lisible.
 
 interface PodiumItem {
   label: string;
@@ -293,7 +294,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
    *
    * ⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), de
    * `constants/choropleth-scales.ts` — **pas**
-   * `PALETTE_COLORS.sequentialDescending` (5 tons), de
+   * `PALETTE_COLORS.sequentialDescending` (10 tons, ceux de DSFR Chart), de
    * `constants/palette-colors.ts`, qui porte le même nom de clé. Lire la
    * seconde donne un tableau de contraste plausible et faux — c'est arrivé
    * trois fois quand les deux vivaient dans le même fichier (#969). Ratios
@@ -1212,7 +1213,7 @@ export class DsfrDataPodium extends SourceSubscriberMixin(LitElement) {
  * du chiffre d'une pastille : la rampe CHOROPLETH_SCALES s'eclaircit, et du
  * blanc des son 4e ton (`#6A6AF4`) serait illisible. Voir la table de ratios
  * au JSDoc de `rank` — et ne pas la recalculer sur PALETTE_COLORS
- * (`constants/palette-colors.ts`), qui porte une rampe homonyme a 5 tons que
+ * (`constants/palette-colors.ts`), qui porte une rampe homonyme a 10 tons que
  * le podium ne sert pas.
  */
 export function relativeLuminance(hex: string): number {

@@ -6,8 +6,8 @@
 
 ## Couleurs et palettes DSFR
 
-### Couleurs hex principales
-- **Bleu France**: #000091 (couleur par défaut)
+### Couleurs hex du DSFR (tokens du design system)
+- **Bleu France**: #000091
 - **Emeraude**: #009081 (succes)
 - **Marianne**: #C9191E (erreur)
 - **Orange**: #FF9940 (avertissement)
@@ -15,20 +15,28 @@
 - **Bleu ciel**: #417DC4
 - **Vert foret**: #18753C
 
-### Palettes DSFR Chart (attribut selected-palette)
-| Palette | Usage recommande |
+Ce sont les couleurs du DSFR, pas celles des graphiques : DSFR Chart applique
+ses propres palettes (ci-dessous), et `dsfr-data-chart` les lui transmet sans
+les modifier. Pour imposer une couleur a une serie, utiliser `color-map`
+(`color-map="Realise:#000091,Objectif:#C9191E"`).
+
+### Palettes DSFR Chart (attribut selected-palette, defaut categorical) — version 2.1.1, theme clair
+| Palette | Ce que DSFR Chart fait vraiment |
 |---------|-----------------|
-| categorical | Comparer des groupes distincts (défaut pour bar, pie, radar) |
-| sequentialAscending | Gradient clair -> fonce (recommande pour map, classements) |
-| sequentialDescending | Gradient fonce -> clair |
-| divergentAscending | Echelle divergente (ecarts positifs/negatifs) |
-| divergentDescending | Echelle divergente inversee |
-| neutral | Neutre, utiliser avec highlight-index pour mettre en avant 1 barre |
-| default | Bleu France seul (série unique) |
+| categorical | 8 couleurs (#5C68E5 #82B5F2 #29598F #31A7AE #81EEF5 #B478F1 #CFB1F5 #CECECE), UNE PAR SERIE : une serie unique est entierement #5C68E5. Camembert : une couleur par part. Surtout des bleus et violets, trois tons tres clairs : contraste faible sur des courbes multiples |
+| default | Une seule couleur, #5C68E5 (ce n'est PAS le Bleu France #000091) |
+| sequentialAscending | 10 tons #DBDAFF -> #00005F, la couleur suit la VALEUR (bar, pie) : la plus grande valeur est la plus CLAIRE. Sur une carte : du plus petit (clair) au plus grand (fonce) |
+| sequentialDescending | Memes 10 tons inverses : la plus grande valeur est la plus foncee ; carte du plus petit (fonce) au plus grand (clair) |
+| divergentAscending | 4 tons vert -> jaune -> orange -> rouge (#298641 #ADA816 #ED8308 #E91719), une couleur PAR SERIE. Pas de centre, pas de notion d'ecart. Camembert : une seule couleur |
+| divergentDescending | Memes 4 tons, du rouge au vert |
+| neutral | Un seul gris #B1B1B1. Avec highlight-index (bar) : les barres citees en #5C68E5, les autres grises |
+
+Un nom inconnu retombe sur categorical. Le theme sombre a ses propres valeurs.
 
 ### Bonnes pratiques
-- Utiliser `categorical` pour pie, radar et comparaisons multi-catégories
-- Utiliser `sequentialAscending` pour les cartes (map, map-reg, map-aca, map-monde)
-- Utiliser `neutral` + `highlight-index` pour mettre en avant une valeur
-- Assurer un contraste suffisant (conformite RGAA)
-- Eviter le rouge/vert seuls (daltonisme) - les palettes DSFR sont concues pour ca
+- Plusieurs series (courbes, barres groupees) : `categorical`, ou `color-map` quand le contraste entre series ne suffit pas
+- Une serie unique : `default` ou `categorical` rendent pareil ; `sequentialDescending` pour colorer selon la valeur (grande = foncee)
+- Camembert : `categorical` (une couleur par part)
+- Cartes (map, map-reg, map-aca, map-monde) : `sequentialAscending` ; jamais categorical, default ni neutral (echelle de la premiere a la derniere couleur)
+- Mettre une barre en avant : `neutral` + `highlight-index`, les deux ensemble
+- Les divergentes sont un vert -> rouge : a eviter seules (daltonisme), preferer `color-map`

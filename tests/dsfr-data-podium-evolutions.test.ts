@@ -449,7 +449,7 @@ describe('dsfr-data-podium — evolutions d’affichage', () => {
    * (corps de PR, changeset, JSDoc de `rank`, spec vivante). Ils ont deja ete
    * faux trois fois : la planche de design cite une rampe qui n'est pas celle
    * du composant, et le depot expose DEUX rampes homonymes —
-   * `PALETTE_COLORS.sequentialDescending` (5 tons, celle de dsfr-charts) et
+   * `PALETTE_COLORS.sequentialDescending` (10 tons, celle de DSFR Chart) et
    * `CHOROPLETH_SCALES.sequentialDescending` (9 tons). Le podium importe la
    * SECONDE. Lire la premiere donne un tableau plausible et faux.
    *
@@ -478,7 +478,7 @@ describe('dsfr-data-podium — evolutions d’affichage', () => {
       expect(servies).toEqual(CHOROPLETH_SCALES['sequentialDescending'].slice(0, 5));
       // Le tableau documente, verrouille en clair.
       expect(servies).toEqual(['#000091', '#2323B4', '#4747E5', '#6A6AF4', '#8585F6']);
-      // Et surtout : ce n'est PAS la rampe a 5 tons de PALETTE_COLORS.
+      // Et surtout : ce n'est PAS la rampe de DSFR Chart (PALETTE_COLORS).
       expect(servies).not.toEqual(PALETTE_COLORS.sequentialDescending);
     });
 

@@ -144,7 +144,7 @@ describe('DsfrDataPodium', () => {
       ];
       podium.maxItems = 10;
       const items = (podium as any)._processItems();
-      // Palette categorical PARTAGEE (#302) : la meme que chart/PALETTE_COLORS
+      // Palette categorical PARTAGEE (#302) : CHOROPLETH_SCALES (DSFR_COLORS)
       // — l'ancienne copie locale divergeait (#FCC63A en 2e position)
       expect(items[0].color).toBe('#000091');
       expect(items[1].color).toBe('#6A6AF4');

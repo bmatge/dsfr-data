@@ -5,7 +5,7 @@
  * ⚠️ HOMONYMIE VOULUE, ET DANGEREUSE : `constants/palette-colors.ts` exporte
  * `PALETTE_COLORS`, dont les cles portent les MEMES noms
  * (`sequentialAscending`, `sequentialDescending`, `divergentAscending`,
- * `divergentDescending`, `neutral`) avec des rampes a 5 tons differentes.
+ * `divergentDescending`, `neutral`) avec les rampes de DSFR Chart (1, 4 ou 10 tons).
  * Les deux jeux de noms sont publics : ce sont les valeurs de l'attribut
  * `selected-palette`. C'est pour rendre cette homonymie visible A L'IMPORT
  * que les deux constantes vivent dans deux fichiers dont le chemin dit
@@ -16,7 +16,7 @@
  * Qui lit quoi : `dsfr-data-map-layer` et `dsfr-data-podium` -> ce fichier ;
  * `dsfr-data-chart` et les previews -> `palette-colors.ts`.
  */
-import { PALETTE_COLORS } from './palette-colors.js';
+import { DSFR_COLORS } from './palette-colors.js';
 
 /**
  * Echelles choroplethes 9 pas (#302) — SOURCE UNIQUE pour dsfr-data-podium
@@ -29,8 +29,10 @@ import { PALETTE_COLORS } from './palette-colors.js';
  *
  * Echelles construites sur les tokens DSFR blue-france (975 -> main-525)
  * pour les sequentielles, blue-france + rouge Marianne pour les divergentes,
- * grey pour la neutre. `categorical` = PALETTE_COLORS.categorical (la meme
- * que les previews chart).
+ * grey pour la neutre. `categorical` = DSFR_COLORS, dix couleurs contrastees :
+ * ce n'est PAS la categorical de DSFR Chart (`PALETTE_COLORS.categorical`,
+ * huit couleurs surtout bleues et violettes, dont trois tres claires). Le
+ * podium et les cartes dessinent eux-memes et gardent la palette contrastee.
  */
 export const CHOROPLETH_SCALES: Record<string, readonly string[]> = {
   sequentialAscending: [
@@ -88,7 +90,7 @@ export const CHOROPLETH_SCALES: Record<string, readonly string[]> = {
     '#3A3A3A',
     '#161616',
   ],
-  categorical: PALETTE_COLORS.categorical,
+  categorical: DSFR_COLORS,
 };
 
 /**

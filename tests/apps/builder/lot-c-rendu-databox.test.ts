@@ -33,8 +33,8 @@ function resetDom(): void {
     <div id="facets-fields-list"></div>
     <div id="facets-fields-modal"></div>
     <select id="chart-palette">
-      <option value="default">Bleu France</option>
-      <option value="categorical">Couleurs distinctes par catégorie</option>
+      <option value="default">Couleur unique (bleu)</option>
+      <option value="categorical">Couleurs distinctes par série</option>
       <option value="sequentialAscending">Dégradé</option>
     </select>
     <div id="palette-swatches"></div>

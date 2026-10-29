@@ -1038,7 +1038,7 @@
                 "text": "string"
               },
               "default": "'categorical'",
-              "description": "Palette de couleurs",
+              "description": "Palette de couleurs, appliquée par DSFR Chart : `categorical` (une couleur\npar série, une par part sur un camembert), `default` (une seule couleur),\n`sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),\n`divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une\ncouleur par série), `neutral` (un gris, base de `highlight-index`). Pour\nfixer la couleur d'une série : `color-map`.",
               "attribute": "selected-palette"
             },
             {
@@ -1108,7 +1108,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Index des éléments à mettre en avant (ex: \"[0, 2]\")",
+              "description": "Index des barres à mettre en avant (ex: `\"[0, 2]\"`, type `bar`). N'agit\nqu'avec `selected-palette=\"neutral\"` : les barres citées en bleu, les\nautres en gris. Sans effet avec toute autre palette (DSFR Chart 2.1.1).",
               "attribute": "highlight-index"
             },
             {
@@ -2853,7 +2853,7 @@
                 "text": "string"
               },
               "default": "'categorical'",
-              "description": "Palette de couleurs",
+              "description": "Palette de couleurs, appliquée par DSFR Chart : `categorical` (une couleur\npar série, une par part sur un camembert), `default` (une seule couleur),\n`sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),\n`divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une\ncouleur par série), `neutral` (un gris, base de `highlight-index`). Pour\nfixer la couleur d'une série : `color-map`.",
               "fieldName": "selectedPalette"
             },
             {
@@ -2916,7 +2916,7 @@
                 "text": "string"
               },
               "default": "''",
-              "description": "Index des éléments à mettre en avant (ex: \"[0, 2]\")",
+              "description": "Index des barres à mettre en avant (ex: `\"[0, 2]\"`, type `bar`). N'agit\nqu'avec `selected-palette=\"neutral\"` : les barres citées en bleu, les\nautres en gris. Sans effet avec toute autre palette (DSFR Chart 2.1.1).",
               "fieldName": "highlightIndex"
             },
             {
@@ -18215,7 +18215,7 @@
                 "text": "string"
               },
               "default": "'number'",
-              "description": "Rendu du rang : `number` (chiffre, défaut), `medal` (pastille de la\ncouleur de l'item) ou `none` (masqué — l'ordre et la barre suffisent).\n\nEn `medal`, la couleur d'encre du chiffre est choisie par calcul de\nluminance relative WCAG : la rampe s'éclaircit, et du blanc dès son\n**4e ton** serait illisible. Le chiffre reste `aria-hidden` : l'ordre est\nporté par la position dans la liste, le chiffre n'en est qu'un rappel.\n\n⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), de\n`constants/choropleth-scales.ts` — **pas**\n`PALETTE_COLORS.sequentialDescending` (5 tons), de\n`constants/palette-colors.ts`, qui porte le même nom de clé. Lire la\nseconde donne un tableau de contraste plausible et faux — c'est arrivé\ntrois fois quand les deux vivaient dans le même fichier (#969). Ratios\nsur les 5 premiers tons, encre retenue en gras :\n\n| Rang | Couleur   | vs blanc  | vs `#161616` |\n|------|-----------|-----------|--------------|\n| 1    | `#000091` | **14,91** | 1,21         |\n| 2    | `#2323B4` | **10,65** | 1,70         |\n| 3    | `#4747E5` | **6,36**  | 2,84         |\n| 4    | `#6A6AF4` | 4,22      | **4,29**     |\n| 5    | `#8585F6` | 3,14      | **5,76**     |\n\nLe point bas est le **rang 4** : 4,29:1, sous AA texte normal (4,5:1) et\nau-dessus de AA texte large (3:1). Aucune des deux encres n'atteint 4,5\nsur `#6A6AF4`. Ces chiffres sont figés par\n`tests/dsfr-data-podium-evolutions.test.ts`.",
+              "description": "Rendu du rang : `number` (chiffre, défaut), `medal` (pastille de la\ncouleur de l'item) ou `none` (masqué — l'ordre et la barre suffisent).\n\nEn `medal`, la couleur d'encre du chiffre est choisie par calcul de\nluminance relative WCAG : la rampe s'éclaircit, et du blanc dès son\n**4e ton** serait illisible. Le chiffre reste `aria-hidden` : l'ordre est\nporté par la position dans la liste, le chiffre n'en est qu'un rappel.\n\n⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), de\n`constants/choropleth-scales.ts` — **pas**\n`PALETTE_COLORS.sequentialDescending` (10 tons, ceux de DSFR Chart), de\n`constants/palette-colors.ts`, qui porte le même nom de clé. Lire la\nseconde donne un tableau de contraste plausible et faux — c'est arrivé\ntrois fois quand les deux vivaient dans le même fichier (#969). Ratios\nsur les 5 premiers tons, encre retenue en gras :\n\n| Rang | Couleur   | vs blanc  | vs `#161616` |\n|------|-----------|-----------|--------------|\n| 1    | `#000091` | **14,91** | 1,21         |\n| 2    | `#2323B4` | **10,65** | 1,70         |\n| 3    | `#4747E5` | **6,36**  | 2,84         |\n| 4    | `#6A6AF4` | 4,22      | **4,29**     |\n| 5    | `#8585F6` | 3,14      | **5,76**     |\n\nLe point bas est le **rang 4** : 4,29:1, sous AA texte normal (4,5:1) et\nau-dessus de AA texte large (3:1). Aucune des deux encres n'atteint 4,5\nsur `#6A6AF4`. Ces chiffres sont figés par\n`tests/dsfr-data-podium-evolutions.test.ts`.",
               "attribute": "rank"
             },
             {
@@ -18926,7 +18926,7 @@
                 "text": "string"
               },
               "default": "'number'",
-              "description": "Rendu du rang : `number` (chiffre, défaut), `medal` (pastille de la\ncouleur de l'item) ou `none` (masqué — l'ordre et la barre suffisent).\n\nEn `medal`, la couleur d'encre du chiffre est choisie par calcul de\nluminance relative WCAG : la rampe s'éclaircit, et du blanc dès son\n**4e ton** serait illisible. Le chiffre reste `aria-hidden` : l'ordre est\nporté par la position dans la liste, le chiffre n'en est qu'un rappel.\n\n⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), de\n`constants/choropleth-scales.ts` — **pas**\n`PALETTE_COLORS.sequentialDescending` (5 tons), de\n`constants/palette-colors.ts`, qui porte le même nom de clé. Lire la\nseconde donne un tableau de contraste plausible et faux — c'est arrivé\ntrois fois quand les deux vivaient dans le même fichier (#969). Ratios\nsur les 5 premiers tons, encre retenue en gras :\n\n| Rang | Couleur   | vs blanc  | vs `#161616` |\n|------|-----------|-----------|--------------|\n| 1    | `#000091` | **14,91** | 1,21         |\n| 2    | `#2323B4` | **10,65** | 1,70         |\n| 3    | `#4747E5` | **6,36**  | 2,84         |\n| 4    | `#6A6AF4` | 4,22      | **4,29**     |\n| 5    | `#8585F6` | 3,14      | **5,76**     |\n\nLe point bas est le **rang 4** : 4,29:1, sous AA texte normal (4,5:1) et\nau-dessus de AA texte large (3:1). Aucune des deux encres n'atteint 4,5\nsur `#6A6AF4`. Ces chiffres sont figés par\n`tests/dsfr-data-podium-evolutions.test.ts`.",
+              "description": "Rendu du rang : `number` (chiffre, défaut), `medal` (pastille de la\ncouleur de l'item) ou `none` (masqué — l'ordre et la barre suffisent).\n\nEn `medal`, la couleur d'encre du chiffre est choisie par calcul de\nluminance relative WCAG : la rampe s'éclaircit, et du blanc dès son\n**4e ton** serait illisible. Le chiffre reste `aria-hidden` : l'ordre est\nporté par la position dans la liste, le chiffre n'en est qu'un rappel.\n\n⚠️ La rampe est `CHOROPLETH_SCALES.sequentialDescending` (9 tons), de\n`constants/choropleth-scales.ts` — **pas**\n`PALETTE_COLORS.sequentialDescending` (10 tons, ceux de DSFR Chart), de\n`constants/palette-colors.ts`, qui porte le même nom de clé. Lire la\nseconde donne un tableau de contraste plausible et faux — c'est arrivé\ntrois fois quand les deux vivaient dans le même fichier (#969). Ratios\nsur les 5 premiers tons, encre retenue en gras :\n\n| Rang | Couleur   | vs blanc  | vs `#161616` |\n|------|-----------|-----------|--------------|\n| 1    | `#000091` | **14,91** | 1,21         |\n| 2    | `#2323B4` | **10,65** | 1,70         |\n| 3    | `#4747E5` | **6,36**  | 2,84         |\n| 4    | `#6A6AF4` | 4,22      | **4,29**     |\n| 5    | `#8585F6` | 3,14      | **5,76**     |\n\nLe point bas est le **rang 4** : 4,29:1, sous AA texte normal (4,5:1) et\nau-dessus de AA texte large (3:1). Aucune des deux encres n'atteint 4,5\nsur `#6A6AF4`. Ces chiffres sont figés par\n`tests/dsfr-data-podium-evolutions.test.ts`.",
               "fieldName": "rank"
             },
             {
@@ -19028,7 +19028,7 @@
               }
             }
           ],
-          "description": "Luminance relative WCAG 2.x d'une couleur `#rrggbb`. Sert a choisir l'encre\ndu chiffre d'une pastille : la rampe CHOROPLETH_SCALES s'eclaircit, et du\nblanc des son 4e ton (`#6A6AF4`) serait illisible. Voir la table de ratios\nau JSDoc de `rank` — et ne pas la recalculer sur PALETTE_COLORS\n(`constants/palette-colors.ts`), qui porte une rampe homonyme a 5 tons que\nle podium ne sert pas."
+          "description": "Luminance relative WCAG 2.x d'une couleur `#rrggbb`. Sert a choisir l'encre\ndu chiffre d'une pastille : la rampe CHOROPLETH_SCALES s'eclaircit, et du\nblanc des son 4e ton (`#6A6AF4`) serait illisible. Voir la table de ratios\nau JSDoc de `rank` — et ne pas la recalculer sur PALETTE_COLORS\n(`constants/palette-colors.ts`), qui porte une rampe homonyme a 10 tons que\nle podium ne sert pas."
         }
       ],
       "exports": [

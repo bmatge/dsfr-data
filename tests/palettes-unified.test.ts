@@ -17,17 +17,21 @@ globalThis.fetch = mockFetch;
 
 import {
   CHOROPLETH_SCALES,
-  PALETTE_COLORS,
+  DSFR_COLORS,
   quantileBreaks,
   getColorForValue,
 } from '@dsfr-data/shared/lib';
 import { DsfrDataPodium } from '@/components/dsfr-data-podium.js';
 
 describe('#302 — AC : même selected-palette = mêmes couleurs partout', () => {
-  it('la categorical du podium est celle de PALETTE_COLORS (comme chart)', () => {
+  // La categorical du podium est DSFR_COLORS (dix couleurs contrastees) : celle
+  // que DSFR Chart applique aux graphiques (PALETTE_COLORS.categorical) est
+  // trop peu contrastee pour une liste ou une carte, et le podium dessine
+  // lui-meme.
+  it('la categorical du podium est celle de CHOROPLETH_SCALES (DSFR_COLORS)', () => {
     const podium = new DsfrDataPodium();
     podium.selectedPalette = 'categorical';
-    (podium as any)._data = PALETTE_COLORS.categorical.map((_, i) => ({
+    (podium as any)._data = DSFR_COLORS.map((_, i) => ({
       nom: `i${i}`,
       population: 100 - i,
     }));
@@ -37,7 +41,7 @@ describe('#302 — AC : même selected-palette = mêmes couleurs partout', () =>
 
     const items = (podium as any)._processItems();
     items.forEach((item: { color: string }, i: number) => {
-      expect(item.color, `couleur ${i}`).toBe(PALETTE_COLORS.categorical[i]);
+      expect(item.color, `couleur ${i}`).toBe(DSFR_COLORS[i]);
     });
   });
 
@@ -45,7 +49,7 @@ describe('#302 — AC : même selected-palette = mêmes couleurs partout', () =>
     expect(CHOROPLETH_SCALES.sequentialAscending).toHaveLength(9);
     expect(CHOROPLETH_SCALES.sequentialAscending[0]).toBe('#F5F5FE');
     expect(CHOROPLETH_SCALES.sequentialAscending[8]).toBe('#000091');
-    expect(CHOROPLETH_SCALES.categorical).toBe(PALETTE_COLORS.categorical);
+    expect(CHOROPLETH_SCALES.categorical).toBe(DSFR_COLORS);
   });
 });
 

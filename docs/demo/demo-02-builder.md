@@ -52,8 +52,8 @@ Montrer qu'en moins de trois minutes, on passe d'un jeu de données à un graphi
 | | |
 |---|---|
 | 🖥️ **Écran** | Section **« Apparence »** : champs **« Titre »**, **« Sous-titre / Source »**, sélecteur **« Palette de couleurs »** avec nuanciers. Puis clic sur le grand bouton **« Générer le graphique »** ; le graphique en barres apparaît dans l'onglet **« Aperçu »** à droite. |
-| 🖱️ **Actions** | 1. Saisir le titre : `Bénéficiaires Industrie du futur par région`. 2. Sous-titre : `Source : data.economie.gouv.fr`. 3. Ouvrir **« Palette de couleurs »**, choisir **« Couleurs distinctes par catégorie »**. 4. Cliquer sur **« Générer le graphique »**. Laisser l'animation du graphique se jouer 3 s, survoler une barre pour montrer l'infobulle. |
-| 🎙️ **Voix off** | « Je soigne l'habillage : un titre, la mention de la source, et une palette DSFR — ici, couleurs distinctes par catégorie. Un clic sur "Générer le graphique"… et voilà. Le graphique est rendu à droite, interactif, avec les infobulles au survol, exactement tel qu'il s'affichera sur votre site. » |
+| 🖱️ **Actions** | 1. Saisir le titre : `Bénéficiaires Industrie du futur par région`. 2. Sous-titre : `Source : data.economie.gouv.fr`. 3. Ouvrir **« Palette de couleurs »**, choisir **« Dégradé foncé → clair »** (une seule série : « Couleurs distinctes par série » la laisserait d'une seule couleur). 4. Cliquer sur **« Générer le graphique »**. Laisser l'animation du graphique se jouer 3 s, survoler une barre pour montrer l'infobulle. |
+| 🎙️ **Voix off** | « Je soigne l'habillage : un titre, la mention de la source, et une palette DSFR — ici, un dégradé, du plus grand au plus petit. Un clic sur "Générer le graphique"… et voilà. Le graphique est rendu à droite, interactif, avec les infobulles au survol, exactement tel qu'il s'affichera sur votre site. » |
 
 ## Séquence 6 — Récupérer le code (2:10 – 2:40)
 

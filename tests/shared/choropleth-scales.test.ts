@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 /**
  * Garde-fou de la separation des deux jeux de palettes (#969).
  *
- * `PALETTE_COLORS` (5 tons, graphiques) et `CHOROPLETH_SCALES` (9 pas, cartes
+ * `PALETTE_COLORS` (rampes de DSFR Chart, graphiques) et `CHOROPLETH_SCALES` (9 pas, cartes
  * et podium) portent les MEMES noms de cles. Tant qu'elles vivaient dans le
  * meme fichier, un `grep sequentialDescending` repondait juste et faux : trois
  * tableaux de contraste errones en une journee. Elles sont desormais dans deux
@@ -19,7 +19,7 @@ import { describe, it, expect } from 'vitest';
  *    `selected-palette` — les renommer casserait des pages existantes.
  */
 
-import { PALETTE_COLORS } from '../../packages/shared/src/constants/palette-colors';
+import { DSFR_COLORS, PALETTE_COLORS } from '../../packages/shared/src/constants/palette-colors';
 import { CHOROPLETH_SCALES } from '../../packages/shared/src/constants/choropleth-scales';
 
 /** Les cinq noms que les deux constantes partagent. */
@@ -54,37 +54,10 @@ describe('#969 — deux fichiers, deux rampes homonymes', () => {
     ]);
   });
 
-  it('PALETTE_COLORS : 5 tons, valeurs figees en clair', () => {
-    expect(PALETTE_COLORS.sequentialAscending).toEqual([
-      '#E5E5F4',
-      '#CACAFB',
-      '#9A9AFF',
-      '#6A6AF4',
-      '#000091',
-    ]);
-    expect(PALETTE_COLORS.sequentialDescending).toEqual([
-      '#000091',
-      '#6A6AF4',
-      '#9A9AFF',
-      '#CACAFB',
-      '#E5E5F4',
-    ]);
-    expect(PALETTE_COLORS.divergentAscending).toEqual([
-      '#000091',
-      '#6A6AF4',
-      '#F5F5F5',
-      '#FF9940',
-      '#C9191E',
-    ]);
-    expect(PALETTE_COLORS.divergentDescending).toEqual([
-      '#C9191E',
-      '#FF9940',
-      '#F5F5F5',
-      '#6A6AF4',
-      '#000091',
-    ]);
-    expect(PALETTE_COLORS.neutral).toEqual(['#161616', '#3A3A3A', '#666666', '#929292', '#CECECE']);
-    for (const k of HOMONYMES) expect(PALETTE_COLORS[k]).toHaveLength(5);
+  it('PALETTE_COLORS : rampes de DSFR Chart (1, 4 ou 10 tons), pas 9', () => {
+    // Les valeurs exactes sont figees contre le paquet DSFR Chart installe,
+    // dans palette-colors.test.ts.
+    for (const k of HOMONYMES) expect(PALETTE_COLORS[k].length, k).not.toBe(9);
   });
 
   it('CHOROPLETH_SCALES : 9 pas, valeurs figees en clair', () => {
@@ -152,7 +125,8 @@ describe('#969 — deux fichiers, deux rampes homonymes', () => {
     }
   });
 
-  it('categorical est la SEULE cle volontairement partagee (meme reference)', () => {
-    expect(CHOROPLETH_SCALES.categorical).toBe(PALETTE_COLORS.categorical);
+  it('categorical : le podium et les cartes gardent DSFR_COLORS, pas celle de DSFR Chart', () => {
+    expect(CHOROPLETH_SCALES.categorical).toBe(DSFR_COLORS);
+    expect(CHOROPLETH_SCALES.categorical).not.toEqual(PALETTE_COLORS.categorical);
   });
 });

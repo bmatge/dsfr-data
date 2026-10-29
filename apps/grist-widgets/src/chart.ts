@@ -42,7 +42,7 @@ const ALL_OPTIONS: OptionDef[] = [
     type: 'select',
     defaultValue: 'default',
     options: [
-      { value: 'default', label: 'Bleu France' },
+      { value: 'default', label: 'Couleur unique' },
       { value: 'categorical', label: 'Categorielle' },
       { value: 'sequentialAscending', label: 'Sequentielle asc.' },
       { value: 'sequentialDescending', label: 'Sequentielle desc.' },

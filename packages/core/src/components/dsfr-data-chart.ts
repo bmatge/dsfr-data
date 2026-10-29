@@ -262,7 +262,14 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: String })
   name = '';
 
-  /** Palette de couleurs */
+  /**
+   * Palette de couleurs, appliquée par DSFR Chart : `categorical` (une couleur
+   * par série, une par part sur un camembert), `default` (une seule couleur),
+   * `sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),
+   * `divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une
+   * couleur par série), `neutral` (un gris, base de `highlight-index`). Pour
+   * fixer la couleur d'une série : `color-map`.
+   */
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = 'categorical';
 
@@ -304,7 +311,11 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   @property({ type: Boolean })
   fill = false;
 
-  /** Index des éléments à mettre en avant (ex: "[0, 2]") */
+  /**
+   * Index des barres à mettre en avant (ex: `"[0, 2]"`, type `bar`). N'agit
+   * qu'avec `selected-palette="neutral"` : les barres citées en bleu, les
+   * autres en gris. Sans effet avec toute autre palette (DSFR Chart 2.1.1).
+   */
   @property({ type: String, attribute: 'highlight-index' })
   highlightIndex = '';
 

@@ -69,7 +69,9 @@ export function selectChartType(type: ChartType): void {
   const paletteConfig = document.getElementById('palette-config') as HTMLElement | null;
   if (paletteConfig) paletteConfig.style.display = isSingleValue || isDatalist ? 'none' : 'block';
 
-  // For maps, force a sequential palette for color gradient
+  // Carte DSFR Chart : l'échelle va de la première à la dernière couleur de la
+  // palette ; seuls les dégradés donnent un ordre lisible (categorical irait
+  // du bleu au gris clair, default et neutral n'ont qu'une couleur).
   if (isMap && !state.palette.startsWith('sequential')) {
     state.palette = 'sequentialAscending';
     const paletteSelect = document.getElementById('chart-palette') as HTMLSelectElement | null;
@@ -235,14 +237,15 @@ export function selectChartType(type: ChartType): void {
 export const PIE_PALETTE = 'categorical';
 
 export const PIE_PALETTE_NOTE =
-  'Un camembert se colore par part : DSFR Chart n’applique que la palette « Couleurs distinctes par catégorie ». Les autres rendraient un disque d’une seule couleur.';
+  'Un camembert se colore par part : DSFR Chart distribue une couleur par part avec « Couleurs distinctes par série » (et une couleur par valeur avec les dégradés). Les autres rendraient un disque d’une seule couleur.';
 
 /**
- * Camembert et anneau (#1174) : DSFR Chart 2.1.1 ne distribue une couleur par
- * part qu'avec la palette `categorical` ; toute autre (« Bleu France »,
- * dégradés, neutre) colore le disque d'une seule teinte, et la légende ne
- * nomme que la première part. Le Builder pose donc cette palette, verrouille
- * le choix et le dit, au lieu de laisser générer un disque illisible.
+ * Camembert et anneau (#1174) : DSFR Chart 2.1.1 distribue une couleur par
+ * part avec `categorical`, et une couleur par valeur avec les dégradés
+ * (`sequential*`) ; `default`, `neutral` et les divergentes colorent le
+ * disque d'une seule teinte, et la légende ne nomme que la première part. Le
+ * Builder pose `categorical`, verrouille le choix et le dit, au lieu de
+ * laisser générer un disque illisible.
  */
 export function applyPiePalette(isPieOrDoughnut: boolean): void {
   const paletteSelect = document.getElementById('chart-palette') as HTMLSelectElement | null;
