@@ -14,7 +14,7 @@ import {
   REGLES_GENERIQUES,
   type MountedAssistant,
 } from '@dsfr-data/shared';
-import { state, isMapType } from './state.js';
+import { state, isMapType, ensureChartId, CHART_ID_PATTERN } from './state.js';
 import { creerAdaptateurBuilder } from './assistant/adaptateur.js';
 import { REGLES_BUILDER } from './assistant/constats.js';
 import { monterAssistantBuilder, montrerRepereBuilder } from './assistant/index.js';
@@ -229,6 +229,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (chartSubtitleInput) {
     chartSubtitleInput.addEventListener('input', (e) => {
       state.subtitle = (e.target as HTMLInputElement).value;
+    });
+  }
+
+  // Identifiant du graphique (#1352) : attribué au chargement, modifiable.
+  // Une saisie hors forme est signalée et n'est pas retenue : le code garde
+  // le dernier identifiant valide.
+  const chartIdInput = document.getElementById('chart-id') as HTMLInputElement | null;
+  const chartIdErreur = document.getElementById('chart-id-erreur');
+  const chartIdExemple = document.getElementById('chart-id-exemple');
+  const refleterChartId = () => {
+    if (chartIdInput && document.activeElement !== chartIdInput) chartIdInput.value = state.chartId;
+    if (chartIdExemple) chartIdExemple.textContent = state.chartId;
+  };
+  ensureChartId();
+  refleterChartId();
+  if (chartIdInput) {
+    chartIdInput.addEventListener('input', (e) => {
+      const saisie = (e.target as HTMLInputElement).value.trim();
+      const valide = CHART_ID_PATTERN.test(saisie);
+      if (valide) state.chartId = saisie;
+      if (chartIdErreur) chartIdErreur.hidden = valide;
+      chartIdInput.setAttribute('aria-invalid', valide ? 'false' : 'true');
+      if (chartIdExemple) chartIdExemple.textContent = state.chartId;
+    });
+    chartIdInput.addEventListener('blur', () => {
+      // Champ vidé ou laissé invalide : on revient au dernier identifiant retenu.
+      if (!CHART_ID_PATTERN.test(chartIdInput.value.trim())) {
+        chartIdInput.value = state.chartId;
+        chartIdInput.setAttribute('aria-invalid', 'false');
+        if (chartIdErreur) chartIdErreur.hidden = true;
+      }
     });
   }
 

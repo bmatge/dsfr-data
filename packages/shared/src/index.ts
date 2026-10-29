@@ -500,6 +500,7 @@ export {
   generateSourceHTML,
   serverPaginatedSources,
   LISTE_LIBRE_JEU_ENTIER,
+  scopeFavoriteIds,
 } from './dashboard/export-html.js';
 
 // --- Outils d'introspection de donnees IA (promus du builder-IA, #515) ---

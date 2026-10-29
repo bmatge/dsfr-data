@@ -2613,6 +2613,15 @@ Ils communiquent via un bus evenementiel interne : \`source="id-de-la-source"\`.
 <dsfr-data-source id="X">   --dispatch-->   <dsfr-data-query source="X">   --dispatch-->   <dsfr-data-chart source="...">
 \`\`\`
 
+**Plusieurs graphiques sur une meme page : un identifiant par graphique.** Les composants
+s'abonnent aux donnees PAR ID DE SOURCE : deux extraits qui declarent le meme \`id="chart-src"\`
+font recevoir au second les donnees du premier (ou rien). Des que la page porte plusieurs
+graphiques, accoler un identifiant propre a chaque id declare ET a chaque reference
+(\`source\`, \`for\`, \`databox-id\`, ancres, \`getElementById\`) : \`chart-src--budget\`,
+\`query-data--budget\`, \`chart--budget\`, \`for="chart--budget"\`. C'est ce que fait le Builder
+(champ « Identifiant ») et l'export du tableau de bord ; \`diagnose_widget_code\` signale les id
+dupliques dans un extrait, pas entre deux extraits colles a la main.
+
 ### Pipeline standard : Source -> Query -> Visualisation
 \`\`\`html
 <dsfr-data-source id="data"

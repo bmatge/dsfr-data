@@ -721,6 +721,9 @@ function generateComponentHTML(
 
 /** Attributs dont la valeur DÉSIGNE un id (seul, ou en liste séparée par des virgules). */
 const ID_REFERENCE_ATTRS = new Set([
+  // `databox-id` lie la DataBox, le graphique et le bouchon de tableau : il
+  // est declare et reference par le meme attribut (#1352).
+  'databox-id',
   'source',
   'sources',
   'for',
@@ -745,10 +748,14 @@ const ID_REFERENCE_ATTRS = new Set([
  * `href="#…"` et les sélecteurs des scripts (`getElementById('…')`,
  * `querySelector('#…')`). Un id que le favori ne déclare pas (une source du
  * tableau de bord) n'est pas touché.
+ *
+ * Le Builder applique la même fonction à chaque génération, avec l'identifiant
+ * du graphique (#1352) : deux extraits collés sur une même page ne partagent
+ * alors plus aucun id.
  */
 export function scopeFavoriteIds(code: string, suffix: string): string {
   const declared = new Set<string>();
-  for (const m of code.matchAll(/\sid\s*=\s*["']([^"']+)["']/g)) declared.add(m[1]);
+  for (const m of code.matchAll(/\s(?:id|databox-id)\s*=\s*["']([^"']+)["']/g)) declared.add(m[1]);
   if (declared.size === 0) return code;
   const scoped = (id: string) => (declared.has(id) ? `${id}--${suffix}` : id);
 

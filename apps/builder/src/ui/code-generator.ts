@@ -26,6 +26,7 @@ import {
   detectProvider,
   extractResourceIds,
   getProvider,
+  scopeFavoriteIds,
 } from '@dsfr-data/shared';
 import {
   advancedAggregates,
@@ -73,8 +74,20 @@ export function getLastGeneratedCode(): string {
   return lastGeneratedCode;
 }
 
+/**
+ * Accole l'identifiant du graphique (#1352) à chaque id déclaré par le code
+ * et à chaque référence vers lui : `chart--a7f3`, `chart-src--a7f3`,
+ * `source="chart-src--a7f3"`. Deux extraits générés cohabitent ainsi sur une
+ * page sans retouche. Sans identifiant (tests, état minimal), le code garde
+ * ses id historiques.
+ */
+export function scopeGeneratedIds(code: string): string {
+  return state.chartId ? scopeFavoriteIds(code, state.chartId) : code;
+}
+
 /** Write the generated code to the code panel AND render it in the preview iframe. */
-function displayGeneratedCode(code: string): void {
+function displayGeneratedCode(rawCode: string): void {
+  const code = scopeGeneratedIds(rawCode);
   // Prepend sample data comment if using example data
   const finalCode = state.isSampleData
     ? `<!-- Données d'exemple \u2014 remplacez par votre source de données -->\n${code}`
