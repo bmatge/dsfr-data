@@ -45,7 +45,7 @@ ensure ENCRYPTION_KEY   "$(openssl rand -hex 32)"
 ensure VITE_PROXY_URL   "https://${DOMAIN}"
 ensure APP_URL          "https://${DOMAIN}"
 ensure SMTP_FROM        "noreply@${PARENT_DOMAIN}"
-ensure TRUST_PROXY      "1"
+ensure TRUST_PROXY      "2"   # Traefik puis nginx du conteneur
 
 # Hash du commit déployé (footer). .git exclu du contexte Docker → passé en
 # build-arg via le compose.

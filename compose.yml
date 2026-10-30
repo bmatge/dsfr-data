@@ -53,8 +53,10 @@ services:
       - SMTP_HOST=${MAIL_HOST:-mailer}
       - SMTP_PORT=${MAIL_PORT:-1025}
       - SMTP_FROM=${SMTP_FROM:-noreply@localhost}
-      # Derrière le reverse proxy de la plateforme (Traefik) : 1 hop.
-      - TRUST_PROXY=${TRUST_PROXY:-1}
+      # Deux relais avant Express : Traefik (plateforme) puis le nginx du
+      # conteneur. Avec 1, req.ip valait l'IP de Traefik : tous les visiteurs
+      # partageaient le même quota des rate-limiters.
+      - TRUST_PROXY=${TRUST_PROXY:-2}
       - REQUIRE_EMAIL_VERIFICATION=${REQUIRE_EMAIL_VERIFICATION:-}
       - CORS_ORIGIN=${CORS_ORIGIN:-}
       - CORS_ALLOW_SUBDOMAINS_OF=${CORS_ALLOW_SUBDOMAINS_OF:-}
