@@ -407,7 +407,7 @@ router.get('/audit', async (req, res) => {
       action: string;
       target_type: string | null;
       target_id: string | null;
-      details: string | null;
+      details: string | Record<string, unknown> | null;
       ip_address: string | null;
       created_at: string;
     }>(
@@ -423,7 +423,9 @@ router.get('/audit', async (req, res) => {
         action: l.action,
         targetType: l.target_type,
         targetId: l.target_id,
-        details: l.details ? JSON.parse(l.details) : null,
+        // mysql2 renvoie deja un objet pour une colonne JSON (MariaDB 11.8) ; une
+        // chaine sur les versions anterieures. Les deux formes sont acceptees.
+        details: typeof l.details === 'string' ? JSON.parse(l.details) : (l.details ?? null),
         ipAddress: l.ip_address,
         createdAt: l.created_at,
       })),
