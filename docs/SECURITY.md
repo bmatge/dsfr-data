@@ -112,6 +112,38 @@ Aucune n'est imposée par le dépôt : elles dépassent la configuration nginx. 
 - `tests/proxy/garde-proxy-coherence.test.ts` — test-garde : les motifs des `map` nginx sont ceux du module, les blocs `location` sont identiques d'un fichier à l'autre, et la table de cas (`tests/proxy/cas-garde-proxy.ts`) est évaluée sur les `map` relues.
 - `tests/proxy/garde-proxy-nginx.test.ts` — job CI `proxy-nginx` : `nginx -t` sur les trois configurations, puis la même table rejouée par un vrai nginx dans un conteneur sans réseau.
 
+## Source publiée — ce qu'elle rend public
+
+Route `GET /api/public/sources/<jeton>/records` (ADR-165, #1361), mode serveur seulement. Une table
+Grist à clé, ou dont le document n'est pas public, est servie par l'instance une fois que son
+propriétaire l'a **publiée** depuis Sources ; la clé, chiffrée au repos, est déchiffrée côté serveur et
+ne quitte jamais le serveur. Contrat de sécurité :
+
+- **L'URL amont est fixée par la configuration de la source** (document + table), jamais par la
+  requête. C'est ce qui distingue cette route d'un attribut de clé sur `use-proxy` / `/cors-proxy`,
+  refusé : une cible libre associée à une clé stockée ferait de l'instance un proxy ouvert
+  authentifié, et tout ce que la clé sait lire (une clé Grist couvre le compte entier) deviendrait
+  lisible par tout lecteur de la page.
+- La connexion dont la clé est lue doit appartenir au propriétaire de la source.
+- `GET` seul, `https` seul vers l'amont, redirections refusées, type de contenu `application/json`
+  exigé, 20 Mo au plus, délai de 15 s. La clé et les en-têtes du visiteur ne figurent dans aucune
+  réponse ni aucun journal.
+- Jeton = UUID v4 du partage ; tout autre texte est refusé avant la base. Jeton inconnu, révoqué ou
+  expiré : 404 indistincts, sans appel amont.
+- Publication et révocation journalisées (`audit_log`, `source.published` / `source.unpublished`) ;
+  cache mémoire vidé à la révocation.
+
+Ce qu'elle expose, et qu'il faut dire à l'usager au moment de publier (le dialogue de Sources le
+fait) : **quiconque a le lien lit la table**, même si le document Grist est privé ; le jeton circule
+dans le HTML des sites tiers et leurs journaux, la révocation est la seule parade ; l'instance devient
+un point de service public pour cette table (cache et limite de débit, 120/min/IP) ; une clé Grist
+régénérée casse les graphiques publiés — recommander une clé dédiée, en lecture seule quand
+l'instance Grist le permet.
+
+Tenu par : `tests/server-pure/source-upstream.test.ts` (URL fixée, `https` seul, clé en en-tête),
+`tests/server/public-source.test.ts` (jeton révoqué → 404, clé absente des réponses, amont appelé à
+l'URL liée quelle que soit la requête, non-`GET` refusé, aperçu authentifié réservé au propriétaire).
+
 ## Relais cachable — ce qu'il rend public
 
 Le relais cachable (ADR-155) est une route qu'un **site intégrateur** fournit pour que les données de ses dataviz passent par son domaine : `<relais>/<hôte>/<chemin>?<requête>`. Il n'est pas déployé sur l'instance publique, et ce n'est pas le proxy générique ci-dessus. Son contrat, règle par règle, est dans [`RELAY.md`](RELAY.md) ; cette section dit ce qui le distingue et ce qu'il expose.

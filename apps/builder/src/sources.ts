@@ -15,6 +15,7 @@ import {
   closeModal,
   setupModalOverlayClose,
   migrateSource,
+  isPublishedSource,
   SAMPLE_DATASETS,
   isDemoDatasetsDisabled,
   isUnsafeKey,
@@ -387,6 +388,19 @@ export function loadSampleDataset(sampleId: string): void {
  * Extract field metadata from local data.
  * Supports Grist raw records and flat data structures.
  */
+/**
+ * Etat d'une table Grist vis-a-vis de son code genere (ADR-165, #1361).
+ * `null` : document public ou source d'un autre type, rien a dire.
+ */
+export function etatGristNonPublic(
+  source: Pick<Source, 'type' | 'isPublic' | 'apiKey' | 'publicToken'> | null | undefined
+): 'publiee' | 'cle' | 'sans-cle' | null {
+  if (!source || source.type !== 'grist' || source.isPublic) return null;
+  if (isPublishedSource(source as Record<string, unknown>)) return 'publiee';
+  if (typeof source.apiKey === 'string' && source.apiKey.trim()) return 'cle';
+  return 'sans-cle';
+}
+
 export function loadFieldsFromLocalData(): void {
   if (!state.localData || state.localData.length === 0) return;
 
@@ -455,13 +469,21 @@ export function loadFieldsFromLocalData(): void {
     'section-generation-mode'
   ) as HTMLElement | null;
   const dynamicWarning = document.getElementById('dynamic-warning') as HTMLElement | null;
+  const dynamicWarningCle = document.getElementById('dynamic-warning-cle') as HTMLElement | null;
+  const dynamicWarningPubliee = document.getElementById(
+    'dynamic-warning-publiee'
+  ) as HTMLElement | null;
 
   if (source?.type === 'grist' || source?.type === 'api') {
     if (generationModeSection) generationModeSection.style.display = 'block';
-    // Show warning if Grist and not public
-    if (dynamicWarning) {
-      dynamicWarning.style.display = source.type === 'grist' && !source.isPublic ? 'block' : 'none';
-    }
+    // Alerte a trois etats (ADR-165) pour une table Grist non publique :
+    // publiee (le code lit l'instance), cle enregistree (seul l'apercu la
+    // lit), sans cle (le code ne marchera qu'une fois le document public).
+    const etat = etatGristNonPublic(source);
+    if (dynamicWarning) dynamicWarning.style.display = etat === 'sans-cle' ? 'block' : 'none';
+    if (dynamicWarningCle) dynamicWarningCle.style.display = etat === 'cle' ? 'block' : 'none';
+    if (dynamicWarningPubliee)
+      dynamicWarningPubliee.style.display = etat === 'publiee' ? 'block' : 'none';
     // Default to dynamic mode for sources that support it
     state.generationMode = 'dynamic';
     const dynamicRadio = document.getElementById('mode-dynamic') as HTMLInputElement | null;

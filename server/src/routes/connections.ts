@@ -28,8 +28,10 @@ function encryptApiKey(value: string | null | undefined): string | null {
 
 /**
  * Decrypt an API key if it looks encrypted (contains ':' separators).
+ * Exporté pour la route de source publiée (ADR-165), qui lit la clé de la
+ * connexion côté serveur sans jamais la rendre.
  */
-function decryptApiKey(value: string | null | undefined): string | null {
+export function decryptApiKey(value: string | null | undefined): string | null {
   if (!value) return null;
   // Encrypted format: base64:base64:base64
   if (isEncryptionConfigured() && value.includes(':')) {

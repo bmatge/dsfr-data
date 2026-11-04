@@ -135,7 +135,7 @@ describe('Public favorite sharing (issue #148)', () => {
       expect(res.body.code).toBe('PRIVATE_SOURCE_NOT_SUPPORTED');
     });
 
-    it('refuses public share for non-favorite resources', async () => {
+    it('refuses public share for a source with nothing to publish (manual, ADR-165)', async () => {
       const alice = await registerUser('alice@test.fr');
       const sourceRes = await request(app)
         .post('/api/sources')

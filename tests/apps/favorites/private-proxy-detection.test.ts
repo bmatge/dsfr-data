@@ -81,6 +81,21 @@ describe('favoriteNeedsPrivateProxy', () => {
       expect(favoriteNeedsPrivateProxy({ savedSource: { apiKey: 'sk_secret' } })).toBe(true);
     });
 
+    it('returns false when the source is published (publicToken), even with a connectionId (ADR-165)', () => {
+      expect(
+        favoriteNeedsPrivateProxy({
+          savedSource: {
+            connectionId: 'conn-1',
+            apiKey: 'sk_secret',
+            publicToken: '3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90',
+          },
+        })
+      ).toBe(false);
+      expect(
+        favoriteNeedsPrivateProxy({ savedSource: { connectionId: 'conn-1', publicToken: '' } })
+      ).toBe(true);
+    });
+
     it('accepts JSON-serialized input (string) as well as object input', () => {
       expect(
         favoriteNeedsPrivateProxy(JSON.stringify({ savedSource: { connectionId: 'c-1' } }))

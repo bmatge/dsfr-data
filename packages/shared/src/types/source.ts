@@ -44,6 +44,15 @@ export interface Source {
   // --- Origin connection ---
   connectionId?: string;
 
+  // --- Source publiee (ADR-165, #1361) ---
+  /**
+   * Jeton du partage public de la source, quand son proprietaire l'a publiee
+   * depuis Sources (mode serveur). Le code genere lit alors
+   * `/api/public/sources/<jeton>/records` sur l'instance, la cle restant
+   * cote serveur. Absent ou null : non publiee.
+   */
+  publicToken?: string | null;
+
   // --- Join specific ---
   /** ID of the left source (for join type) */
   leftSourceId?: string;
@@ -92,6 +101,8 @@ export function migrateSource(raw: Partial<Source>): Source {
       source.apiKey = cfg.apiKey as string | null;
     if (cfg.isPublic !== undefined && source.isPublic === undefined)
       source.isPublic = cfg.isPublic as boolean;
+    if (cfg.publicToken !== undefined && source.publicToken === undefined)
+      source.publicToken = cfg.publicToken as string | null;
     if (cfg.provider && !source.provider) source.provider = cfg.provider as ProviderId;
     if (cfg.resourceIds && !source.resourceIds)
       source.resourceIds = cfg.resourceIds as Record<string, string>;
@@ -168,6 +179,7 @@ export function serializeSourceForServer(source: Source): Record<string, unknown
   if (source.tableId) configJson.tableId = source.tableId;
   if (source.apiKey !== undefined) configJson.apiKey = source.apiKey;
   if (source.isPublic !== undefined) configJson.isPublic = source.isPublic;
+  if (source.publicToken !== undefined) configJson.publicToken = source.publicToken;
   if (source.provider) configJson.provider = source.provider;
   if (source.resourceIds) configJson.resourceIds = source.resourceIds;
   if (source.leftSourceId) configJson.leftSourceId = source.leftSourceId;

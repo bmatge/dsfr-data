@@ -90,3 +90,24 @@ export function publicShareRateLimiter(req: Request, res: Response, next: NextFu
   }
   publicShareLimiter(req, res, next);
 }
+
+const publicSourceLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120, // 120 lectures par minute et par IP : une page de widgets, pas un aspirateur
+  message: { error: 'Trop de requetes, ralentissez' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
+ * Rate limiter for the anonymous published-source endpoint (ADR-165).
+ * The in-memory cache answers most reads; the limiter bounds the rest.
+ * Disabled in test environment.
+ */
+export function publicSourceRateLimiter(req: Request, res: Response, next: NextFunction): void {
+  if (process.env.NODE_ENV === 'test') {
+    next();
+    return;
+  }
+  publicSourceLimiter(req, res, next);
+}

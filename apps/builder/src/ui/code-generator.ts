@@ -27,6 +27,10 @@ import {
   extractResourceIds,
   getProvider,
   scopeFavoriteIds,
+  isAuthenticated,
+  isPublishedSource,
+  publicSourceRecordsUrl,
+  authenticatedSourceRecordsPath,
 } from '@dsfr-data/shared';
 import {
   advancedAggregates,
@@ -86,7 +90,7 @@ export function scopeGeneratedIds(code: string): string {
 }
 
 /** Write the generated code to the code panel AND render it in the preview iframe. */
-function displayGeneratedCode(rawCode: string): void {
+function displayGeneratedCode(rawCode: string, previewCode?: string): void {
   const code = scopeGeneratedIds(rawCode);
   // Prepend sample data comment if using example data
   const finalCode = state.isSampleData
@@ -95,7 +99,11 @@ function displayGeneratedCode(rawCode: string): void {
   lastGeneratedCode = finalCode;
   const codeEl = document.getElementById('generated-code');
   if (codeEl) codeEl.textContent = finalCode;
-  renderPreview(code);
+  // `previewCode` (ADR-165) : l'aperçu d'une table Grist à clé non publiée
+  // lit la route authentifiée de l'instance (même origine, cookie de session)
+  // là où le code copié garde l'adresse Grist. Jamais l'inverse : la route
+  // authentifiée ne doit pas figurer dans un code emporté.
+  renderPreview(previewCode ? scopeGeneratedIds(previewCode) : code);
 }
 
 const ODS_PAGE_SIZE = 100;
@@ -2123,11 +2131,27 @@ export function generateDynamicCode(): void {
 
   // Hote gouv/SaaS (pas de CORS navigateur) -> emettre proxy-url si un domaine
   // de proxy est bake. Instances self-hosted (CORS ouvert) : pas de proxy-url.
-  const proxyAttr =
+  let proxyAttr =
     knownHost && PROXY_BASE_URL_EMBED ? `\n    proxy-url="${PROXY_BASE_URL_EMBED}"` : '';
-  const proxyComment = proxyAttr
+  let proxyComment = proxyAttr
     ? `  <!-- proxy-url : domaine du proxy CORS (${gristHost} ne supporte pas le CORS navigateur).\n       À REMPLACER par votre propre domaine de proxy en production. -->\n`
     : '';
+
+  // Source publiee (ADR-165, #1361) : la table est servie par la route
+  // publique de l'instance, la cle restant cote serveur. Plus de proxy-url :
+  // la route est ouverte au CORS, et le code copie marche hors de l'instance.
+  // Non publiee mais a cle (mode serveur, session ouverte) : le code copie
+  // garde l'adresse Grist, seul l'APERCU passe par la route authentifiee.
+  let previewUrl: string | null = null;
+  if (isPublishedSource(source as unknown as Record<string, unknown>)) {
+    realUrl = publicSourceRecordsUrl(source.publicToken as string);
+    proxyAttr = '';
+    proxyComment = `  <!-- Source publiee : servie par ${gristHost} via cette instance, lien revocable depuis Sources. -->\n`;
+  } else if (source.apiKey && !source.isPublic && isAuthenticated()) {
+    previewUrl = authenticatedSourceRecordsPath(source.id);
+  }
+  const previewOf = (code: string): string | undefined =>
+    previewUrl ? code.replace(`url="${realUrl}"${proxyAttr}`, `url="${previewUrl}"`) : undefined;
 
   // Get field info for labels
   const labelFieldInfo = state.fields.find((f) => f.name === state.labelField);
@@ -2191,7 +2215,7 @@ ${middlewareHtml}
     pagination="10">
   </dsfr-data-list>${generateA11yElement(datalistSource, 'my-datalist')}
 </div>`;
-    displayGeneratedCode(code);
+    displayGeneratedCode(code, previewOf(code));
     return;
   }
 
@@ -2267,7 +2291,7 @@ ${middlewareHtml}${queryElement}${visualElement({
   })}
 </div>`;
 
-  displayGeneratedCode(code);
+  displayGeneratedCode(code, previewOf(code));
 }
 
 /**

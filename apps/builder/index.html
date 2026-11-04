@@ -652,6 +652,12 @@
           <div id="dynamic-warning" class="fr-alert fr-alert--warning fr-alert--sm fr-mt-2w" style="display: none;">
             <p>Ce document Grist n'est pas public. Le code généré ne fonctionnera que si le document est rendu public dans Grist.</p>
           </div>
+          <div id="dynamic-warning-cle" class="fr-alert fr-alert--info fr-alert--sm fr-mt-2w" style="display: none;">
+            <p>Ce document Grist n'est pas public : l'aperçu utilise la clé enregistrée dans vos sources, mais le code généré ne la contient pas. Pour un code utilisable hors de votre session, publiez cette table depuis <a href="../sources/">Sources</a> (bouton « Publier ») : elle sera servie par cette instance, la clé restant sur le serveur.</p>
+          </div>
+          <div id="dynamic-warning-publiee" class="fr-alert fr-alert--success fr-alert--sm fr-mt-2w" style="display: none;">
+            <p>Table publiée : le code généré lit cette instance, sans clé. Quiconque a ce code peut lire la table. Le lien se révoque depuis <a href="../sources/">Sources</a>.</p>
+          </div>
         </div>
       </div>
 

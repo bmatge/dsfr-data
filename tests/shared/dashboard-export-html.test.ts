@@ -31,6 +31,38 @@ const builderWidget = (chart: ChartConfig, sourceId = 'src-1'): Widget => ({
 const SRC = { id: 'src-1', name: 'Données', data: [{ region: 'IDF', population: 12000 }] };
 
 describe('export-html — sources', () => {
+  it('source publiee (ADR-165) : route de l’instance + normalize flatten, jamais les lignes ni la cle', () => {
+    const html = generateSourceHTML({
+      ...SRC,
+      type: 'grist',
+      apiKey: 'sk_secret',
+      isPublic: false,
+      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/d/tables/T/records',
+      publicToken: '3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90',
+    });
+    expect(html).toContain('<dsfr-data-source id="src-1__brut" url="');
+    expect(html).toContain('/api/public/sources/3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90/records"');
+    expect(html).toContain('transform="records"');
+    expect(html).toContain(
+      '<dsfr-data-normalize id="src-1" source="src-1__brut" flatten="fields"></dsfr-data-normalize>'
+    );
+    expect(html).not.toContain('sk_secret');
+    expect(html).not.toContain("data='");
+    expect(html).not.toContain('grist.numerique.gouv.fr');
+  });
+
+  it('source Grist a cle NON publiee : les lignes restent embarquees (statu quo)', () => {
+    const html = generateSourceHTML({
+      ...SRC,
+      type: 'grist',
+      apiKey: 'sk_secret',
+      apiUrl: 'https://grist.numerique.gouv.fr/api/docs/d/tables/T/records',
+    });
+    expect(html).toContain("data='");
+    expect(html).not.toContain('sk_secret');
+    expect(html).not.toContain('/api/public/sources/');
+  });
+
   it('embarque les donnees chargees en attribut data inline', () => {
     const html = generateSourceHTML(SRC);
     expect(html).toContain('<dsfr-data-source id="src-1"');

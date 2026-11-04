@@ -15,6 +15,7 @@ import dashboardsRoutes from './routes/dashboards.js';
 import groupsRoutes from './routes/groups.js';
 import sharesRoutes from './routes/shares.js';
 import publicShareRoutes from './routes/public-share.js';
+import publicSourceRoutes from './routes/public-source.js';
 import cacheRoutes from './routes/cache.js';
 import migrateRoutes from './routes/migrate.js';
 import monitoringRoutes from './routes/monitoring.js';
@@ -137,6 +138,9 @@ app.use('/api/shares', sharesRoutes);
 // only declares GET /:token (no mutations), so CSRF protection above does
 // not apply.
 app.use('/api/public/share', publicShareRoutes);
+// Source publiee (ADR-165) : lecture anonyme d'une table par son jeton de
+// partage, la cle restant cote serveur. GET seul, pas de CSRF.
+app.use('/api/public/sources', publicSourceRoutes);
 app.use('/api/cache', cacheRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/monitoring', monitoringRoutes);

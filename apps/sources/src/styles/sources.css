@@ -747,3 +747,9 @@ body {
     border-left: none;
   }
 }
+
+/* Badge « publiée » (ADR-165) : la table est servie par l'instance */
+.badge-source-publiee {
+  background: var(--background-contrast-info, #e8edff);
+  color: var(--text-default-info, #0063cb);
+}

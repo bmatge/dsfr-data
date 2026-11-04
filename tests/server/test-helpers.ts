@@ -28,6 +28,7 @@ import dashboardsRoutes from '../../server/src/routes/dashboards.js';
 import groupsRoutes from '../../server/src/routes/groups.js';
 import sharesRoutes from '../../server/src/routes/shares.js';
 import publicShareRoutes from '../../server/src/routes/public-share.js';
+import publicSourceRoutes from '../../server/src/routes/public-source.js';
 import cacheRoutes from '../../server/src/routes/cache.js';
 import migrateRoutes from '../../server/src/routes/migrate.js';
 import monitoringRoutes from '../../server/src/routes/monitoring.js';
@@ -112,6 +113,9 @@ export async function createTestApp(options: TestAppOptions = {}): Promise<Expre
   app.use('/api/groups', groupsRoutes);
   app.use('/api/shares', sharesRoutes);
   app.use('/api/public/share', publicShareRoutes);
+  // Source publiee (ADR-165) : lecture anonyme d'une table par son jeton de
+  // partage, la cle restant cote serveur. GET seul, pas de CSRF.
+  app.use('/api/public/sources', publicSourceRoutes);
   app.use('/api/cache', cacheRoutes);
   app.use('/api/migrate', migrateRoutes);
   app.use('/api/monitoring', monitoringRoutes);
