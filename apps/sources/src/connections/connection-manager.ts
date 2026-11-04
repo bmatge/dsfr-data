@@ -40,6 +40,12 @@ import { loadApiData } from './api-explorer.js';
 import { fetchDataGouvResources, selectDataGouvResource } from './datagouv-explorer.js';
 import type { DataGouvResource } from '@dsfr-data/shared';
 import { loadTableData } from '../editors/table-editor.js';
+import {
+  adressePublique,
+  publicationPossible,
+  publierSource,
+  revoquerPublication,
+} from './publication.js';
 
 // ============================================================
 // Parsing URL doc Grist public
@@ -354,11 +360,17 @@ function renderGristRows(
           ? `<span class="badge-online-created" title="Requêté en direct — exploitable dans les builders pour un graphique dynamique">JEU EN LIGNE · ${escapeHtml(created.name)}</span>`
           : ''
       }
+      ${
+        created && adressePublique(created)
+          ? `<span class="badge-online-created badge-source-publiee" title="Publiée : servie par cette instance, la clé reste sur le serveur. Quiconque a le lien lit la table.">PUBLIÉE</span>`
+          : ''
+      }
       <div class="source-row__actions">
         <button class="fr-btn fr-btn--sm fr-btn--tertiary row-action-btn act-preview" type="button">Aperçu</button>
         ${
           created
             ? `<button class="fr-btn fr-btn--sm row-action-btn act-use" type="button">Utiliser dans le Builder</button>
+               ${boutonsPublication(created)}
                <button class="row-icon-btn app-btn--icon app-btn--icon--sm act-delete" title="Retirer le jeu en ligne (la table Grist n'est pas supprimée)" type="button"><i class="ri-delete-bin-line" aria-hidden="true"></i></button>`
             : `<button class="fr-btn fr-btn--sm fr-btn--secondary row-action-btn act-create" title="Requêté en direct — pour un graphique dynamique" type="button"><i class="ri-add-line" aria-hidden="true"></i> Jeu en ligne</button>`
         }
@@ -374,6 +386,7 @@ function renderGristRows(
     });
     if (created) {
       row.querySelector('.act-use')?.addEventListener('click', () => useSourceInBuilder(created));
+      brancherPublication(row, created);
       row.querySelector('.act-delete')?.addEventListener('click', async () => {
         if (
           await confirmDialog(
@@ -1626,6 +1639,52 @@ export function setDatasetCandidate(candidate: DatasetCandidate | null): void {
   const display = candidate ? '' : 'none';
   if (onlineBtn) onlineBtn.style.display = display;
   if (localBtn) localBtn.style.display = display;
+}
+
+/**
+ * Boutons « Publier » / « Révoquer » + copie du lien d'une table Grist à clé
+ * (ADR-165, #1361). Mode serveur et session ouverte seulement.
+ */
+function boutonsPublication(source: Source): string {
+  if (!publicationPossible(source)) return '';
+  const lien = adressePublique(source);
+  if (lien) {
+    return (
+      `<button class="row-icon-btn app-btn--icon app-btn--icon--sm act-copier-lien" title="Copier l'adresse publique de la table" type="button"><i class="ri-link" aria-hidden="true"></i></button>` +
+      `<button class="fr-btn fr-btn--sm fr-btn--tertiary row-action-btn act-revoquer" data-fc="revoquer-publication" title="Révoquer le lien : les graphiques publiés cesseront de lire la table" type="button">Révoquer</button>`
+    );
+  }
+  return `<button class="fr-btn fr-btn--sm fr-btn--secondary row-action-btn act-publier" data-fc="publier-source" title="Servir cette table par l'instance, sans exposer la clé : le code généré marchera hors de votre session" type="button"><i class="ri-global-line" aria-hidden="true"></i> Publier</button>`;
+}
+
+function brancherPublication(row: HTMLElement, source: Source): void {
+  row.querySelector('.act-publier')?.addEventListener('click', async () => {
+    const publiee = await publierSource(source);
+    if (publiee) remplacerSource(publiee);
+  });
+  row.querySelector('.act-revoquer')?.addEventListener('click', async () => {
+    const revoquee = await revoquerPublication(source);
+    if (revoquee) remplacerSource(revoquee);
+  });
+  row.querySelector('.act-copier-lien')?.addEventListener('click', async () => {
+    const lien = adressePublique(source);
+    if (!lien) return;
+    try {
+      await navigator.clipboard.writeText(lien);
+      toastSuccess('Adresse publique copiée dans le presse-papiers.');
+    } catch {
+      toastError(`Copie impossible. Adresse : ${lien}`);
+    }
+  });
+}
+
+/** Remplace une source en place (sans changer la sélection courante) et persiste. */
+function remplacerSource(source: Source): void {
+  const idx = state.sources.findIndex((s) => s.id === source.id);
+  if (idx >= 0) state.sources[idx] = source;
+  else state.sources.push(source);
+  saveToStorage(STORAGE_KEYS.SOURCES, state.sources);
+  renderSources();
 }
 
 function upsertSource(source: Source): void {

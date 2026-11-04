@@ -1549,6 +1549,33 @@ describe('generateDynamicCode', () => {
     }
   });
 
+  it('source publiee (ADR-165) : url de la route publique, sans proxy-url ni adresse Grist', () => {
+    state.savedSource!.apiKey = 'sk_secret';
+    state.savedSource!.isPublic = false;
+    state.savedSource!.publicToken = '11111111-2222-4333-8444-555555555555';
+    generateDynamicCode();
+    const code = document.getElementById('generated-code')!.textContent!;
+    expect(code).toContain('/api/public/sources/11111111-2222-4333-8444-555555555555/records"');
+    expect(code).toContain('transform="records"');
+    expect(code).not.toContain('proxy-url=');
+    expect(code).not.toContain('grist.numerique.gouv.fr/api/docs');
+    expect(code).not.toContain('sk_secret');
+    expect(code).toContain('Source publiee');
+  });
+
+  it('source a cle non publiee, hors session : le code garde l’adresse Grist, sans la cle', () => {
+    state.savedSource!.apiKey = 'sk_secret';
+    state.savedSource!.isPublic = false;
+    generateDynamicCode();
+    const code = document.getElementById('generated-code')!.textContent!;
+    expect(code).toContain(
+      'url="https://grist.numerique.gouv.fr/api/docs/doc1/tables/Table1/records"'
+    );
+    expect(code).not.toContain('sk_secret');
+    expect(code).not.toContain('/api/sources/');
+    expect(code).not.toContain('/api/public/sources/');
+  });
+
   it('emits the real docs.getgrist.com URL (no baked proxy endpoint, #340)', () => {
     state.savedSource!.apiUrl = 'https://docs.getgrist.com/api/docs/doc2/tables/Table2/records';
     state.savedSource!.documentId = 'doc2';

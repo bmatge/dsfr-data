@@ -90,6 +90,7 @@ Le fichier [`.env.example`](../.env.example) liste toutes les variables. Les pri
 | `APP_URL` | serveur **[REQUISE en mode serveur]** | URL publique de l'app, utilisee dans les emails de verification / reset (ex. `https://mondomaine.gouv.fr`). Sans cette variable, le serveur leve une erreur au demarrage si l'envoi d'email est tente. | throw si absent et SMTP configure |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | serveur | Configuration SMTP pour l'envoi d'emails de verification / reset | non configure |
 | `IA_DEFAULT_TOKEN`, `IA_DEFAULT_API_URL`, `IA_DEFAULT_MODEL` | les 2 | Cle Albert partagee cote serveur (le Studio IA fonctionne sans config utilisateur) | `albert-large` |
+| `PUBLIC_SOURCE_CACHE_TTL` | serveur | Duree de cache, en secondes, des lignes servies par la route de source publiee `/api/public/sources/<jeton>/records` (ADR-165, #1361) : memoire du process et `Cache-Control` navigateur. `0` desactive le cache memoire (chaque lecture interroge Grist). | `300` |
 | `IA_MAX_RPM` | les 2 | Plafond global d'appels a `/ia-proxy-default` par minute glissante, **tous utilisateurs confondus** (#999). Au-dela, le proxy repond `429` avec un en-tete `Retry-After` en secondes entieres, **sans appeler Albert** : la cle partagee ne s'epuise pas sur la limite amont. Entier >= 1 ; toute autre valeur retombe sur le defaut. Le compteur vit en memoire du process (`scripts/ia-default-server.js` en production, middlewares Vite en dev) : il repart a zero au redemarrage. Voir ci-dessous. | `10` |
 
 **Securite** : `JWT_SECRET`, `DB_PASSWORD`, `DB_ROOT_PASSWORD`, `ENCRYPTION_KEY` sont **generes automatiquement** par `deploy-server.sh` s'ils manquent dans `.env`. Une fois generes, ne JAMAIS les changer en place : `JWT_SECRET` invalide les sessions actives, `ENCRYPTION_KEY` rend les cles API stockees illisibles. Les sauvegarder hors du serveur.
@@ -513,6 +514,36 @@ Liste exhaustive des routes que les apps et widgets attendent au runtime. Si vou
    curl -s -o /dev/null -w "%{http_code}\n" -X DELETE -H "X-Target-URL: https://data.gouv.fr/" "https://${APP_DOMAIN}/cors-proxy"   # 405
    curl -s -o /dev/null -w "%{http_code}\n" "https://${APP_DOMAIN}/cors-proxy"   # 400
    ```
+
+## Source publiee (mode serveur)
+
+Une table Grist a cle, ou dont le document n'est pas public, n'est lisible par aucun code genere sans
+l'instance : la cle ne doit pas figurer dans une page. En mode serveur, l'usager peut **publier** une
+telle source depuis l'app Sources (bouton « Publier » sur la table). L'instance cree un partage
+`public` sur la source (table `shares`, journalise `source.published` / `source.unpublished` dans
+`audit_log`) et sert ses lignes par :
+
+```
+GET /api/public/sources/<jeton>/records
+```
+
+- **URL amont fixee** par la configuration de la source (document + table de la connexion) : la
+  requete du visiteur n'y ajoute rien ; la cle, dechiffree cote serveur, part dans l'en-tete
+  `Authorization` et ne figure dans aucune reponse ni journal.
+- `GET` seul, CORS ouvert (`Access-Control-Allow-Origin: *`), `X-Robots-Tag: noindex`,
+  `Cache-Control: public, max-age=PUBLIC_SOURCE_CACHE_TTL`, cache memoire par jeton, 120 lectures
+  par minute et par adresse.
+- 404 pour un jeton mal forme, inconnu ou revoque (indistincts, sans appel amont) ; 403 si Grist
+  refuse la cle ; 502 sur toute autre panne amont.
+- La meme lecture, authentifiee (cookie de session, proprietaire ou partage `user` / `group`), est
+  `GET /api/sources/<id>/records` : c'est l'apercu du Builder avant publication.
+
+Le code genere par le Builder, le Studio IA et l'export HTML d'une source publiee est une
+`<dsfr-data-source url="https://<instance>/api/public/sources/<jeton>/records" transform="records">`,
+sans `proxy-url` : il marche tel quel sur un site tiers, tant que le lien n'est pas revoque. Ce que
+cela expose et ce qu'il faut dire a l'usager : `docs/SECURITY.md` §« Source publiee ». Nginx n'a
+rien a configurer de plus : la route est sous `/api/`, deja relaye vers Express (`nginx-db.conf`).
+En mode statique, la route n'existe pas : le Builder garde le repli « Donnees integrees ».
 
 ## Relais cachable
 

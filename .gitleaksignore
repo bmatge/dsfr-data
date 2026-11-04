@@ -4,3 +4,8 @@
 # visiteur, elle identifie l'application ; le collecteur filtre par origine. Commit antérieur au
 # marqueur gitleaks:allow posé dans apps/studio/src/retours.ts.
 a943c9c1045fe4bfcafd1dcfcb65f99a24f03067:apps/studio/src/retours.ts:generic-api-key:18
+
+# UUID d'EXEMPLE d'un jeton de source publiée (ADR-165, #1361) dans un test : forgé au hasard, il n'ouvre
+# rien et aucun partage ne le porte. Le commit suivant remplace la constante par un UUID à faible
+# entropie ; l'empreinte couvre le commit déjà poussé.
+cc32d2cb96e0388b223edad310663f08c7adac53:tests/shared/public-source.test.ts:generic-api-key:13

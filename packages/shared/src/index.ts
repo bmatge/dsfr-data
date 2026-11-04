@@ -155,6 +155,13 @@ export {
   LIB_URL,
 } from './api/proxy-config.js';
 export type { ProxyConfig, ProxyMode, RuntimeProxyConfig } from './api/proxy-config.js';
+// Source publiee (ADR-165, #1361) : routes de l'instance qui servent une
+// source a cle, la cle restant cote serveur.
+export {
+  isPublishedSource,
+  publicSourceRecordsUrl,
+  authenticatedSourceRecordsPath,
+} from './api/public-source.js';
 export {
   getProxyUrl,
   getProxiedUrl,

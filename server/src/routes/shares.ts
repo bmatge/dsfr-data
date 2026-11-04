@@ -8,6 +8,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { query, queryOne, execute } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
+import { logAudit } from '../utils/audit.js';
+import { isPublishableSource } from '../utils/source-upstream.js';
+import { clearPublicSourceCache } from './public-source.js';
 
 const router = Router();
 
@@ -49,6 +52,9 @@ export function favoriteNeedsPrivateProxy(rawBuilderState: unknown): boolean {
   if (!source || typeof source !== 'object' || Array.isArray(source)) return false;
 
   const s = source as Record<string, unknown>;
+  // Source publiee (ADR-165) : son code genere lit la route de l'instance,
+  // la cle reste cote serveur — le favori est partageable.
+  if (typeof s.publicToken === 'string' && s.publicToken.trim().length > 0) return false;
   if (s.connectionId) return true;
   if (typeof s.apiKey === 'string' && s.apiKey.trim().length > 0) return true;
   return false;
@@ -151,16 +157,49 @@ router.post('/', requireAuth, async (req, res) => {
     // a broken link. Other resource types (sources/connections/dashboards) are
     // refused outright until the proxy work lands.
     if (target_type === 'public') {
-      if (resource_type !== 'favorite') {
+      if (resource_type === 'source') {
+        // Source publiee (ADR-165, #1361) : le jeton de ce partage devient
+        // l'adresse GET /api/public/sources/<jeton>/records. Seule une source
+        // que son code genere ne peut pas lire seul (table Grist a cle ou non
+        // publique) a quelque chose a publier.
+        const src = await queryOne<{ type: string; config_json: unknown }>(
+          'SELECT type, config_json FROM sources WHERE id = ?',
+          [resource_id]
+        );
+        const config =
+          typeof src?.config_json === 'string'
+            ? (JSON.parse(src.config_json) as Record<string, unknown>)
+            : (src?.config_json as Record<string, unknown> | null);
+        if (!src || !isPublishableSource(src.type, config)) {
+          res.status(400).json({
+            error:
+              "Cette source n'a pas besoin d'etre publiee : son code genere la lit deja sans l'instance.",
+            code: 'SOURCE_NOT_PUBLISHABLE',
+          });
+          return;
+        }
+        const existing = await queryOne<{ id: string }>(
+          `SELECT id FROM shares WHERE resource_type = 'source' AND resource_id = ?
+             AND target_type = 'public' AND revoked_at IS NULL`,
+          [resource_id]
+        );
+        if (existing) {
+          res.status(409).json({ error: 'Source already published', code: 'ALREADY_PUBLISHED' });
+          return;
+        }
+      } else if (resource_type !== 'favorite') {
         res
           .status(400)
-          .json({ error: 'Public sharing is only available for favorites in this version' });
+          .json({ error: 'Public sharing is only available for favorites and sources' });
         return;
       }
-      const fav = await queryOne<{ builder_state_json: unknown }>(
-        'SELECT builder_state_json FROM favorites WHERE id = ?',
-        [resource_id]
-      );
+      const fav =
+        resource_type !== 'favorite'
+          ? null
+          : await queryOne<{ builder_state_json: unknown }>(
+              'SELECT builder_state_json FROM favorites WHERE id = ?',
+              [resource_id]
+            );
       if (fav && favoriteNeedsPrivateProxy(fav.builder_state_json)) {
         res.status(400).json({
           error:
@@ -202,6 +241,9 @@ router.post('/', requireAuth, async (req, res) => {
       );
 
       const share = await queryOne('SELECT * FROM shares WHERE id = ?', [id]);
+      if (target_type === 'public' && resource_type === 'source') {
+        await logAudit(req, 'source.published', 'source', resource_id, { shareId: id });
+      }
       res.status(201).json(share);
     } catch (err: unknown) {
       if (
@@ -230,6 +272,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
     const share = await queryOne<{
       resource_type: string;
       resource_id: string;
+      target_type: string;
       granted_by: string;
     }>('SELECT * FROM shares WHERE id = ?', [req.params.id]);
     if (!share) {
@@ -251,6 +294,12 @@ router.delete('/:id', requireAuth, async (req, res) => {
     }
 
     await execute('DELETE FROM shares WHERE id = ?', [req.params.id]);
+    if (share.target_type === 'public' && share.resource_type === 'source') {
+      clearPublicSourceCache();
+      await logAudit(req, 'source.unpublished', 'source', share.resource_id, {
+        shareId: req.params.id,
+      });
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error('Delete share error:', err);

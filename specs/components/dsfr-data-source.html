@@ -1252,6 +1252,10 @@
             sont visibles dans le code source HTML. Ne les utilisez que pour des clés a acces restreint (lecture seule)
             ou dans des contextes proteges (intranet, applications internes).
             Pour une separation propre entre markup et clés, utilisez <code>api-key-ref</code>.
+            Sur une instance en mode serveur, une table Grist privée peut être <strong>publiée</strong>
+            depuis l'app Sources : la source devient <code>url="https://&lt;instance&gt;/api/public/sources/&lt;jeton&gt;/records"
+            transform="records"</code>, la clé reste sur le serveur, et le lien se révoque à tout moment
+            (quiconque l'a lit la table).
           </p>
         </div>
     </div>

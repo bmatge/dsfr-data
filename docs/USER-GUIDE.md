@@ -116,6 +116,23 @@ En mode dynamique, deux sections supplementaires apparaissent :
 - **Nettoyage des donnees** : configure `<dsfr-data-normalize>` pour nettoyer les donnees (aplatissement de sous-objets, trim, conversion numerique, renommage de champs, remplacement de valeurs). Pour les sources Grist, cette etape est pre-configuree automatiquement avec `flatten="fields"`.
 - **Filtres a facettes** : configure `<dsfr-data-facets>` pour ajouter des filtres interactifs (cases a cocher, listes deroulantes, multi-selection)
 
+### Etape 3 bis — Document Grist prive : publier la table (mode serveur)
+
+Si le document Grist n'est pas public et que la connexion porte une cle d'API, l'apercu du Builder
+fonctionne (il lit la cle enregistree), mais le code genere ne la contient pas : la cle ne doit jamais
+figurer dans une page. Le Builder l'indique par une alerte. Pour obtenir un code utilisable hors de
+votre session, retournez dans **Sources**, sur la table concernee, et cliquez sur **Publier**.
+
+- L'instance sert alors la table a l'adresse `/api/public/sources/<jeton>/records`, la cle restant
+  sur le serveur ; le code genere lit cette adresse, sans `proxy-url`.
+- **Quiconque a le lien lit la table**, meme si le document Grist est prive : le dialogue le rappelle
+  avant de publier. Le bouton **Revoquer** coupe le lien a tout moment ; les graphiques qui le
+  lisaient cessent de fonctionner.
+- Conseil : une cle Grist dediee, en lecture seule si votre instance Grist le permet ; une cle
+  regeneree casse les graphiques publies.
+- Sans serveur (mode statique), ce bouton n'existe pas : choisissez **Donnees integrees**, ou rendez
+  le document public dans Grist.
+
 ### Etape 4 — Code genere avec composants dynamiques
 
 Apres avoir configure et genere le graphique, le code genere contient les Web Components dsfr-data :

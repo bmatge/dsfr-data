@@ -1220,6 +1220,26 @@ Tests : `tests/relay/` — suite de conformance (`conformance.test.mjs`, jouée 
 
 ---
 
+### 4.6 Source publiée (`/api/public/sources/<jeton>/records`, ADR-165)
+
+Un **troisième contrat**, en mode serveur seulement, pour l'agent seul : une table Grist à clé ou non
+publique est servie par l'instance après publication explicite par son propriétaire (app Sources,
+partage `public` sur la ressource `source` dans `shares`). Clé déchiffrée côté serveur, **URL amont
+fixée par la configuration de la source** (`server/src/utils/source-upstream.ts`, pur), jamais par la
+requête — la règle qui interdit un attribut de clé sur `use-proxy` (cible libre). Route :
+`server/src/routes/public-source.ts` ; jumelle authentifiée `GET /api/sources/:id/records`
+(`routes/sources.ts`) pour l'aperçu des apps avant publication.
+
+Côté apps, **aucun changement dans la bibliothèque** : le jeton est recopié sur la source
+(`Source.publicToken`, dans `config_json` côté serveur), et `packages/shared/src/api/public-source.ts`
+écrit l'adresse. Le Builder (`generateDynamicCode`) émet `url="<instance>/api/public/sources/<jeton>/records"
+transform="records"` sans `proxy-url` ; non publiée mais à clé et session ouverte, seul l'APERÇU lit
+la route authentifiée (`displayGeneratedCode(code, previewCode)`), le code copié garde l'adresse
+Grist. L'export HTML (`generateSourceHTML`) émet la source brute `<id>__brut` + un
+`dsfr-data-normalize id="<id>" flatten="fields"` : le JSON Grist arrive tel quel par la route, et
+l'aval garde ses noms de champ. `favoriteNeedsPrivateProxy` tient une source publiée pour
+partageable (#148 PR2). Ce que la route expose : `docs/SECURITY.md` §« Source publiée ».
+
 ## 5. Build system
 
 ### 5.1 Commandes principales

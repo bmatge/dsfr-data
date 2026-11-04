@@ -24,6 +24,7 @@ import { filterToOdsql, splitFilterForOdsql } from '../query/filter-translator.j
 import { splitFilterForServer } from '../query/server-clause.js';
 import { CDN_URLS } from '../templates/cdn-versions.js';
 import { LIB_URL } from '../api/proxy-config.js';
+import { isPublishedSource, publicSourceRecordsUrl } from '../api/public-source.js';
 import type {
   DashboardData,
   DashboardSource,
@@ -150,6 +151,21 @@ export function generateSourceHTML(
       `${indent}  resource="${escapeHtml(resourceIds.resourceId)}"${serverAttrs}${select}></dsfr-data-source>\n`
     );
   }
+  // Source publiee (ADR-165, #1361) : la table Grist est servie par la route
+  // de l'instance, cle cote serveur. Le JSON Grist arrive tel quel
+  // (`records[].fields`) : un normalize aplatit `fields` pour que les
+  // consommateurs lisent les memes noms de champ qu'avec les lignes chargees.
+  // L'id du normalize est celui de la source : rien ne change en aval.
+  if (isPublishedSource(source)) {
+    const url = publicSourceRecordsUrl(source.publicToken as string);
+    return (
+      `${indent}<!-- Source publiee : servie par l'instance, lien revocable depuis Sources -->\n` +
+      `${indent}<dsfr-data-source id="${id}__brut" url="${escapeHtml(url)}"\n` +
+      `${indent}  transform="records"></dsfr-data-source>\n` +
+      `${indent}<dsfr-data-normalize id="${id}" source="${id}__brut" flatten="fields"></dsfr-data-normalize>\n`
+    );
+  }
+
   // URL nue : dynamique aussi, mais seulement si le document exporte peut
   // l'atteindre SEUL. Des en-tetes ou une cle d'API ne sont jamais emis (ils
   // fuiteraient dans une page publique) : sans eux la requete echouerait, donc
