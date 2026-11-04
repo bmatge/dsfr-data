@@ -10,7 +10,7 @@ import {
 import { PROXY_BASE_URL_EMBED } from '../../packages/shared/src/api/proxy-config';
 import { migrateSource, serializeSourceForServer } from '../../packages/shared/src/types/source';
 
-const TOKEN = '3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90';
+const TOKEN = '11111111-2222-4333-8444-555555555555';
 
 describe('isPublishedSource', () => {
   it('vrai pour un jeton UUID, faux sinon', () => {

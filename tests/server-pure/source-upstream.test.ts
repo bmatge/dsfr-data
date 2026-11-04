@@ -100,7 +100,7 @@ describe('resolveGristUpstream', () => {
 
 describe('isWellFormedToken', () => {
   it('accepte un UUID v4, refuse le reste', () => {
-    expect(isWellFormedToken('3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90')).toBe(true);
+    expect(isWellFormedToken('11111111-2222-4333-8444-555555555555')).toBe(true);
     expect(isWellFormedToken('3F2A9C1E-5B7D-4E8A-9C21-7D4E5F6A8B90')).toBe(true);
     expect(isWellFormedToken('abc')).toBe(false);
     expect(isWellFormedToken('3f2a9c1e5b7d4e8a9c217d4e5f6a8b90')).toBe(false);

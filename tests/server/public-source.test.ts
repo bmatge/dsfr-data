@@ -228,7 +228,7 @@ describe('Published sources (ADR-165)', () => {
 
       expect((await request(app).get('/api/public/sources/not-a-token/records')).status).toBe(404);
       expect(
-        (await request(app).get('/api/public/sources/3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90/records'))
+        (await request(app).get('/api/public/sources/11111111-2222-4333-8444-555555555555/records'))
           .status
       ).toBe(404);
 

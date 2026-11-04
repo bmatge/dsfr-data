@@ -38,10 +38,10 @@ describe('export-html — sources', () => {
       apiKey: 'sk_secret',
       isPublic: false,
       apiUrl: 'https://grist.numerique.gouv.fr/api/docs/d/tables/T/records',
-      publicToken: '3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90',
+      publicToken: '11111111-2222-4333-8444-555555555555',
     });
     expect(html).toContain('<dsfr-data-source id="src-1__brut" url="');
-    expect(html).toContain('/api/public/sources/3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90/records"');
+    expect(html).toContain('/api/public/sources/11111111-2222-4333-8444-555555555555/records"');
     expect(html).toContain('transform="records"');
     expect(html).toContain(
       '<dsfr-data-normalize id="src-1" source="src-1__brut" flatten="fields"></dsfr-data-normalize>'

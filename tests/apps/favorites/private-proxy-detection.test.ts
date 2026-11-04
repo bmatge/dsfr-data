@@ -87,7 +87,7 @@ describe('favoriteNeedsPrivateProxy', () => {
           savedSource: {
             connectionId: 'conn-1',
             apiKey: 'sk_secret',
-            publicToken: '3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90',
+            publicToken: '11111111-2222-4333-8444-555555555555',
           },
         })
       ).toBe(false);

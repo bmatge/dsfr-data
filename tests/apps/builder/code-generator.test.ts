@@ -1552,10 +1552,10 @@ describe('generateDynamicCode', () => {
   it('source publiee (ADR-165) : url de la route publique, sans proxy-url ni adresse Grist', () => {
     state.savedSource!.apiKey = 'sk_secret';
     state.savedSource!.isPublic = false;
-    state.savedSource!.publicToken = '3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90';
+    state.savedSource!.publicToken = '11111111-2222-4333-8444-555555555555';
     generateDynamicCode();
     const code = document.getElementById('generated-code')!.textContent!;
-    expect(code).toContain('/api/public/sources/3f2a9c1e-5b7d-4e8a-9c21-7d4e5f6a8b90/records"');
+    expect(code).toContain('/api/public/sources/11111111-2222-4333-8444-555555555555/records"');
     expect(code).toContain('transform="records"');
     expect(code).not.toContain('proxy-url=');
     expect(code).not.toContain('grist.numerique.gouv.fr/api/docs');
