@@ -41,7 +41,7 @@ async function registerUser(email: string, password = 'Password1') {
   if (res.body.user) {
     const userId = res.body.user.id as string;
     const role = res.body.user.role as string;
-    return { id: userId, email, role, cookie: authCookie({ userId, email, role }) };
+    return { id: userId, email, role, cookie: await authCookie({ userId, email, role }) };
   }
   await execute(
     'UPDATE users SET email_verified = TRUE, verification_token_hash = NULL WHERE email = ?',
@@ -55,7 +55,7 @@ async function registerUser(email: string, password = 'Password1') {
     id: user!.id,
     email,
     role: user!.role,
-    cookie: authCookie({ userId: user!.id, email, role: user!.role }),
+    cookie: await authCookie({ userId: user!.id, email, role: user!.role }),
   };
 }
 

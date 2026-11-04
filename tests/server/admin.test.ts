@@ -39,9 +39,15 @@ async function registerVerifiedUser(app: Express, email: string, displayName?: s
     .post('/api/auth/register')
     .send({ email, password: VALID_PASSWORD, displayName: displayName || email.split('@')[0] });
 
-  await execute('UPDATE users SET email_verified = TRUE, verification_token_hash = NULL WHERE email = ?', [email]);
-  const user = await queryOne<{ id: string; role: string }>('SELECT id, role FROM users WHERE email = ?', [email]);
-  const cookie = authCookie({ userId: user!.id, email, role: user!.role });
+  await execute(
+    'UPDATE users SET email_verified = TRUE, verification_token_hash = NULL WHERE email = ?',
+    [email]
+  );
+  const user = await queryOne<{ id: string; role: string }>(
+    'SELECT id, role FROM users WHERE email = ?',
+    [email]
+  );
+  const cookie = await authCookie({ userId: user!.id, email, role: user!.role });
   return { id: user!.id, email, role: user!.role, cookie };
 }
 
@@ -62,9 +68,7 @@ describe('GET /api/admin/users', () => {
     await registerVerifiedUser(app, 'user1@example.com');
     await registerVerifiedUser(app, 'user2@example.com');
 
-    const res = await request(app)
-      .get('/api/admin/users')
-      .set('Cookie', adminCookie);
+    const res = await request(app).get('/api/admin/users').set('Cookie', adminCookie);
 
     expect(res.status).toBe(200);
     expect(res.body.users).toHaveLength(3);
@@ -75,9 +79,7 @@ describe('GET /api/admin/users', () => {
     await registerAdmin(app);
     const editor = await registerVerifiedUser(app, 'editor@example.com');
 
-    const res = await request(app)
-      .get('/api/admin/users')
-      .set('Cookie', editor.cookie);
+    const res = await request(app).get('/api/admin/users').set('Cookie', editor.cookie);
 
     expect(res.status).toBe(403);
   });
@@ -88,24 +90,23 @@ describe('GET /api/admin/users/:id', () => {
     const adminCookie = await registerAdmin(app);
     const user = await registerVerifiedUser(app, 'detail@example.com', 'Detail');
 
-    const res = await request(app)
-      .get(`/api/admin/users/${user.id}`)
-      .set('Cookie', adminCookie);
+    const res = await request(app).get(`/api/admin/users/${user.id}`).set('Cookie', adminCookie);
 
     expect(res.status).toBe(200);
     expect(res.body.user.email).toBe('detail@example.com');
     expect(res.body.user.displayName).toBe('Detail');
     expect(res.body.resources).toEqual({
-      sources: 0, connections: 0, favorites: 0, dashboards: 0,
+      sources: 0,
+      connections: 0,
+      favorites: 0,
+      dashboards: 0,
     });
   });
 
   it('returns 404 for unknown user', async () => {
     const adminCookie = await registerAdmin(app);
 
-    const res = await request(app)
-      .get('/api/admin/users/nonexistent')
-      .set('Cookie', adminCookie);
+    const res = await request(app).get('/api/admin/users/nonexistent').set('Cookie', adminCookie);
 
     expect(res.status).toBe(404);
   });
@@ -125,13 +126,17 @@ describe('PUT /api/admin/users/:id/role', () => {
     expect(res.body.role).toBe('viewer');
 
     // Verify in DB
-    const updated = await queryOne<{ role: string }>('SELECT role FROM users WHERE id = ?', [user.id]);
+    const updated = await queryOne<{ role: string }>('SELECT role FROM users WHERE id = ?', [
+      user.id,
+    ]);
     expect(updated?.role).toBe('viewer');
   });
 
   it('cannot change own role', async () => {
     const adminCookie = await registerAdmin(app);
-    const admin = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['admin@example.com']);
+    const admin = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', [
+      'admin@example.com',
+    ]);
 
     const res = await request(app)
       .put(`/api/admin/users/${admin!.id}/role`)
@@ -159,10 +164,16 @@ describe('PUT /api/admin/users/:id/role', () => {
     // But let's try to demote via another admin scenario
     // Re-promote user, then try to demote the original admin
     await execute('UPDATE users SET role = ? WHERE id = ?', ['admin', user.id]);
-    const admin = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['admin@example.com']);
+    const admin = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', [
+      'admin@example.com',
+    ]);
 
     // User is now admin, use their cookie
-    const user2Cookie = authCookie({ userId: user.id, email: 'admin2@example.com', role: 'admin' });
+    const user2Cookie = await authCookie({
+      userId: user.id,
+      email: 'admin2@example.com',
+      role: 'admin',
+    });
     const res2 = await request(app)
       .put(`/api/admin/users/${admin!.id}/role`)
       .set('Cookie', user2Cookie)
@@ -208,7 +219,9 @@ describe('PUT /api/admin/users/:id/status', () => {
 
   it('cannot deactivate yourself', async () => {
     const adminCookie = await registerAdmin(app);
-    const admin = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['admin@example.com']);
+    const admin = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', [
+      'admin@example.com',
+    ]);
 
     const res = await request(app)
       .put(`/api/admin/users/${admin!.id}/status`)
@@ -231,9 +244,7 @@ describe('DELETE /api/admin/users/:id', () => {
       .set('Cookie', user.cookie)
       .send({ name: 'Doomed', type: 'csv', config_json: {}, data_json: [] });
 
-    const res = await request(app)
-      .delete(`/api/admin/users/${user.id}`)
-      .set('Cookie', adminCookie);
+    const res = await request(app).delete(`/api/admin/users/${user.id}`).set('Cookie', adminCookie);
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
@@ -245,7 +256,9 @@ describe('DELETE /api/admin/users/:id', () => {
 
   it('cannot delete yourself', async () => {
     const adminCookie = await registerAdmin(app);
-    const admin = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', ['admin@example.com']);
+    const admin = await queryOne<{ id: string }>('SELECT id FROM users WHERE email = ?', [
+      'admin@example.com',
+    ]);
 
     const res = await request(app)
       .delete(`/api/admin/users/${admin!.id}`)
@@ -267,9 +280,7 @@ describe('GET /api/admin/audit', () => {
       .set('Cookie', adminCookie)
       .send({ role: 'viewer' });
 
-    const res = await request(app)
-      .get('/api/admin/audit')
-      .set('Cookie', adminCookie);
+    const res = await request(app).get('/api/admin/audit').set('Cookie', adminCookie);
 
     expect(res.status).toBe(200);
     expect(res.body.logs.length).toBeGreaterThanOrEqual(1);
@@ -283,9 +294,7 @@ describe('GET /api/admin/stats', () => {
     await registerVerifiedUser(app, 'stat1@example.com');
     await registerVerifiedUser(app, 'stat2@example.com');
 
-    const res = await request(app)
-      .get('/api/admin/stats')
-      .set('Cookie', adminCookie);
+    const res = await request(app).get('/api/admin/stats').set('Cookie', adminCookie);
 
     expect(res.status).toBe(200);
     expect(res.body.totalUsers).toBe(3);

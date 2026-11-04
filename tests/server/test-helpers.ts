@@ -14,10 +14,12 @@
  *     -e MYSQL_ROOT_PASSWORD=test -e MYSQL_DATABASE=dsfr_data_test mariadb:11
  */
 
+import { randomUUID } from 'node:crypto';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { initDatabase, closeDatabase, execute } from '../../server/src/db/database.js';
 import { authMiddleware, createToken } from '../../server/src/middleware/auth.js';
+import { hashToken } from '../../server/src/utils/sessions.js';
 import type { JwtPayload } from '../../server/src/middleware/auth.js';
 import { doubleCsrfProtection, csrfErrorHandler } from '../../server/src/middleware/csrf.js';
 import authRoutes from '../../server/src/routes/auth.js';
@@ -147,8 +149,18 @@ export function createTestToken(payload: JwtPayload): string {
 
 /**
  * Get a cookie string for authenticated requests.
+ *
+ * Inserts the matching `sessions` row : since the revocable-sessions change,
+ * `authMiddleware` rejects any JWT without one (`isSessionValid`). The first
+ * registered user used to pass by accident (the server's own login token,
+ * forged in the same second, collided with ours) ; every other user got 401.
  */
-export function authCookie(payload: JwtPayload): string {
+export async function authCookie(payload: JwtPayload): Promise<string> {
   const token = createTestToken(payload);
+  await execute(
+    `INSERT INTO sessions (id, user_id, token_hash, auth_provider, ip_address, user_agent, expires_at)
+     VALUES (?, ?, ?, 'local', NULL, 'vitest', DATE_ADD(NOW(), INTERVAL 7 DAY))`,
+    [randomUUID(), payload.userId, hashToken(token)]
+  );
   return `gw-auth-token=${token}`;
 }

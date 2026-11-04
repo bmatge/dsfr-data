@@ -576,7 +576,7 @@ describe('GET /api/auth/providers', () => {
   it('returns an empty list by default (OIDC disabled)', async () => {
     const res = await request(app).get('/api/auth/providers');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ providers: [] });
+    expect(res.body).toEqual({ providers: [], oidcOnly: false });
   });
 
   it('returns the OIDC provider when OIDC_ENABLED=true', async () => {
@@ -586,6 +586,7 @@ describe('GET /api/auth/providers', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       providers: [{ id: 'oidc', label: 'Authentik (lab)', loginUrl: '/api/auth/oidc/login' }],
+      oidcOnly: false,
     });
   });
 
