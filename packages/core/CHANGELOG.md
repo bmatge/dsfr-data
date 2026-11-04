@@ -1,5 +1,32 @@
 # dsfr-data
 
+## 0.52.0
+
+### Minor Changes
+
+- [#1353](https://github.com/bmatge/dsfr-data/pull/1353) [`81611eb`](https://github.com/bmatge/dsfr-data/commit/81611eb193ac03e63a0f9d20af6b4d6e123f26ec) Thanks [@bmatge](https://github.com/bmatge)! - Builder : un identifiant par graphique, accolé à tous les id du code généré ([#1352](https://github.com/bmatge/dsfr-data/issues/1352), retour usager). Le code du Builder portait des id figés (`chart`, `chart-src`, `query-data`…) : deux extraits collés sur une même page se marchaient dessus, et le second graphique recevait les données du premier. Un champ « Identifiant » (section Apparence), prérempli à chaque nouvelle configuration et modifiable, est désormais accolé à chaque id déclaré et à chaque référence (`chart--a7f3`, `chart-src--a7f3`, `source="chart-src--a7f3"`, `databox-id`, ancres, scripts). Un favori garde son identifiant ; un favori antérieur en reçoit un à l'ouverture. Conséquence : un graphique regénéré ne porte plus `id="chart"` ; les pages qui ciblaient ces id en dur sont à ajuster. La fonction partagée `scopeFavoriteIds` (export du tableau de bord) couvre aussi `databox-id`, et la skill « Patterns de composition » porte la convention pour les modèles qui écrivent le code via le serveur MCP.
+
+### Patch Changes
+
+- [#1337](https://github.com/bmatge/dsfr-data/pull/1337) [`ad03027`](https://github.com/bmatge/dsfr-data/commit/ad030279cd534774cf1ec2c284e01d0640d34b8b) Thanks [@bmatge](https://github.com/bmatge)! - Builder : le tableau accessible d'un graphique porte les libellés saisis, pas les noms techniques des colonnes agrégées ([#1336](https://github.com/bmatge/dsfr-data/issues/1336)).
+  
+  - **Le code produit nomme les colonnes du compagnon accessible** : `label-field="region:Région"` et `value-field="value:Budget voté,value2:Taux d'exécution"`, une colonne par série tracée, dans l'ordre de la légende. Sans ces attributs, `dsfr-data-a11y` lisait toutes les colonnes des lignes reçues dans leur ordre d'apparition : le tableau et le CSV annonçaient « value », « region », « value2 » là où la légende dit « Budget voté » et « Taux d'exécution », et la colonne de libellé n'était même pas la première — c'est elle, et elle seule, que vise `empty-label`. Le tableau du cadre officiel avait reçu ses libellés en [#1179](https://github.com/bmatge/dsfr-data/issues/1179) ; son compagnon accessible, non.
+  - **Sans libellé saisi, l'en-tête porte le nom du champ** (`budget`), jamais l'alias de l'agrégat (`value`).
+  - **Carte** : la colonne de libellé est le champ géographique, sans le libellé de l'axe, qui ne le décrit pas. **Format long** (`series-field`) : le tableau pivote comme le graphique sépare ses séries.
+  - Un `:` ou une `,` dans un libellé est échappé (`%3A` / `%2C`) : c'est la ponctuation de la grammaire des alias, pas du texte.
+  - Les **tableaux de données** (`dsfr-data-list`) gardent leurs colonnes brutes : leurs lignes ne sont pas agrégées, toutes leurs colonnes se lisent.
+
+- [#1351](https://github.com/bmatge/dsfr-data/pull/1351) [`5e8b665`](https://github.com/bmatge/dsfr-data/commit/5e8b665baf909097d43c28b5b0521130e9669e24) Thanks [@bmatge](https://github.com/bmatge)! - Les palettes décrites dans le Builder, le Studio et la documentation sont celles que DSFR Chart applique vraiment (retour usager sur les palettes).
+  
+  - L'aperçu des palettes du Builder (pastilles sous le sélecteur) montre les couleurs de `@gouvfr/dsfr-chart` 2.1.1 au lieu de teintes inventées : « distinctes par série » en compte huit, surtout bleues et violettes, et non dix couleurs contrastées. Un test relit le paquet installé et échoue si ses couleurs changent. Pour un podium, les pastilles montrent la rampe que le podium dessine lui-même.
+  - Les libellés disent ce que fait DSFR Chart : « Couleur unique (bleu) » remplace « Bleu France » (la couleur est `#5C68E5`, pas `#000091`) ; « Couleurs distinctes par série » remplace « par catégorie » (une série seule reste d'une seule couleur) ; « Vert → rouge (4 tons) » remplace « Bicolore (centre clair) », qui n'existait pas ; « Gris neutre (mise en avant) » remplace « Tons neutres ».
+  - L'aide du Builder, la fiche skill « Couleurs DSFR » lue par le Studio, la référence de `dsfr-data-chart` et la page de specs précisent le sens des dégradés (avec clair → foncé, la plus grande valeur est la plus claire) et que `highlight-index` n'agit qu'avec `selected-palette="neutral"`.
+  - Dashboard : la palette « Divergente » émettait `selected-palette="divergent"`, nom inconnu de DSFR Chart qui retombait sur les couleurs catégorielles. Elle émet `divergentAscending` ; les dashboards enregistrés avec l'ancien nom sont relus avec le nouveau.
+  - `PALETTE_PRIMARY_COLOR` est dérivée de la première couleur de chaque palette.
+  - `CHOROPLETH_SCALES.categorical` (podium, cartes Leaflet) garde ses dix couleurs contrastées, distinctes de celles de DSFR Chart.
+  
+  Pour plus de contraste entre les séries d'un graphique (courbes multiples notamment), fixer les couleurs avec `color-map`.
+
 ## 0.51.3
 
 ### Patch Changes

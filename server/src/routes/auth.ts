@@ -12,7 +12,7 @@ import { query, queryOne, execute } from '../db/database.js';
 import { createToken, setAuthCookie, clearAuthCookie, requireAuth } from '../middleware/auth.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 import { generateCsrfToken } from '../middleware/csrf.js';
-import { authLimiter } from '../middleware/rate-limit.js';
+import { authLimiter, oidcLimiter } from '../middleware/rate-limit.js';
 import { isValidEmail, isStrongPassword } from '../utils/validation.js';
 import {
   sendVerificationEmail,
@@ -69,7 +69,7 @@ router.get('/providers', (_req, res) => {
  * `?return_to=/chemin` (chemin relatif validé) est porté par le cookie
  * d'état pour revenir sur la page d'origine après le callback.
  */
-router.get('/oidc/login', authLimiter, async (req, res) => {
+router.get('/oidc/login', oidcLimiter, async (req, res) => {
   if (!isOidcEnabled()) {
     res.status(404).json({ error: 'OIDC is not enabled' });
     return;
@@ -125,7 +125,7 @@ router.get('/oidc/login', authLimiter, async (req, res) => {
  * refusal: an attacker controlling an unverified email at the IdP must not
  * be able to take over a local account.
  */
-router.get('/oidc/callback', authLimiter, async (req, res) => {
+router.get('/oidc/callback', oidcLimiter, async (req, res) => {
   if (!isOidcEnabled()) {
     res.status(404).json({ error: 'OIDC is not enabled' });
     return;
@@ -621,7 +621,7 @@ router.post('/login', requireLocalAuthEnabled, authLimiter, async (req, res) => 
  * POST /api/auth/logout
  * Clear the auth cookie and revoke the session.
  */
-router.post('/logout', authLimiter, async (req, res) => {
+router.post('/logout', async (req, res) => {
   const token = req.cookies?.['gw-auth-token'];
   if (token) {
     try {
