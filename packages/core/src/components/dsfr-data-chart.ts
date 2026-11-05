@@ -268,10 +268,16 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    * `sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),
    * `divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une
    * couleur par série), `neutral` (un gris, base de `highlight-index`). Pour
-   * fixer la couleur d'une série : `color-map`.
+   * fixer la couleur d'une série : `color-map`. Sur une carte (`map*`), le
+   * défaut est `sequentialAscending` (celui de DSFR Chart) et l'attribut n'est
+   * transmis que s'il est posé (#1347).
    */
   @property({ type: String, attribute: 'selected-palette' })
   selectedPalette = 'categorical';
+
+  /** Palettes sans dégradé : sur une carte, un à-plat ou un bleu → gris clair (#1347). */
+  private static readonly PALETTES_SANS_DEGRADE = new Set(['categorical', 'default', 'neutral']);
+  private _paletteCarteWarned = false;
 
   /**
    * Couleur fixée par modalité (#732) : paires `modalité:#couleur` séparées
@@ -652,6 +658,7 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     this._cancelRadialBoundsRaf();
     this._cancelAxisBoundsRaf();
     this._cancelColorMapRaf();
+    document.documentElement.removeEventListener('dsfr.theme', this._onDsfrTheme);
   }
 
   updated(changed: Map<string, unknown>) {
@@ -683,7 +690,20 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   connectedCallback() {
     super.connectedCallback();
     sendWidgetBeacon('dsfr-data-chart', this.type);
+    // Thème clair / sombre (#1349) : chaque composant DSFR Chart écoute
+    // `dsfr.theme` sur `document.documentElement` et, au changement, recharge
+    // sa palette puis réécrit les couleurs de TOUS les jeux avant
+    // `update('none')` — `color-map`, posé une fois après le rendu, était
+    // effacé : canvas, légende et infobulle retombaient sur la palette. On
+    // réapplique par la même procédure que le rendu initial (sondage rAF
+    // jusqu'à l'instance, report dans `colorParse`).
+    document.documentElement.addEventListener('dsfr.theme', this._onDsfrTheme);
   }
+
+  private readonly _onDsfrTheme = (): void => {
+    if (!this.isConnected) return;
+    this._refreshColorMap();
+  };
 
   onSourceReset(): void {
     this._data = [];
@@ -1201,7 +1221,31 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   private _getCommonAttributes(): Record<string, string> {
     const attrs: Record<string, string> = {};
 
-    if (this.selectedPalette) attrs['selected-palette'] = this.selectedPalette;
+    // Carte (#1347) : DSFR Chart construit l'échelle de la première à la
+    // dernière couleur de la palette reçue, et défaut lui-même à
+    // `sequentialAscending`. Le défaut `categorical` de ce composant, transmis
+    // tel quel, rendait un dégradé bleu → gris clair sur toute carte sans
+    // `selected-palette`. On ne transmet donc l'attribut aux cartes que s'il
+    // est POSÉ (en attribut ou en propriété autre que le défaut), et une
+    // palette sans dégradé y est dite une fois en console.
+    const isMapType = this.type in MAP_LEVEL;
+    const palettePosee =
+      this.hasAttribute('selected-palette') || this.selectedPalette !== 'categorical';
+    if (this.selectedPalette && (!isMapType || palettePosee)) {
+      attrs['selected-palette'] = this.selectedPalette;
+      if (
+        isMapType &&
+        DsfrDataChart.PALETTES_SANS_DEGRADE.has(this.selectedPalette) &&
+        !this._paletteCarteWarned
+      ) {
+        this._paletteCarteWarned = true;
+        console.warn(
+          `dsfr-data-chart[${this.id}]: selected-palette="${this.selectedPalette}" sur type="${this.type}" ` +
+            `ne porte aucun dégradé : la carte rend un à-plat ou un bleu → gris clair. ` +
+            `Préférer sequentialAscending / sequentialDescending (le défaut sans attribut).`
+        );
+      }
+    }
     if (this.unitTooltip)
       attrs['unit-tooltip'] = this._htmlRelaye('unit-tooltip', this.unitTooltip);
     // Les bornes d'axe (x-min, x-max, y-min, y-max) ne sont PAS des attributs
@@ -1711,17 +1755,18 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
    *
    * Sans `databox`, canvas et overlays sont frères dans le wrapper : rien à
    * faire. Avec, DSFR Chart téléporte le canvas DANS la carte de la DataBox
-   * (`div.fr-card.databox`, `position: relative`, `z-index: 500`, fond blanc
-   * opaque) ; les overlays, restés à côté de `data-box`, étaient donc peints
+   * (`div.fr-card.databox`, `position: relative`, `z-index` entre 1 et 10
+   * selon la position de grille — pas 500, #1350 — fond blanc opaque) ; les
+   * overlays, restés à côté de `data-box`, étaient donc peints
    * SOUS elle — `reference-lines` et `targets` invisibles, sans un message,
    * puisque le dessin « réussissait ». Même famille que #813.
    *
    * On remonte depuis le canvas jusqu'au premier ancêtre POSITIONNÉ : la carte
    * quand il y a une DataBox, le wrapper sinon. L'overlay se retrouve dans le
    * contexte d'empilement du canvas, donc peint après lui (ordre de l'arbre).
-   * Plutôt qu'une course au `z-index` : un overlay à 501 passerait aussi
-   * au-dessus de la modale et du plein écran de la DataBox, qui vivent DANS la
-   * carte.
+   * Plutôt qu'une course au `z-index` : un overlay posé au-dessus de la carte
+   * passerait aussi au-dessus de la modale et du plein écran de la DataBox,
+   * qui vivent DANS la carte.
    */
   private _overlayStackingHost(wrapper: HTMLElement, canvas: HTMLCanvasElement): HTMLElement {
     if (!wrapper.contains(canvas)) return wrapper;
@@ -2250,8 +2295,12 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
   }
 
   /** Creates a DataBox + chart as siblings in a wrapper div.
-   *  DSFR DataBox discovers its chart via nextElementSibling or databox-id,
-   *  so the chart must be a SIBLING of <data-box>, not a child. */
+   *  La DataBox retrouve ses cibles par `document.querySelectorAll(
+   *  '[databox-id][databox-type="chart"]')` (DataBox.js, 2.1.1), jamais par
+   *  `nextElementSibling` ; l'ordre dans le DOM n'importe pas, chaque
+   *  graphique attend sa cible de Teleport par `MutationObserver`. Le
+   *  graphique est posé en FRÈRE de `<data-box>` par propreté du DOM, et
+   *  `databox-id` fait l'appariement (#1350). */
   private _createDataboxElement(
     tagName: string,
     attributes: Record<string, string>,
@@ -2270,15 +2319,18 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
     // Create the DataBox element
     const databoxEl = document.createElement('data-box');
     databoxEl.id = databoxId;
-    // segmented-control is needed even without a table element: DataBox only
-    // creates the Teleport target containers when segmented-control is set.
-    // Without it, the chart's Vue <Teleport> has no target and renders outside.
+    // `segmented-control` est déjà VRAI par défaut dans DSFR Chart 2.1.1
+    // (#1350) : l'attribut est posé pour le dire explicitement, c'est lui qui
+    // fait créer les conteneurs cibles des Teleport (`#<id>-chart-default`,
+    // `#<id>-table-default`) ; sans ces conteneurs, le graphique se rendrait
+    // hors de la carte.
     databoxEl.setAttribute('segmented-control', '');
     // name and source are REQUIRED props for DataBox — always set them.
-    // DSFR Chart 2.1.0 renamed `title` to `name` (conflict with the native
-    // HTML title attribute); keep setting `title` too for 2.0.x hosts.
+    // DSFR Chart 2.1.0 a renommé `title` en `name` : depuis, `title` sur
+    // `<data-box>` n'est plus une prop mais l'attribut HTML natif, qui
+    // affichait une infobulle navigateur sur toute la carte (« » sans titre).
+    // La bibliothèque épingle `~2.1.1` : plus de `title` (#1350).
     databoxEl.setAttribute('name', this.databoxTitle || ' ');
-    databoxEl.setAttribute('title', this.databoxTitle || ' ');
     // Niveau de titre (#670) : DSFR Chart >= 2.1.1 rend le titre via sa prop
     // `heading-level` (h1..h6, défaut h3) — pas de réécriture DOM ni de
     // MutationObserver, la DataBox produit directement le bon élément.
@@ -2380,8 +2432,42 @@ export class DsfrDataChart extends SourceSubscriberMixin(LitElement) {
 
       const tableHtml = this._databoxTableHtml();
       if (tableHtml) container.innerHTML = tableHtml;
+      this._syncDataboxDownloadStub(wrapper);
     }, 500);
     this._pendingTimers.add(timer);
+  }
+
+  /**
+   * Alimente le bouchon `databox-type="table"` pour le téléchargement CSV de
+   * la DataBox (#1348). DSFR Chart 2.1.1 prend la voie « table » dès qu'un tel
+   * élément existe, et lit dessus `x` (libellés), `y` (une liste de valeurs
+   * par colonne), `name` (en-têtes des colonnes de valeurs) et `table-name`
+   * (en-tête de la colonne de libellés) ; sans eux, les deux branches sont
+   * sautées et un CSV VIDE est téléchargé, sans avertissement. Le bouchon
+   * porte donc le modèle du tableau de la DataBox, le même que le tableau
+   * affiché : toutes les lignes, valeurs brutes (le CSV n'est pas formaté).
+   */
+  private _syncDataboxDownloadStub(wrapper: Element): void {
+    const stub = wrapper.querySelector('[databox-type="table"]');
+    if (!stub) return;
+    const { headers, rows } = this._databoxTableModel();
+    if (headers.length === 0) {
+      for (const attr of ['x', 'y', 'name', 'table-name']) stub.removeAttribute(attr);
+      return;
+    }
+    const hasLabels = this.labelField !== '' || this.seriesField !== '';
+    const labels = rows.map((row, i) => (hasLabels ? String(row[0] ?? '') : String(i + 1)));
+    const firstValue = hasLabels ? 1 : 0;
+    const columns = headers.slice(firstValue).map((_, c) =>
+      rows.map((row) => {
+        const v = row[c + firstValue];
+        return v === null || v === undefined ? '' : v;
+      })
+    );
+    stub.setAttribute('x', JSON.stringify(labels));
+    stub.setAttribute('y', JSON.stringify(columns));
+    stub.setAttribute('name', JSON.stringify(headers.slice(firstValue)));
+    stub.setAttribute('table-name', hasLabels ? headers[0] : '');
   }
 
   /**

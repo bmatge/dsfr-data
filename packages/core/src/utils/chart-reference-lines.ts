@@ -3,8 +3,13 @@
  *
  * Trace une ligne verticale (à une catégorie/date) ou horizontale (à un seuil)
  * sur un graphique cartésien, avec un libellé en pastille. `@gouvfr/dsfr-chart`
- * rend dans un `<canvas>` (Chart.js) et n'expose aucune prop d'annotation : on
- * dessine un overlay SVG par-dessus, positionné depuis l'instance Chart.js.
+ * rend dans un `<canvas>` (Chart.js). Ses composants `line`, `scatter` et
+ * `bar-line` exposent bien des props d'annotation (`vline`, `vlinecolor`,
+ * `vlinename`, `hline`, `hlinecolor`, `hlinename` — vérifié sur 2.1.1), mais
+ * pas `bar`, et aucune ne porte de libellé en pastille ni de pointillé : on
+ * dessine donc un overlay SVG par-dessus, positionné depuis l'instance
+ * Chart.js, le même pour tous les types. Déléguer à ces props sur les types
+ * qui les ont reste une piste (#1350), pas un manque de l'amont.
  *
  * Aucune dépendance Lit / DOM-bridge : réutilisable et testable hors composant.
  */

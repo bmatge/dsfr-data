@@ -764,6 +764,11 @@ export interface ExpectCsv extends ExpectBase {
   pipeline: Step[];
   /** Colonnes exportées, dans l'ordre, avec l'en-tête attendu. */
   columns: Array<{ column: string; label: string }>;
+  /**
+   * Séparateur du fichier : `;` par défaut (export de `dsfr-data-a11y`),
+   * `,` pour le téléchargement de la DataBox de DSFR Chart (#1348).
+   */
+  separator?: ';' | ',';
 }
 
 /**

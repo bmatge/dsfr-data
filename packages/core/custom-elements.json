@@ -1038,8 +1038,26 @@
                 "text": "string"
               },
               "default": "'categorical'",
-              "description": "Palette de couleurs, appliquée par DSFR Chart : `categorical` (une couleur\npar série, une par part sur un camembert), `default` (une seule couleur),\n`sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),\n`divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une\ncouleur par série), `neutral` (un gris, base de `highlight-index`). Pour\nfixer la couleur d'une série : `color-map`.",
+              "description": "Palette de couleurs, appliquée par DSFR Chart : `categorical` (une couleur\npar série, une par part sur un camembert), `default` (une seule couleur),\n`sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),\n`divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une\ncouleur par série), `neutral` (un gris, base de `highlight-index`). Pour\nfixer la couleur d'une série : `color-map`. Sur une carte (`map*`), le\ndéfaut est `sequentialAscending` (celui de DSFR Chart) et l'attribut n'est\ntransmis que s'il est posé (#1347).",
               "attribute": "selected-palette"
+            },
+            {
+              "kind": "field",
+              "name": "PALETTES_SANS_DEGRADE",
+              "privacy": "private",
+              "static": true,
+              "readonly": true,
+              "default": "new Set(['categorical', 'default', 'neutral'])",
+              "description": "Palettes sans dégradé : sur une carte, un à-plat ou un bleu → gris clair (#1347)."
+            },
+            {
+              "kind": "field",
+              "name": "_paletteCarteWarned",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
             },
             {
               "kind": "field",
@@ -1510,6 +1528,12 @@
               "privacy": "private",
               "default": "new Set<string>()",
               "description": "Attributs poses par la mise a jour incrementale (#305)"
+            },
+            {
+              "kind": "field",
+              "name": "_onDsfrTheme",
+              "privacy": "private",
+              "readonly": true
             },
             {
               "kind": "method",
@@ -2178,7 +2202,7 @@
                   }
                 }
               ],
-              "description": "Hôte des overlays : le conteneur dans lequel les SVG sont peints AU-DESSUS\ndu canvas (#903).\n\nSans `databox`, canvas et overlays sont frères dans le wrapper : rien à\nfaire. Avec, DSFR Chart téléporte le canvas DANS la carte de la DataBox\n(`div.fr-card.databox`, `position: relative`, `z-index: 500`, fond blanc\nopaque) ; les overlays, restés à côté de `data-box`, étaient donc peints\nSOUS elle — `reference-lines` et `targets` invisibles, sans un message,\npuisque le dessin « réussissait ». Même famille que #813.\n\nOn remonte depuis le canvas jusqu'au premier ancêtre POSITIONNÉ : la carte\nquand il y a une DataBox, le wrapper sinon. L'overlay se retrouve dans le\ncontexte d'empilement du canvas, donc peint après lui (ordre de l'arbre).\nPlutôt qu'une course au `z-index` : un overlay à 501 passerait aussi\nau-dessus de la modale et du plein écran de la DataBox, qui vivent DANS la\ncarte."
+              "description": "Hôte des overlays : le conteneur dans lequel les SVG sont peints AU-DESSUS\ndu canvas (#903).\n\nSans `databox`, canvas et overlays sont frères dans le wrapper : rien à\nfaire. Avec, DSFR Chart téléporte le canvas DANS la carte de la DataBox\n(`div.fr-card.databox`, `position: relative`, `z-index` entre 1 et 10\nselon la position de grille — pas 500, #1350 — fond blanc opaque) ; les\noverlays, restés à côté de `data-box`, étaient donc peints\nSOUS elle — `reference-lines` et `targets` invisibles, sans un message,\npuisque le dessin « réussissait ». Même famille que #813.\n\nOn remonte depuis le canvas jusqu'au premier ancêtre POSITIONNÉ : la carte\nquand il y a une DataBox, le wrapper sinon. L'overlay se retrouve dans le\ncontexte d'empilement du canvas, donc peint après lui (ordre de l'arbre).\nPlutôt qu'une course au `z-index` : un overlay posé au-dessus de la carte\npasserait aussi au-dessus de la modale et du plein écran de la DataBox,\nqui vivent DANS la carte."
             },
             {
               "kind": "method",
@@ -2680,13 +2704,32 @@
                   }
                 }
               ],
-              "description": "Creates a DataBox + chart as siblings in a wrapper div.\nDSFR DataBox discovers its chart via nextElementSibling or databox-id,\nso the chart must be a SIBLING of <data-box>, not a child."
+              "description": "Creates a DataBox + chart as siblings in a wrapper div.\nLa DataBox retrouve ses cibles par `document.querySelectorAll(\n'[databox-id][databox-type=\"chart\"]')` (DataBox.js, 2.1.1), jamais par\n`nextElementSibling` ; l'ordre dans le DOM n'importe pas, chaque\ngraphique attend sa cible de Teleport par `MutationObserver`. Le\ngraphique est posé en FRÈRE de `<data-box>` par propreté du DOM, et\n`databox-id` fait l'appariement (#1350)."
             },
             {
               "kind": "method",
               "name": "_injectDataboxTable",
               "privacy": "private",
               "description": "Inject an HTML table into DataBox's table container (async, after Vue render).\nSame approach as dsfr-data-a11y: build an HTML table from the current data."
+            },
+            {
+              "kind": "method",
+              "name": "_syncDataboxDownloadStub",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "wrapper",
+                  "type": {
+                    "text": "Element"
+                  }
+                }
+              ],
+              "description": "Alimente le bouchon `databox-type=\"table\"` pour le téléchargement CSV de\nla DataBox (#1348). DSFR Chart 2.1.1 prend la voie « table » dès qu'un tel\nélément existe, et lit dessus `x` (libellés), `y` (une liste de valeurs\npar colonne), `name` (en-têtes des colonnes de valeurs) et `table-name`\n(en-tête de la colonne de libellés) ; sans eux, les deux branches sont\nsautées et un CSV VIDE est téléchargé, sans avertissement. Le bouchon\nporte donc le modèle du tableau de la DataBox, le même que le tableau\naffiché : toutes les lignes, valeurs brutes (le CSV n'est pas formaté)."
             },
             {
               "kind": "method",
@@ -2853,7 +2896,7 @@
                 "text": "string"
               },
               "default": "'categorical'",
-              "description": "Palette de couleurs, appliquée par DSFR Chart : `categorical` (une couleur\npar série, une par part sur un camembert), `default` (une seule couleur),\n`sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),\n`divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une\ncouleur par série), `neutral` (un gris, base de `highlight-index`). Pour\nfixer la couleur d'une série : `color-map`.",
+              "description": "Palette de couleurs, appliquée par DSFR Chart : `categorical` (une couleur\npar série, une par part sur un camembert), `default` (une seule couleur),\n`sequentialAscending` / `sequentialDescending` (la couleur suit la valeur),\n`divergentAscending` / `divergentDescending` (quatre tons vert → rouge, une\ncouleur par série), `neutral` (un gris, base de `highlight-index`). Pour\nfixer la couleur d'une série : `color-map`. Sur une carte (`map*`), le\ndéfaut est `sequentialAscending` (celui de DSFR Chart) et l'attribut n'est\ntransmis que s'il est posé (#1347).",
               "fieldName": "selectedPalette"
             },
             {
