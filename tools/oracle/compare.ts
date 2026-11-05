@@ -395,7 +395,12 @@ export function comparer(
     }
 
     case 'csv':
-      return comparerCsv(base, attendu.lignes, observation as string);
+      return comparerCsv(
+        base,
+        attendu.lignes,
+        observation as string,
+        (expect as Extract<Expect, { kind: 'csv' }>).separator
+      );
 
     case 'dots':
       return comparerPastilles(base, attendu.couleurs, observation as string[]);
@@ -784,8 +789,13 @@ function comparerTextes(base: Base, attendu: AttenduTextes, obs: string[]): Cons
   return { ...base, lib, oracle, comparaisons, ok: true };
 }
 
-function comparerCsv(base: Base, attendues: string[][], texte: string): Constat {
-  const lues = parseCsv(texte);
+function comparerCsv(
+  base: Base,
+  attendues: string[][],
+  texte: string,
+  separator: ';' | ',' = ';'
+): Constat {
+  const lues = parseCsv(texte, separator);
   const lib = `${Math.max(0, lues.length - 1)} ligne(s) exportée(s)`;
   const oracle = `${Math.max(0, attendues.length - 1)} ligne(s) recalculée(s)`;
   // Le BOM UTF-8 du fichier n'est pas observable ici : `Blob.text()` décode en

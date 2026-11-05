@@ -251,15 +251,19 @@ export function applyColorMap(
 // TROIS surfaces en dérivent :
 //
 //   1. le CANVAS — `datasets[d].borderColor = colorParse[d]` à la création ;
-//   2. la LÉGENDE — `legendColors = colorParse.map((c) => c[0])`, rendue une
-//      fois par le gabarit Vue ;
+//   2. la LÉGENDE — réactive sur `colorParse` pour `line`, `scatter`, `radar`
+//      (`colorParse[n]`), `pie` (`colorParse[0][n]`) et `bar-line`
+//      (`colorBarParse` / `colorParse`) ; seule celle de `bar-chart` lit une
+//      copie figée, `legendColors = colorParse.map((c) => c[0])`, rendue une
+//      fois par le gabarit Vue (vérifié sur 2.1.1, #1350) ;
 //   3. l'INFOBULLE — lue PARESSEUSEMENT au survol, dans le `external` du
 //      tooltip Chart.js : `data-color="${colorParse[datasetIndex][dataIndex]}"`.
 //
 // `applyColorMap` n'écrit que sur les datasets de l'instance Chart.js, c'est-à-
 // dire sur la COPIE (1). La surface (2) a été rattrapée après coup en peignant
-// le DOM (#815). La surface (3) ne peut pas l'être : son DOM n'existe pas avant
-// le survol, et il est réécrit à chaque mouvement de souris depuis `colorParse`.
+// le DOM (#815) — utile pour `bar-chart` seul, les autres légendes suivent le
+// modèle. La surface (3) ne peut pas l'être : son DOM n'existe pas avant le
+// survol, et il est réécrit à chaque mouvement de souris depuis `colorParse`.
 //
 // D'où ce report dans le modèle lui-même, plutôt qu'un troisième rattrapage :
 // toute surface qui relit `colorParse` après coup voit les couleurs de

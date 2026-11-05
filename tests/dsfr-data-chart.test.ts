@@ -874,7 +874,10 @@ describe('DsfrDataChart', () => {
       const db = wrapper.querySelector('data-box')!;
       const chartEl = wrapper.querySelector('bar-chart')!;
       expect(db).toBeTruthy();
-      expect(db.getAttribute('title')).toBe('Mon titre');
+      expect(db.getAttribute('name')).toBe('Mon titre');
+      // `title` n'est plus une prop de DSFR Chart depuis 2.1.0 : posé, c'est
+      // l'attribut natif, une infobulle navigateur sur toute la carte (#1350).
+      expect(db.hasAttribute('title')).toBe(false);
       // segmented-control is required for DataBox to create Teleport targets
       expect(db.hasAttribute('segmented-control')).toBe(true);
       // DataBox must be before chart for Vue Teleport to work
@@ -1241,5 +1244,108 @@ describe('DsfrDataChart', () => {
         expect(el.querySelector('.dsfr-data-chart__targets-legend')).toBeNull();
       });
     });
+  });
+});
+
+// --- Lot « prêtes » de l'audit DSFR Chart 2.1.1 (#1347, #1348, #1349) ------
+
+interface ChartAuditInternals {
+  _getCommonAttributes(): Record<string, string>;
+  _refreshColorMap(): void;
+  _syncDataboxDownloadStub(wrapper: Element): void;
+  _data: unknown[];
+}
+const audit = (c: DsfrDataChart) => c as unknown as ChartAuditInternals;
+
+describe('#1347 — palette des cartes', () => {
+  let chart: DsfrDataChart;
+  beforeEach(() => {
+    chart = new DsfrDataChart();
+  });
+
+  it('ne transmet pas le défaut categorical à une carte (DSFR Chart garde sequentialAscending)', () => {
+    chart.type = 'map';
+    chart.valueField = 'v';
+    expect(audit(chart)._getCommonAttributes()['selected-palette']).toBeUndefined();
+  });
+
+  it('transmet la palette d’une carte quand elle est posée, et avertit une fois si elle est sans dégradé', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    chart.type = 'map-reg';
+    chart.valueField = 'v';
+    chart.setAttribute('selected-palette', 'categorical');
+    chart.selectedPalette = 'categorical';
+    expect(audit(chart)._getCommonAttributes()['selected-palette']).toBe('categorical');
+    audit(chart)._getCommonAttributes();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain('sequentialAscending');
+    warn.mockRestore();
+  });
+
+  it('transmet sequentialDescending à une carte sans avertir, et categorical à un bar comme avant', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    chart.type = 'map';
+    chart.valueField = 'v';
+    chart.selectedPalette = 'sequentialDescending';
+    expect(audit(chart)._getCommonAttributes()['selected-palette']).toBe('sequentialDescending');
+    const bar = new DsfrDataChart();
+    bar.type = 'bar';
+    expect(audit(bar)._getCommonAttributes()['selected-palette']).toBe('categorical');
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+});
+
+describe('#1349 — thème clair/sombre et color-map', () => {
+  it('réapplique color-map sur dsfr.theme tant que le composant est connecté', () => {
+    const chart = new DsfrDataChart();
+    chart.type = 'bar';
+    chart.colorMap = 'A:#000091';
+    const refresh = vi.spyOn(audit(chart), '_refreshColorMap');
+    document.body.appendChild(chart);
+    document.documentElement.dispatchEvent(
+      new CustomEvent('dsfr.theme', { detail: { theme: 'dark' } })
+    );
+    expect(refresh).toHaveBeenCalledTimes(1);
+    chart.remove();
+    document.documentElement.dispatchEvent(
+      new CustomEvent('dsfr.theme', { detail: { theme: 'light' } })
+    );
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('#1348 — CSV de la DataBox : le bouchon porte le tableau', () => {
+  it('pose x, y, name et table-name depuis le modèle du tableau, valeurs brutes et toutes les lignes', () => {
+    const chart = new DsfrDataChart();
+    chart.type = 'bar';
+    chart.labelField = 'zone:Zone';
+    chart.valueField = 'pop';
+    chart.name = 'Population';
+    audit(chart)._data = [
+      { zone: 'Nord', pop: 1234.5 },
+      { zone: 'Sud', pop: null },
+      { zone: 'Est', pop: 7 },
+    ];
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = '<div databox-id="d" databox-type="table"></div>';
+    audit(chart)._syncDataboxDownloadStub(wrapper);
+    const stub = wrapper.firstElementChild!;
+    expect(JSON.parse(stub.getAttribute('x')!)).toEqual(['Nord', 'Sud', 'Est']);
+    expect(JSON.parse(stub.getAttribute('y')!)).toEqual([[1234.5, '', 7]]);
+    expect(JSON.parse(stub.getAttribute('name')!)).toEqual(['Population']);
+    expect(stub.getAttribute('table-name')).toBe('Zone');
+  });
+
+  it('retire les attributs quand le tableau n’a aucune colonne', () => {
+    const chart = new DsfrDataChart();
+    chart.type = 'bar';
+    audit(chart)._data = [{ a: 1 }];
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = '<div databox-type="table" x="[1]" y="[[1]]" name="[&quot;n&quot;]"></div>';
+    audit(chart)._syncDataboxDownloadStub(wrapper);
+    const stub = wrapper.firstElementChild!;
+    expect(stub.hasAttribute('x')).toBe(false);
+    expect(stub.hasAttribute('name')).toBe(false);
   });
 });

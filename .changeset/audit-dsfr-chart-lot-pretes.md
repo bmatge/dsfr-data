@@ -1,0 +1,10 @@
+---
+'dsfr-data': patch
+---
+
+Lot « prêtes » de l'audit DSFR Chart 2.1.1 (#1347, #1348, #1349, #1350).
+
+- **Carte sans `selected-palette` (#1347)** : le défaut `categorical` du composant n'est plus transmis aux types `map*`. DSFR Chart construit l'échelle de la première à la dernière couleur de la palette reçue : une carte sans attribut rendait un dégradé bleu → gris clair au lieu du dégradé `sequentialAscending`, son propre défaut, que le guide prescrit. L'attribut reste transmis quand il est posé, et une palette sans dégradé (`categorical`, `default`, `neutral`) sur une carte est dite une fois en console. Ce qui change pour une page existante : une carte sans `selected-palette` passe au dégradé bleu de DSFR Chart.
+- **`databox-download` téléchargeait un CSV vide (#1348)** : DSFR Chart prend la voie « table » dès que le bouchon `databox-type="table"` existe et y lit `x`, `y`, `name`, `table-name` ; le bouchon n'en portait aucun, et le fichier ne contenait rien, sans avertissement. Le bouchon porte désormais le modèle du tableau de la DataBox (en-têtes = libellé de l'alias et noms de série, une ligne par enregistrement, valeurs brutes, toutes les lignes). Contrôle `affichages/databox-telechargement-csv` (ADR-122), vu rouge sur le défaut.
+- **Thème clair / sombre et `color-map` (#1349)** : au changement de thème, chaque composant DSFR Chart recharge sa palette et réécrit les couleurs de tous les jeux, ce qui effaçait `color-map`. Le composant écoute `dsfr.theme` sur `document.documentElement` et réapplique `color-map` par la même procédure que le rendu initial.
+- **`title` sur `<data-box>` retiré (#1350)** : depuis DSFR Chart 2.1.0 le titre est la prop `name` ; `title` n'était plus que l'attribut HTML natif, une infobulle navigateur sur toute la carte (« » sans titre). La bibliothèque épingle désormais `~2.1.1` au lieu de `^2.1.1`, les vérifications faites sur cette version ne valant pas pour une 2.2. Commentaires périmés corrigés (mécanique de découverte de la DataBox, props d'annotation `vline` / `hline` qui existent bien sur `line`, `scatter` et `bar-line`, `z-index` de la carte, légendes réactives hors `bar-chart`).

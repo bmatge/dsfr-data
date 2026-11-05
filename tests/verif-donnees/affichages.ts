@@ -4121,6 +4121,33 @@ const CHECKS: Check[] = [
       { kind: 'kpi', id: 'k-spr-query', agg: 'sum', field: 'population', pattern: MILLIERS },
     ],
   },
+
+  // ---------------------------------------- Téléchargement CSV de la DataBox ----
+  {
+    id: 'databox-telechargement-csv',
+    mode: 'deterministic',
+    origin:
+      '#1348 — le bouton « Télécharger en CSV » de la DataBox prend la voie « table » de DSFR Chart 2.1.1 dès que le bouchon `databox-type="table"` existe, et lit dessus `x`, `y`, `name` et `table-name`. Le bouchon n’en portait aucun : les deux branches étaient sautées et un fichier VIDE était téléchargé, sans avertissement — un export qui ne contient rien de ce que le graphique montre, invisible à qui ne l’ouvre pas. Le fichier doit porter l’en-tête du tableau (libellé de l’alias, nom de série) puis une ligne par enregistrement, valeurs brutes, toutes les lignes.',
+    feed: { kind: 'fixture', datasets: { main: COMMUNES } },
+    head: TETE_CHART,
+    markup: `
+  ${source('s-box-csv', 'communes')}
+  <dsfr-data-chart id="g-box-csv" source="s-box-csv" type="bar"
+    label-field="nom:Commune" value-field="population" name="Population"
+    databox databox-title="Population par commune" databox-download></dsfr-data-chart>`,
+    expects: [
+      {
+        kind: 'csv',
+        id: 'g-box-csv',
+        separator: ',',
+        pipeline: [],
+        columns: [
+          { column: 'nom', label: 'Commune' },
+          { column: 'population', label: 'Population' },
+        ],
+      },
+    ],
+  },
 ];
 
 export const AFFICHAGES: Manifest = { domain: 'affichages', checks: CHECKS };
