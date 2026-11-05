@@ -1218,4 +1218,32 @@ const CHECKS: Check[] = [
   },
 ];
 
+CHECKS.push({
+  id: 'grist-ordre-colonne-texte-vivant',
+  mode: 'live',
+  origin:
+    "Grist (grist.numerique.gouv.fr, document public) — #1325, contre la vraie API. `code_dept` y est une colonne Text à contenu numérique : `code_dept:lt:5` rendait 50 lignes au serveur (SQLite compare des textes) et 6 dans le navigateur (mesuré le 2026-10-15). L'adaptateur lit les types des colonnes et garde la clause au navigateur : le compte est celui du navigateur.",
+  feed: { kind: 'raw', source: GRIST_SOURCE },
+  markup: `
+  <dsfr-data-source id="s-grist-texte-vivant" api-type="grist" base-url="${GRIST_RECORDS}"></dsfr-data-source>
+  <dsfr-data-query id="q-grist-texte-vivant" source="s-grist-texte-vivant" where="code_dept:lt:5"></dsfr-data-query>
+  <dsfr-data-kpi id="k-grist-texte-vivant" source="q-grist-texte-vivant" value="count" format="nombre" label="k-grist-texte-vivant"></dsfr-data-kpi>
+  <dsfr-data-list id="l-grist-texte-vivant" source="q-grist-texte-vivant"
+    columns="code_dept:Code, nom_dept:Département"></dsfr-data-list>`,
+  expects: [
+    {
+      kind: 'kpi',
+      id: 'k-grist-texte-vivant',
+      agg: 'count',
+      pipeline: [{ op: 'filter', filters: [{ field: 'code_dept', op: 'lt', value: 5 }] }],
+    },
+    {
+      kind: 'list',
+      id: 'l-grist-texte-vivant',
+      columns: GRIST_COLONNES,
+      pipeline: [{ op: 'filter', filters: [{ field: 'code_dept', op: 'lt', value: 5 }] }],
+    },
+  ],
+});
+
 export const BANC_ADAPTATEURS: Manifest = { domain: 'banc-adaptateurs', checks: CHECKS };

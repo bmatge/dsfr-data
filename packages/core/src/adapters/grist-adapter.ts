@@ -109,6 +109,17 @@ const SQL_ORDRE: Record<'gt' | 'gte' | 'lt' | 'lte', string> = {
   lte: '<=',
 };
 
+/**
+ * Types de colonnes Grist dont une comparaison d'ordre a borne NUMERIQUE
+ * retient les memes lignes au serveur que dans le navigateur (#1325, ADR-159) :
+ * SQLite y compare des nombres, comme `Number()`. `Date` et `DateTime` sont
+ * des epochs, `Ref` un identifiant de ligne. Tout autre type (`Text`,
+ * `Choice`, `Any`, formule…) compare des TEXTES au serveur (`'50' < '5'`), et
+ * la clause reste au navigateur. Prefixes : `DateTime:Europe/Paris`,
+ * `Ref:Table`.
+ */
+const TYPES_ORDRE_NUMERIQUE = ['Numeric', 'Int', 'Date', 'DateTime', 'Ref'] as const;
+
 // ---------------------------------------------------------------------------
 // GristAdapter
 // ---------------------------------------------------------------------------
@@ -384,8 +395,65 @@ export class GristAdapter implements ApiAdapter {
    * clause n'est pas appliquee par le serveur et la reponse le dit
    * (`needsClientProcessing`).
    */
-  supportsServerClause(clause: string): boolean {
-    return canServerExpress(GRIST_CONFIG.id, clause);
+  supportsServerClause(clause: string, table?: string): boolean {
+    if (!canServerExpress(GRIST_CONFIG.id, clause)) return false;
+    return !this._ordreTexteABorneNumerique(clause, table);
+  }
+
+  /**
+   * Types des colonnes, par table (`prepareClauses`, #1325). `null` : la
+   * lecture a echoue ou n'a rien rendu — la regle generale s'applique.
+   */
+  private _columnTypes = new Map<string, Map<string, string> | null>();
+
+  /** Cle de cache d'une table : son adresse sans le point d'entree. */
+  private _tableKey(baseUrl: string): string {
+    const sansRequete = baseUrl.split('?', 1)[0];
+    return sansRequete.replace(/\/(records|columns|sql)$/, '');
+  }
+
+  /**
+   * Lit une fois les types des colonnes de la table (#1325, arbitrage du
+   * 2026-10-15) : c'est ce qui permet a `supportsServerClause` de ne confier a
+   * Grist une comparaison d'ordre a borne numerique que sur une colonne
+   * numerique. Mesure sur grist.numerique.gouv.fr : `code_dept:lt:5` sur une
+   * colonne Text rendait 50 lignes au serveur, 6 dans le navigateur.
+   */
+  async prepareClauses(params: AdapterParams, signal?: AbortSignal): Promise<void> {
+    if (!params.baseUrl) return;
+    const key = this._tableKey(params.baseUrl);
+    if (this._columnTypes.has(key)) return;
+    const columns = await this.fetchColumns(params, signal);
+    this._columnTypes.set(
+      key,
+      columns.length === 0 ? null : new Map(columns.map((c) => [c.id, c.type]))
+    );
+  }
+
+  /** Types connus d'une table, pour les tests et le diagnostic. */
+  getColumnTypes(baseUrl: string): ReadonlyMap<string, string> | null {
+    return this._columnTypes.get(this._tableKey(baseUrl)) ?? null;
+  }
+
+  /**
+   * Une comparaison d'ordre (`gt` `gte` `lt` `lte`) a borne numerique sur une
+   * colonne dont le type connu n'est pas numerique : SQLite comparerait des
+   * textes, le navigateur des nombres. Sans types connus (table jamais
+   * preparee, lecture echouee) : faux, la regle generale s'applique. Colonne
+   * inconnue de la table : vrai, au navigateur — la forme sure.
+   */
+  private _ordreTexteABorneNumerique(clause: string, table?: string): boolean {
+    const [field, op, ...rest] = clause.split(':');
+    if (!field || !(op in SQL_ORDRE)) return false;
+    if (typeof this._toNumberOrString(unescapeColonValue(rest.join(':'))) !== 'number')
+      return false;
+    if (!table) return false;
+    const types = this._columnTypes.get(this._tableKey(table));
+    if (!types) return false;
+    return splitColonFields(field).some((f) => {
+      const type = types.get(f);
+      return !type || !TYPES_ORDRE_NUMERIQUE.some((t) => type === t || type.startsWith(`${t}:`));
+    });
   }
 
   buildFacetWhere(selections: Record<string, Set<string>>, excludeField?: string): string {

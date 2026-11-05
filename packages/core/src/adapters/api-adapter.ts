@@ -385,8 +385,25 @@ export interface ApiAdapter {
    * défaut, qui refuse aussi `contains` / `notcontains`). Lu par
    * `canDelegateClause` / `splitWhere` de `utils/where.ts` — jamais
    * directement par un composant.
+   *
+   * `table` (#1325) : l'adresse de la table interrogée (`AdapterParams.baseUrl`),
+   * pour un adaptateur dont la réponse dépend du TYPE de la colonne — Grist
+   * confie une comparaison d'ordre à borne numérique selon que la colonne est
+   * numérique ou texte, ce que `prepareClauses` lui a appris. Sans `table`,
+   * ou tant que `prepareClauses` n'a pas été appelé pour elle, la règle
+   * générale du fournisseur s'applique.
    */
-  supportsServerClause?(clause: string): boolean;
+  supportsServerClause?(clause: string, table?: string): boolean;
+
+  /**
+   * Apprend ce que `supportsServerClause` doit savoir de la table avant qu'un
+   * filtre lui soit confié (#1325) : Grist lit les types de ses colonnes
+   * (`/columns`), une fois par table, et en garde la mémoire. Appelé par
+   * `dsfr-data-source` avant chaque chargement, jamais par un autre composant ;
+   * absent = rien à apprendre. Ne lève jamais : une table illisible laisse la
+   * règle générale.
+   */
+  prepareClauses?(params: AdapterParams, signal?: AbortSignal): Promise<void>;
 
   /**
    * Indique si une clause `where` du dialecte de l'adapter (`whereFormat`)

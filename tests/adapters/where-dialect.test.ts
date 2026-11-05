@@ -406,3 +406,30 @@ describe('#1135 — adaptateur tiers à dialecte propre, composants inchangés',
     });
   });
 });
+
+describe('#1325 — le partage d’un filtre passe l’adresse de la table à l’adaptateur', () => {
+  it('splitWhereFor transmet `table` à supportsServerClause, clause par clause', async () => {
+    const { splitWhereFor, describeClientWhere } = await import('@/adapters/where-dialect.js');
+    const vus: Array<[string, string | undefined]> = [];
+    const adapter = {
+      type: 'grist',
+      capabilities: { whereFormat: 'colon' as const },
+      supportsServerClause: (clause: string, table?: string) => {
+        vus.push([clause, table]);
+        return !(clause.startsWith('code_dept:lt:') && table === 'T');
+      },
+    };
+    expect(splitWhereFor(adapter, 'code_dept:lt:5, valeur:lt:5', 'T')).toEqual({
+      server: 'valeur:lt:5',
+      client: 'code_dept:lt:5',
+    });
+    expect(vus).toEqual([
+      ['code_dept:lt:5', 'T'],
+      ['valeur:lt:5', 'T'],
+    ]);
+    expect(splitWhereFor(adapter, 'code_dept:lt:5').client).toBe('');
+    expect(describeClientWhere(adapter, 'code_dept:lt:5').cause).toContain(
+      'comparerait des textes'
+    );
+  });
+});

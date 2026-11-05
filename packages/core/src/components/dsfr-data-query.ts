@@ -1185,7 +1185,11 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // donc avant un group-by qui reste alors client-side lui aussi.
     // Sans cela, le filtre serait ré-appliqué sur les lignes agrégées où
     // les champs bruts n'existent plus → toutes les lignes éliminées.
-    const whereDelegation = this._buildWhereDelegation(this.filter || this.where, adapter);
+    const whereDelegation = this._buildWhereDelegation(
+      this.filter || this.where,
+      adapter,
+      sourceEl.getAdapterParams?.()?.baseUrl
+    );
     const aggregates = this._parseAggregates(this.aggregate);
     const fields = [
       ...this.groupBy.split(','),
@@ -1239,13 +1243,17 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _delegateWhereOnly(
     cmd: Record<string, string>,
-    { adapter }: DelegationTarget,
+    { adapter, sourceEl }: DelegationTarget,
     exclusive: boolean
   ): void {
     if (this._serverDelegated.where || !exclusive || this.explode) return;
     if (!this.filter && !this.where) return;
 
-    const whereOnly = this._buildWhereDelegation(this.filter || this.where, adapter);
+    const whereOnly = this._buildWhereDelegation(
+      this.filter || this.where,
+      adapter,
+      sourceEl.getAdapterParams?.()?.baseUrl
+    );
     if (
       !whereOnly.ok ||
       (!whereOnly.where && !whereOnly.client) ||
@@ -1592,7 +1600,8 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
    */
   private _buildWhereDelegation(
     filterExpr: string,
-    adapter?: ApiAdapter
+    adapter?: ApiAdapter,
+    table?: string
   ): { ok: boolean; where: string; fields: string[]; client: string; clientFields: string[] } {
     const none = { where: '', fields: [], client: '', clientFields: [] };
     if (!filterExpr) return { ok: true, ...none };
@@ -1605,7 +1614,10 @@ export class DsfrDataQuery extends TransformerMixin(LitElement) {
     // ADR-159) ? `contains` / `notcontains` sur Opendatasoft, dont le `like`
     // compare des mots, restent au navigateur, sur les lignes brutes :
     // `client`. Le reste part : `server`.
-    const { server, client } = splitWhere(adapter, filterExpr);
+    // `table` (#1325) : la source relit de toute façon ce qu'on lui confie,
+    // avec les types de colonnes qu'elle apprend avant de charger ; le dire
+    // ici évite de lui confier une clause qu'elle rendra au navigateur.
+    const { server, client } = splitWhere(adapter, filterExpr, table);
 
     // Champs multiples (#1026) : chaque champ d'un `a|b` est un champ delegue
     const fieldsOf = (expr: string): string[] =>
