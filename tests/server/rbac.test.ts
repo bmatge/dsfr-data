@@ -23,11 +23,9 @@ async function registerUser(
   app: Express,
   email: string,
   password = 'Password1',
-  displayName?: string,
+  displayName?: string
 ): Promise<{ userId: string; cookies: string[] }> {
-  const res = await request(app)
-    .post('/api/auth/register')
-    .send({ email, password, displayName });
+  const res = await request(app).post('/api/auth/register').send({ email, password, displayName });
   expect(res.status).toBe(201);
 
   if (res.body.user) {
@@ -37,9 +35,15 @@ async function registerUser(
   }
 
   // Non-admin: verify in DB and build cookie
-  await execute('UPDATE users SET email_verified = TRUE, verification_token_hash = NULL WHERE email = ?', [email]);
-  const user = await queryOne<{ id: string; role: string }>('SELECT id, role FROM users WHERE email = ?', [email]);
-  const cookie = authCookie({ userId: user!.id, email, role: user!.role });
+  await execute(
+    'UPDATE users SET email_verified = TRUE, verification_token_hash = NULL WHERE email = ?',
+    [email]
+  );
+  const user = await queryOne<{ id: string; role: string }>(
+    'SELECT id, role FROM users WHERE email = ?',
+    [email]
+  );
+  const cookie = await authCookie({ userId: user!.id, email, role: user!.role });
   return { userId: user!.id, cookies: [cookie] };
 }
 
@@ -47,7 +51,7 @@ async function registerUser(
 async function createSource(
   app: Express,
   cookies: string[],
-  name = 'Test Source',
+  name = 'Test Source'
 ): Promise<string> {
   const res = await request(app)
     .post('/api/sources')
@@ -85,24 +89,19 @@ describe('User-to-user sharing', () => {
     expect(forbidden.status).toBe(403);
 
     // 4. User A shares the source with User B (read)
-    const shareRes = await request(app)
-      .post('/api/shares')
-      .set('Cookie', userA.cookies)
-      .send({
-        resource_type: 'source',
-        resource_id: sourceId,
-        target_type: 'user',
-        target_id: userB.userId,
-        permission: 'read',
-      });
+    const shareRes = await request(app).post('/api/shares').set('Cookie', userA.cookies).send({
+      resource_type: 'source',
+      resource_id: sourceId,
+      target_type: 'user',
+      target_id: userB.userId,
+      permission: 'read',
+    });
     expect(shareRes.status).toBe(201);
     const readShareId = shareRes.body.id;
     expect(readShareId).toBeDefined();
 
     // 5. User B can now GET User A's source
-    const canRead = await request(app)
-      .get(`/api/sources/${sourceId}`)
-      .set('Cookie', userB.cookies);
+    const canRead = await request(app).get(`/api/sources/${sourceId}`).set('Cookie', userB.cookies);
     expect(canRead.status).toBe(200);
     expect(canRead.body.name).toBe('Alice Source');
 
@@ -119,16 +118,13 @@ describe('User-to-user sharing', () => {
       .set('Cookie', userA.cookies);
     expect(deleteOld.status).toBe(200);
 
-    const writeShareRes = await request(app)
-      .post('/api/shares')
-      .set('Cookie', userA.cookies)
-      .send({
-        resource_type: 'source',
-        resource_id: sourceId,
-        target_type: 'user',
-        target_id: userB.userId,
-        permission: 'write',
-      });
+    const writeShareRes = await request(app).post('/api/shares').set('Cookie', userA.cookies).send({
+      resource_type: 'source',
+      resource_id: sourceId,
+      target_type: 'user',
+      target_id: userB.userId,
+      permission: 'write',
+    });
     expect(writeShareRes.status).toBe(201);
     const writeShareId = writeShareRes.body.id;
 
@@ -187,22 +183,17 @@ describe('Group sharing', () => {
     expect(beforeShare.status).toBe(403);
 
     // 3. User A shares the source with the group
-    const shareRes = await request(app)
-      .post('/api/shares')
-      .set('Cookie', userA.cookies)
-      .send({
-        resource_type: 'source',
-        resource_id: sourceId,
-        target_type: 'group',
-        target_id: groupId,
-        permission: 'read',
-      });
+    const shareRes = await request(app).post('/api/shares').set('Cookie', userA.cookies).send({
+      resource_type: 'source',
+      resource_id: sourceId,
+      target_type: 'group',
+      target_id: groupId,
+      permission: 'read',
+    });
     expect(shareRes.status).toBe(201);
 
     // 4. User B can now see the source in their list
-    const listRes = await request(app)
-      .get('/api/sources')
-      .set('Cookie', userB.cookies);
+    const listRes = await request(app).get('/api/sources').set('Cookie', userB.cookies);
     expect(listRes.status).toBe(200);
     const sharedSource = listRes.body.find((s: Record<string, unknown>) => s.id === sourceId);
     expect(sharedSource).toBeDefined();
@@ -210,9 +201,7 @@ describe('Group sharing', () => {
     expect(sharedSource._owned).toBe(false);
 
     // User B can also GET the source directly
-    const getRes = await request(app)
-      .get(`/api/sources/${sourceId}`)
-      .set('Cookie', userB.cookies);
+    const getRes = await request(app).get(`/api/sources/${sourceId}`).set('Cookie', userB.cookies);
     expect(getRes.status).toBe(200);
   });
 });
@@ -237,28 +226,21 @@ describe('Global sharing', () => {
     expect(beforeShare.status).toBe(403);
 
     // 1. User A shares the source globally with read permission
-    const shareRes = await request(app)
-      .post('/api/shares')
-      .set('Cookie', userA.cookies)
-      .send({
-        resource_type: 'source',
-        resource_id: sourceId,
-        target_type: 'global',
-        permission: 'read',
-      });
+    const shareRes = await request(app).post('/api/shares').set('Cookie', userA.cookies).send({
+      resource_type: 'source',
+      resource_id: sourceId,
+      target_type: 'global',
+      permission: 'read',
+    });
     expect(shareRes.status).toBe(201);
 
     // 2. User B can see and read the source
-    const readRes = await request(app)
-      .get(`/api/sources/${sourceId}`)
-      .set('Cookie', userB.cookies);
+    const readRes = await request(app).get(`/api/sources/${sourceId}`).set('Cookie', userB.cookies);
     expect(readRes.status).toBe(200);
     expect(readRes.body.name).toBe('Public Source');
 
     // User B can see it in the list
-    const listRes = await request(app)
-      .get('/api/sources')
-      .set('Cookie', userB.cookies);
+    const listRes = await request(app).get('/api/sources').set('Cookie', userB.cookies);
     expect(listRes.status).toBe(200);
     const publicSource = listRes.body.find((s: Record<string, unknown>) => s.id === sourceId);
     expect(publicSource).toBeDefined();

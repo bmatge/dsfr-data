@@ -18,35 +18,32 @@ vi.mock('../../server/src/utils/mailer.js', () => ({
 let app: Express;
 
 /** Register a user via the API and return { id, email, cookie }. Auto-verifies non-admin users. */
-async function registerUser(
-  email: string,
-  password = 'Password1',
-  displayName?: string,
-) {
-  const res = await request(app)
-    .post('/api/auth/register')
-    .send({ email, password, displayName });
+async function registerUser(email: string, password = 'Password1', displayName?: string) {
+  const res = await request(app).post('/api/auth/register').send({ email, password, displayName });
 
   if (res.body.user) {
     // Admin: already verified and logged in
     const userId = res.body.user.id as string;
     const role = res.body.user.role as string;
-    const cookie = authCookie({ userId, email, role });
+    const cookie = await authCookie({ userId, email, role });
     return { id: userId, email, role, cookie };
   }
 
   // Non-admin: verify email in DB, then build cookie from DB
-  await execute('UPDATE users SET email_verified = TRUE, verification_token_hash = NULL WHERE email = ?', [email]);
-  const user = await queryOne<{ id: string; role: string }>('SELECT id, role FROM users WHERE email = ?', [email]);
-  const cookie = authCookie({ userId: user!.id, email, role: user!.role });
+  await execute(
+    'UPDATE users SET email_verified = TRUE, verification_token_hash = NULL WHERE email = ?',
+    [email]
+  );
+  const user = await queryOne<{ id: string; role: string }>(
+    'SELECT id, role FROM users WHERE email = ?',
+    [email]
+  );
+  const cookie = await authCookie({ userId: user!.id, email, role: user!.role });
   return { id: user!.id, email, role: user!.role, cookie };
 }
 
 /** Helper to create a source for a user. */
-async function createSource(
-  cookie: string,
-  overrides: Record<string, unknown> = {},
-) {
+async function createSource(cookie: string, overrides: Record<string, unknown> = {}) {
   const body = {
     name: 'Test source',
     type: 'csv',
@@ -55,10 +52,7 @@ async function createSource(
     record_count: 2,
     ...overrides,
   };
-  return request(app)
-    .post('/api/sources')
-    .set('Cookie', cookie)
-    .send(body);
+  return request(app).post('/api/sources').set('Cookie', cookie).send(body);
 }
 
 describe('Sources CRUD routes', () => {
@@ -124,9 +118,7 @@ describe('Sources CRUD routes', () => {
   describe('GET /api/sources', () => {
     it('returns an empty list when user has no sources', async () => {
       const user = await registerUser('alice@test.fr');
-      const res = await request(app)
-        .get('/api/sources')
-        .set('Cookie', user.cookie);
+      const res = await request(app).get('/api/sources').set('Cookie', user.cookie);
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual([]);
@@ -137,9 +129,7 @@ describe('Sources CRUD routes', () => {
       await createSource(user.cookie, { name: 'Source A' });
       await createSource(user.cookie, { name: 'Source B' });
 
-      const res = await request(app)
-        .get('/api/sources')
-        .set('Cookie', user.cookie);
+      const res = await request(app).get('/api/sources').set('Cookie', user.cookie);
 
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(2);
@@ -163,9 +153,7 @@ describe('Sources CRUD routes', () => {
       const created = await createSource(user.cookie);
       const sourceId = created.body.id;
 
-      const res = await request(app)
-        .get(`/api/sources/${sourceId}`)
-        .set('Cookie', user.cookie);
+      const res = await request(app).get(`/api/sources/${sourceId}`).set('Cookie', user.cookie);
 
       expect(res.status).toBe(200);
       expect(res.body.id).toBe(sourceId);
@@ -180,9 +168,7 @@ describe('Sources CRUD routes', () => {
       const created = await createSource(alice.cookie);
       const sourceId = created.body.id;
 
-      const res = await request(app)
-        .get(`/api/sources/${sourceId}`)
-        .set('Cookie', bob.cookie);
+      const res = await request(app).get(`/api/sources/${sourceId}`).set('Cookie', bob.cookie);
 
       expect(res.status).toBe(403);
     });
@@ -190,9 +176,7 @@ describe('Sources CRUD routes', () => {
     it('returns 403 for unknown id (no resource found means access denied)', async () => {
       const user = await registerUser('alice@test.fr');
 
-      const res = await request(app)
-        .get('/api/sources/nonexistent-id')
-        .set('Cookie', user.cookie);
+      const res = await request(app).get('/api/sources/nonexistent-id').set('Cookie', user.cookie);
 
       // requireAccess calls canAccess which returns false when resource not found
       expect(res.status).toBe(403);
@@ -241,16 +225,13 @@ describe('Sources CRUD routes', () => {
       const sourceId = created.body.id;
 
       // Alice shares with write permission to Bob
-      await request(app)
-        .post('/api/shares')
-        .set('Cookie', alice.cookie)
-        .send({
-          resource_type: 'source',
-          resource_id: sourceId,
-          target_type: 'user',
-          target_id: bob.id,
-          permission: 'write',
-        });
+      await request(app).post('/api/shares').set('Cookie', alice.cookie).send({
+        resource_type: 'source',
+        resource_id: sourceId,
+        target_type: 'user',
+        target_id: bob.id,
+        permission: 'write',
+      });
 
       const res = await request(app)
         .put(`/api/sources/${sourceId}`)
@@ -271,17 +252,13 @@ describe('Sources CRUD routes', () => {
       const created = await createSource(user.cookie);
       const sourceId = created.body.id;
 
-      const res = await request(app)
-        .delete(`/api/sources/${sourceId}`)
-        .set('Cookie', user.cookie);
+      const res = await request(app).delete(`/api/sources/${sourceId}`).set('Cookie', user.cookie);
 
       expect(res.status).toBe(200);
       expect(res.body.ok).toBe(true);
 
       // Verify it is gone
-      const get = await request(app)
-        .get(`/api/sources/${sourceId}`)
-        .set('Cookie', user.cookie);
+      const get = await request(app).get(`/api/sources/${sourceId}`).set('Cookie', user.cookie);
       expect(get.status).toBe(403); // canAccess returns false for missing resource
     });
 
@@ -291,9 +268,7 @@ describe('Sources CRUD routes', () => {
       const created = await createSource(alice.cookie);
       const sourceId = created.body.id;
 
-      const res = await request(app)
-        .delete(`/api/sources/${sourceId}`)
-        .set('Cookie', bob.cookie);
+      const res = await request(app).delete(`/api/sources/${sourceId}`).set('Cookie', bob.cookie);
 
       expect(res.status).toBe(403);
     });
@@ -315,21 +290,16 @@ describe('Sources CRUD routes', () => {
       const sourceId = created.body.id;
 
       // Create a share
-      await request(app)
-        .post('/api/shares')
-        .set('Cookie', alice.cookie)
-        .send({
-          resource_type: 'source',
-          resource_id: sourceId,
-          target_type: 'user',
-          target_id: bob.id,
-          permission: 'read',
-        });
+      await request(app).post('/api/shares').set('Cookie', alice.cookie).send({
+        resource_type: 'source',
+        resource_id: sourceId,
+        target_type: 'user',
+        target_id: bob.id,
+        permission: 'read',
+      });
 
       // Delete the source
-      await request(app)
-        .delete(`/api/sources/${sourceId}`)
-        .set('Cookie', alice.cookie);
+      await request(app).delete(`/api/sources/${sourceId}`).set('Cookie', alice.cookie);
 
       // Shares for that source should be gone
       const shares = await request(app)
@@ -352,16 +322,12 @@ describe('Sources CRUD routes', () => {
       await createSource(alice.cookie, { name: 'Alice only' });
       await createSource(bob.cookie, { name: 'Bob only' });
 
-      const aliceList = await request(app)
-        .get('/api/sources')
-        .set('Cookie', alice.cookie);
+      const aliceList = await request(app).get('/api/sources').set('Cookie', alice.cookie);
 
       expect(aliceList.body).toHaveLength(1);
       expect(aliceList.body[0].name).toBe('Alice only');
 
-      const bobList = await request(app)
-        .get('/api/sources')
-        .set('Cookie', bob.cookie);
+      const bobList = await request(app).get('/api/sources').set('Cookie', bob.cookie);
 
       expect(bobList.body).toHaveLength(1);
       expect(bobList.body[0].name).toBe('Bob only');
@@ -375,20 +341,15 @@ describe('Sources CRUD routes', () => {
       const sourceId = created.body.id;
 
       // Share with Bob
-      await request(app)
-        .post('/api/shares')
-        .set('Cookie', alice.cookie)
-        .send({
-          resource_type: 'source',
-          resource_id: sourceId,
-          target_type: 'user',
-          target_id: bob.id,
-          permission: 'read',
-        });
+      await request(app).post('/api/shares').set('Cookie', alice.cookie).send({
+        resource_type: 'source',
+        resource_id: sourceId,
+        target_type: 'user',
+        target_id: bob.id,
+        permission: 'read',
+      });
 
-      const bobList = await request(app)
-        .get('/api/sources')
-        .set('Cookie', bob.cookie);
+      const bobList = await request(app).get('/api/sources').set('Cookie', bob.cookie);
 
       expect(bobList.body).toHaveLength(1);
       expect(bobList.body[0].name).toBe('Shared source');
@@ -404,29 +365,22 @@ describe('Sources CRUD routes', () => {
       const sourceId = created.body.id;
 
       // Share read-only with Bob
-      await request(app)
-        .post('/api/shares')
-        .set('Cookie', alice.cookie)
-        .send({
-          resource_type: 'source',
-          resource_id: sourceId,
-          target_type: 'user',
-          target_id: bob.id,
-          permission: 'read',
-        });
+      await request(app).post('/api/shares').set('Cookie', alice.cookie).send({
+        resource_type: 'source',
+        resource_id: sourceId,
+        target_type: 'user',
+        target_id: bob.id,
+        permission: 'read',
+      });
 
       // Bob can read
-      const get = await request(app)
-        .get(`/api/sources/${sourceId}`)
-        .set('Cookie', bob.cookie);
+      const get = await request(app).get(`/api/sources/${sourceId}`).set('Cookie', bob.cookie);
       expect(get.status).toBe(200);
       expect(get.body._permissions.isOwner).toBe(false);
       expect(get.body._permissions.canDelete).toBe(false);
 
       // Bob cannot delete
-      const del = await request(app)
-        .delete(`/api/sources/${sourceId}`)
-        .set('Cookie', bob.cookie);
+      const del = await request(app).delete(`/api/sources/${sourceId}`).set('Cookie', bob.cookie);
       expect(del.status).toBe(403);
     });
   });
