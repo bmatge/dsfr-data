@@ -16,6 +16,7 @@
  * laisser sortir. C'est aussi ce qui fait de la fuite d'une clé
  * d'authentification un échec : une URL qui porte la clé n'est pas servie.
  */
+import { repondreGristColumns, tableGrist } from './fixtures-grist.js';
 import {
   HOTES,
   RESSOURCES,
@@ -439,6 +440,11 @@ export function repondreAdaptateurs(url: URL): unknown | null {
   if (url.origin === HOTE_GRIST) {
     if (url.pathname === `/api/docs/${GRIST_DOC}/tables/${GRIST_TABLE}/records`) {
       return repondreGrist();
+    }
+    // Types des colonnes (#1325) : lus par l'adaptateur avant un filtre a
+    // comparaison d'ordre, deduits des valeurs comme par le faux Grist.
+    if (url.pathname === `/api/docs/${GRIST_DOC}/tables/${GRIST_TABLE}/columns`) {
+      return repondreGristColumns(tableGrist(GRIST_LIGNES));
     }
     return null;
   }

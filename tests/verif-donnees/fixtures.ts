@@ -38,6 +38,7 @@ import { repondreGristDocument, tableGrist } from './fixtures-grist.js';
 import territoires from './jeux/territoires.json' with { type: 'json' };
 import exAequo from './jeux/delegation-tabular-ex-aequo.json' with { type: 'json' };
 import gristExAequo from './jeux/delegation-grist-ex-aequo.json' with { type: 'json' };
+import gristCodesTexte from './jeux/delegation-grist-codes-texte.json' with { type: 'json' };
 import jokers from './jeux/delegation-jokers.json' with { type: 'json' };
 import negations from './jeux/delegation-negations.json' with { type: 'json' };
 import mesures from './jeux/mesures.json' with { type: 'json' };
@@ -98,6 +99,16 @@ export const URL_GRIST_EX_AEQUO = `${GRIST_DOC_EX_AEQUO}/tables/${GRIST_TABLE_EX
 export const GRIST_EX_AEQUO: Row[] = gristExAequo;
 
 /**
+ * Codes en TEXTE à contenu numérique (#1325) : `code_dept` est une colonne
+ * Text (`'01'` … `'60'`), `valeur` une colonne Numeric. Sous une borne
+ * numérique, SQLite compare les textes par code (`'10' < '5'`), le navigateur
+ * des nombres : `code_dept:lt:5` → 49 lignes au serveur, 4 dans le navigateur.
+ */
+export const GRIST_TABLE_CODES_TEXTE = 'CodesTexte';
+export const URL_GRIST_CODES_TEXTE = `${GRIST_DOC_EX_AEQUO}/tables/${GRIST_TABLE_CODES_TEXTE}/records`;
+export const GRIST_CODES_TEXTE: Row[] = gristCodesTexte;
+
+/**
  * Le jeu des JOKERS (#1285, ADR-159 lot 2) : des libellés qui portent `%`,
  * `_`, `*` et `\` pour de vrai, leurs voisins qu'un joker laissé dans la
  * valeur retiendrait en plus (« Taux 50 atteint », « codexa », « étoile »,
@@ -127,6 +138,7 @@ const TABLES_GRIST = {
   [GRIST_TABLE_EX_AEQUO]: tableGrist(GRIST_EX_AEQUO),
   [GRIST_TABLE_JOKERS]: tableGrist(JOKERS),
   [GRIST_TABLE_NEGATIONS]: tableGrist(NEGATIONS),
+  [GRIST_TABLE_CODES_TEXTE]: tableGrist(GRIST_CODES_TEXTE),
 };
 
 /**
