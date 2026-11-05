@@ -1280,7 +1280,7 @@ describe('GristAdapter — SQL detection utilities', () => {
 describe('GristAdapter — #1325 : comparaison d’ordre et type de colonne', () => {
   const TABLE = 'https://grist.numerique.gouv.fr/api/docs/docTypes/tables/Codes/records';
   const AUTRE = 'https://grist.numerique.gouv.fr/api/docs/docTypes/tables/Autre/records';
-  const params = { baseUrl: TABLE } as AdapterParams;
+  const params = { baseUrl: TABLE, where: 'code_dept:lt:5' } as AdapterParams;
 
   function colonnes(cols: Array<[string, string]>) {
     return {
@@ -1293,6 +1293,17 @@ describe('GristAdapter — #1325 : comparaison d’ordre et type de colonne', ()
 
   beforeEach(() => {
     mockFetch.mockReset();
+  });
+
+  it('sans comparaison d’ordre à borne numérique dans le filtre : aucune lecture de /columns', async () => {
+    const adapter = new GristAdapter();
+    await adapter.prepareClauses({ baseUrl: TABLE } as AdapterParams);
+    await adapter.prepareClauses({
+      baseUrl: TABLE,
+      where: 'code_dept:eq:5, nom:lt:B',
+    } as AdapterParams);
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(adapter.getColumnTypes(TABLE)).toBeNull();
   });
 
   it('sans types connus : la règle générale, tout part (statu quo)', () => {

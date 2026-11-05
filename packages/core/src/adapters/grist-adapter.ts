@@ -421,6 +421,10 @@ export class GristAdapter implements ApiAdapter {
    */
   async prepareClauses(params: AdapterParams, signal?: AbortSignal): Promise<void> {
     if (!params.baseUrl) return;
+    // Une requete de plus par table, seulement quand le filtre porte une
+    // clause que le type decide : une source sans comparaison d'ordre a
+    // borne numerique ne lit jamais `/columns`.
+    if (!this._porteOrdreABorneNumerique(params.where)) return;
     const key = this._tableKey(params.baseUrl);
     if (this._columnTypes.has(key)) return;
     const columns = await this.fetchColumns(params, signal);
@@ -428,6 +432,19 @@ export class GristAdapter implements ApiAdapter {
       key,
       columns.length === 0 ? null : new Map(columns.map((c) => [c.id, c.type]))
     );
+  }
+
+  /** Le filtre colon porte-t-il une comparaison d'ordre a borne numerique ? */
+  private _porteOrdreABorneNumerique(where: string | undefined): boolean {
+    if (!where) return false;
+    return where
+      .split(',')
+      .map((c) => c.trim())
+      .some((clause) => {
+        const [field, op, ...rest] = clause.split(':');
+        if (!field || !(op in SQL_ORDRE)) return false;
+        return typeof this._toNumberOrString(unescapeColonValue(rest.join(':'))) === 'number';
+      });
   }
 
   /** Types connus d'une table, pour les tests et le diagnostic. */
