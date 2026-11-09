@@ -305,6 +305,12 @@ export class AppLayoutBuilder extends LitElement {
 
         app-layout-builder[mode='fullscreen'] .builder-layout-right {
           position: static;
+          /* La règle de base pose align-self: flex-start (colonne collante du
+             mode page). Ici la colonne n'a plus de max-height : sans stretch,
+             elle prend la hauteur de son contenu, le body en overflow: hidden
+             coupe, et l'onglet Code ne défile jamais (un code de 200 lignes
+             donnait une colonne de 5 000 px dans une page de 700). */
+          align-self: stretch;
           min-height: 0;
           max-height: none;
           overflow: auto;
