@@ -30,7 +30,7 @@ import {
   isAuthenticated,
   isPublishedSource,
   publicSourceRecordsUrl,
-  authenticatedSourceRecordsPath,
+  authenticatedSourceRecordsUrl,
 } from '@dsfr-data/shared';
 import {
   advancedAggregates,
@@ -2148,7 +2148,7 @@ export function generateDynamicCode(): void {
     proxyAttr = '';
     proxyComment = `  <!-- Source publiee : servie par ${gristHost} via cette instance, lien revocable depuis Sources. -->\n`;
   } else if (source.apiKey && !source.isPublic && isAuthenticated()) {
-    previewUrl = authenticatedSourceRecordsPath(source.id);
+    previewUrl = authenticatedSourceRecordsUrl(source.id);
   }
   const previewOf = (code: string): string | undefined =>
     previewUrl ? code.replace(`url="${realUrl}"${proxyAttr}`, `url="${previewUrl}"`) : undefined;

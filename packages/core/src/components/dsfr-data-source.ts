@@ -91,6 +91,7 @@ import {
 import type { DataIdleEvent } from '../utils/data-bridge.js';
 import { visibleConsumers } from '../utils/visible-consumers.js';
 import { safeSourcePage } from '../utils/source-errors.js';
+import { pageOrigin } from '../utils/page-url.js';
 import { joinWhere, describeClientWhere, splitWhere } from '../utils/where.js';
 import {
   describeClientFilter,
@@ -2161,8 +2162,9 @@ export class DsfrDataSource extends LitElement {
   // --- URL building (legacy mode) ---
 
   private _buildUrl(): string {
-    const base = window.location.origin !== 'null' ? window.location.origin : undefined;
-    const url = new URL(this.url, base);
+    // Origine de la page, et non `window.location.origin` : dans l'iframe
+    // srcdoc des aperçus, Firefox le rend « null » (voir pageOrigin).
+    const url = new URL(this.url, pageOrigin());
 
     if (this.params && this.method === 'GET') {
       try {

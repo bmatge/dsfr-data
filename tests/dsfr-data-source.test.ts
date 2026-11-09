@@ -43,6 +43,33 @@ describe('DsfrDataSource', () => {
       expect(url).toBe('https://api.example.com/data');
     });
 
+    it('résout une URL relative dans une iframe srcdoc où Firefox rend origin « null »', () => {
+      // Firefox : dans `about:srcdoc`, location.origin vaut "null" et href
+      // "about:srcdoc" ; document.baseURI porte l'URL du document parent.
+      const original = window.location;
+      Object.defineProperty(window, 'location', {
+        value: { ...original, origin: 'null', href: 'about:srcdoc' },
+        writable: true,
+        configurable: true,
+      });
+      try {
+        source.url = '/api/sources/grist_abc_T/records';
+        source.method = 'GET';
+        source.params = '';
+        const expectedOrigin = new URL(document.baseURI).origin;
+        expect(expectedOrigin).not.toBe('null');
+        expect((source as any)._buildUrl()).toBe(
+          `${expectedOrigin}/api/sources/grist_abc_T/records`
+        );
+      } finally {
+        Object.defineProperty(window, 'location', {
+          value: original,
+          writable: true,
+          configurable: true,
+        });
+      }
+    });
+
     it('appends query params for GET requests', () => {
       source.url = 'https://api.example.com/data';
       source.method = 'GET';
