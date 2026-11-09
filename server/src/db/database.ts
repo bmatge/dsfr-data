@@ -190,6 +190,9 @@ async function runMigrations(): Promise<void> {
   if (currentVersion < 8) {
     await migrateV8();
   }
+  if (currentVersion < 9) {
+    await migrateV9();
+  }
 }
 
 /**
@@ -490,6 +493,49 @@ async function migrateV8(): Promise<void> {
   } catch (err) {
     await conn.rollback();
     throw err;
+  } finally {
+    conn.release();
+  }
+}
+
+/**
+ * Migration v9 : les identifiants de ressources sont choisis par le CLIENT
+ * (`grist_<doc>_<table>`, `api_<connexion>_<ressource>`, ou un UUID), pas
+ * par le serveur. `VARCHAR(36)` ne tenait que l'UUID : une table Grist
+ * donne 46 caractères, l'INSERT échouait (« Data too long », mode strict),
+ * la file de synchronisation abandonnait après trois essais, et aucune
+ * source Grist n'atteignait le serveur — l'aperçu d'une table à clé
+ * répondait 403 « Access denied » et la publication (ADR-165) était
+ * impossible. Les colonnes qui portent ces identifiants passent à 255 :
+ * clés primaires de sources, connections, favorites, dashboards ;
+ * shares.resource_id ; data_cache.source_id. Aucune clé étrangère ne
+ * pointe sur elles.
+ */
+async function migrateV9(): Promise<void> {
+  console.log('[db] Running migration v9: client-chosen ids up to 255 chars');
+
+  const conn = await getPool().getConnection();
+  try {
+    const [cols] = await conn.query(
+      `SELECT CHARACTER_MAXIMUM_LENGTH AS len FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'sources' AND COLUMN_NAME = 'id'`
+    );
+    const len = Number((cols as { len: number }[])[0]?.len ?? 0);
+    if (len >= 255) {
+      await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (9)');
+      return;
+    }
+
+    // DDL : pas de transaction possible (commit implicite), chaque ALTER est
+    // idempotent et la version n'est posée qu'après le dernier.
+    for (const table of ['sources', 'connections', 'favorites', 'dashboards']) {
+      await conn.query(`ALTER TABLE ${table} MODIFY COLUMN id VARCHAR(255) NOT NULL`);
+    }
+    await conn.query(`ALTER TABLE shares MODIFY COLUMN resource_id VARCHAR(255) NOT NULL`);
+    await conn.query(`ALTER TABLE data_cache MODIFY COLUMN source_id VARCHAR(255) NOT NULL`);
+
+    await conn.query('INSERT IGNORE INTO schema_version (version) VALUES (9)');
+    console.log('[db] Migration v9 complete');
   } finally {
     conn.release();
   }
