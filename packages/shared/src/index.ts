@@ -160,7 +160,7 @@ export type { ProxyConfig, ProxyMode, RuntimeProxyConfig } from './api/proxy-con
 export {
   isPublishedSource,
   publicSourceRecordsUrl,
-  authenticatedSourceRecordsPath,
+  authenticatedSourceRecordsUrl,
 } from './api/public-source.js';
 export {
   getProxyUrl,

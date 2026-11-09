@@ -41,6 +41,7 @@ import {
 } from './tabular-parquet.js';
 import type { ParquetExport } from './tabular-parquet.js';
 import { httpError, releaseBody } from '../utils/http-error.js';
+import { pageOrigin } from '../utils/page-url.js';
 
 /** Construit les options fetch avec headers optionnels */
 function buildFetchOptions(
@@ -1707,11 +1708,7 @@ export class TabularAdapter implements ApiAdapter {
     totalOrder?: string
   ): string {
     const base = this._getBaseUrl(params);
-    const origin =
-      typeof window !== 'undefined' && window.location.origin !== 'null'
-        ? window.location.origin
-        : undefined;
-    const url = new URL(`${base}/api/resources/${params.resource}/data/`, origin);
+    const url = new URL(`${base}/api/resources/${params.resource}/data/`, pageOrigin());
 
     // Filtres (format: "field:operator:value")
     const filterExpr = params.filter || params.where;
@@ -1784,11 +1781,7 @@ export class TabularAdapter implements ApiAdapter {
     totalOrder: boolean = !this._totalOrderRefused
   ): string {
     const base = this._getBaseUrl(params);
-    const origin =
-      typeof window !== 'undefined' && window.location.origin !== 'null'
-        ? window.location.origin
-        : undefined;
-    const url = new URL(`${base}/api/resources/${params.resource}/data/`, origin);
+    const url = new URL(`${base}/api/resources/${params.resource}/data/`, pageOrigin());
 
     // Filtres : effectiveWhere (statique + dynamique fusionne) ou fallback statique
     const filterExpr = overlay.effectiveWhere || params.filter || params.where;
