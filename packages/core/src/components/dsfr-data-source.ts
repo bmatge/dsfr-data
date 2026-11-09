@@ -960,9 +960,31 @@ export class DsfrDataSource extends LitElement {
     const own = this._ownWhereSplit().server;
     if (own) parts.push(own);
     for (const [key, value] of this._whereOverlays) {
-      if (!excluded.has(key) && value) parts.push(value);
+      if (excluded.has(key) || !value) continue;
+      const server = this._overlaySplit(value).server;
+      if (server) parts.push(server);
     }
     return joinWhere(this.getAdapter(), parts);
+  }
+
+  /**
+   * Une clause confiée par une query ou un contexte, RELUE par la source
+   * (#1325) : ils l'ont partagée à la négociation, avant que l'adaptateur ait
+   * pu apprendre les types de la table (`prepareClauses`). Relue ici avec ce
+   * savoir, une comparaison d'ordre à borne numérique sur une colonne de
+   * texte Grist passe au navigateur — ou en erreur de configuration derrière
+   * `server-side`. Un dialecte autre que colon (ODSQL) part tel quel.
+   */
+  private _overlaySplit(value: string): { server: string; client: string } {
+    const adapter = this.getAdapter();
+    if (adapter?.capabilities?.whereFormat !== 'colon') return { server: value, client: '' };
+    return splitWhere(adapter, value, this._tableForClauses());
+  }
+
+  /** L'adresse de la table, telle que `supportsServerClause` la reconnaît (#1325). */
+  private _tableForClauses(): string | undefined {
+    const baseUrl = this.baseUrl || this.url;
+    return baseUrl || undefined;
   }
 
   /**
@@ -980,6 +1002,12 @@ export class DsfrDataSource extends LitElement {
     for (const value of this._clientWhereOverlays.values()) {
       if (value) parts.push(value);
     }
+    // Clauses confiées puis relues (#1325) : ce qui ne part plus à l'API.
+    for (const value of this._whereOverlays.values()) {
+      if (!value) continue;
+      const client = this._overlaySplit(value).client;
+      if (client) parts.push(client);
+    }
     return parts.join(', ');
   }
 
@@ -996,7 +1024,7 @@ export class DsfrDataSource extends LitElement {
     if (!this.where) return { server: '', client: '' };
     const adapter = this.getAdapter();
     if (adapter?.capabilities?.whereFormat !== 'colon') return { server: this.where, client: '' };
-    return splitWhere(adapter, this.where);
+    return splitWhere(adapter, this.where, this._tableForClauses());
   }
 
   /**
@@ -1649,7 +1677,7 @@ export class DsfrDataSource extends LitElement {
   // --- Adapter mode (new) ---
 
   private async _fetchViaAdapter() {
-    const resolved = this._resolveAdapterFetch();
+    const resolved = await this._resolveAdapterFetch();
     if (!resolved) return;
     const { adapter, params } = resolved;
 
@@ -1726,7 +1754,10 @@ export class DsfrDataSource extends LitElement {
    * `null` : le fetch n'a pas lieu — l'erreur a deja ete signalee au DOM et
    * diffusee a l'aval.
    */
-  private _resolveAdapterFetch(): { adapter: ApiAdapter; params: AdapterParams } | null {
+  private async _resolveAdapterFetch(): Promise<{
+    adapter: ApiAdapter;
+    params: AdapterParams;
+  } | null> {
     if (!this.id) {
       reportConfigError(this, 'dsfr-data-source', 'attribut "id" requis pour identifier la source');
       return null;
@@ -1756,6 +1787,13 @@ export class DsfrDataSource extends LitElement {
     }
 
     clearConfigError(this);
+
+    // Ce que l'adaptateur doit savoir de la table AVANT le partage du filtre
+    // (#1325) : Grist lit les types de ses colonnes, une fois. Le partage
+    // ci-dessous (`getClientWhere`, `_clientWhereConfigError`) relit alors
+    // chaque clause — la sienne comme celles confiées par une query ou un
+    // contexte, qui les ont partagées avant de savoir.
+    await adapter.prepareClauses?.(params);
 
     // Clause calculée côté client sur un montage qui ne lui livre pas le jeu
     // (#1285) : erreur de configuration, aucun chiffre partiel.

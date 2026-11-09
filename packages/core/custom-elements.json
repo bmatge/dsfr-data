@@ -19656,7 +19656,7 @@
                   }
                 },
                 {
-                  "name": "{ adapter }",
+                  "name": "{ adapter, sourceEl }",
                   "type": {
                     "text": "DelegationTarget"
                   }
@@ -19899,6 +19899,13 @@
                   "optional": true,
                   "type": {
                     "text": "ApiAdapter"
+                  }
+                },
+                {
+                  "name": "table",
+                  "optional": true,
+                  "type": {
+                    "text": "string"
                   }
                 }
               ],
@@ -23237,6 +23244,36 @@
             },
             {
               "kind": "method",
+              "name": "_overlaySplit",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ server: string; client: string }"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "value",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ],
+              "description": "Une clause confiée par une query ou un contexte, RELUE par la source\n(#1325) : ils l'ont partagée à la négociation, avant que l'adaptateur ait\npu apprendre les types de la table (`prepareClauses`). Relue ici avec ce\nsavoir, une comparaison d'ordre à borne numérique sur une colonne de\ntexte Grist passe au navigateur — ou en erreur de configuration derrière\n`server-side`. Un dialecte autre que colon (ODSQL) part tel quel."
+            },
+            {
+              "kind": "method",
+              "name": "_tableForClauses",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string | undefined"
+                }
+              },
+              "description": "L'adresse de la table, telle que `supportsServerClause` la reconnaît (#1325)."
+            },
+            {
+              "kind": "method",
               "name": "getClientWhere",
               "privacy": "public",
               "return": {
@@ -23522,7 +23559,7 @@
               "privacy": "private",
               "return": {
                 "type": {
-                  "text": "{ adapter: ApiAdapter; params: AdapterParams } | null"
+                  "text": "Promise<{\n    adapter: ApiAdapter;\n    params: AdapterParams;\n  } | null>"
                 }
               },
               "description": "Prealables d'un fetch par adaptateur : identite de la source, adaptateur\nconnu, parametres valides, et les deux diagnostics NON bloquants\n(fetch-mode/server-side #689, passe-plat `params` fautif #726).\n\n`null` : le fetch n'a pas lieu — l'erreur a deja ete signalee au DOM et\ndiffusee a l'aval."

@@ -136,9 +136,9 @@ source ou `server-facets` voisin deviennent une ERREUR DE CONFIGURATION.
 | `notcontains` (`champ:notcontains:aliment`) | navigateur | navigateur : `NOT ILIKE` écarte les valeurs absentes | navigateur : `NOT LIKE` écarte les valeurs absentes |
 | `neq` (`champ:neq:archive`) | serveur : `!=` écarte les valeurs absentes, comme le navigateur | serveur : `__differs` et `__isnotnull` (`__differs` seul garde les valeurs absentes) | serveur : `!=` écarte les valeurs absentes, comme le navigateur |
 | `notin` (`champ:notin:archive`) | serveur : `NOT … in (…)` garde les valeurs absentes, comme le navigateur | navigateur : `not.in` écarte les valeurs absentes | serveur : `(champ IS NULL OR champ NOT IN (…))` garde les valeurs absentes |
-| `gt` `gte` `lt` `lte` | serveur | serveur | serveur : `(champ != '' AND champ < ?)` écarte une case Text vide, que SQLite range avant tout texte (#1321) |
+| `gt` `gte` `lt` `lte` | serveur | serveur | serveur : `(champ != '' AND champ < ?)` écarte une case Text vide, que SQLite range avant tout texte (#1321) ; borne numérique sur une colonne Text, Choice ou Any : navigateur, SQLite y comparerait des textes (#1325) |
 | `eq` `in` `isnull` `isnotnull` | serveur | serveur | serveur |
-| casse, clause confiée | sans objet | ignorée | ignorée pour les lettres ASCII seulement (`É` n'est pas `é`) |
+| casse, clause confiée | sans objet | ignorée | ignorée pour les lettres ASCII seulement (`É` n'est pas `é`) ; sous `gt` `lt`, ordre par octets (`a` après `B`), toléré comme les accents (ADR-159, 2026-10-15) |
 | accents, clause confiée | sans objet | respectés | respectés |
 | recherche de `dsfr-data-search` en mode `context` | serveur : `search(champ, "q")`, début de mot, casse et accents ignorés | serveur : `champ:contains:q`, sous-chaîne, accents respectés ; terme à étoile : navigateur | serveur : `champ:contains:q`, sous-chaîne, casse ASCII ignorée, accents respectés |
 

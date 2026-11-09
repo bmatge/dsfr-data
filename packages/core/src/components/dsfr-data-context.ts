@@ -23,6 +23,8 @@ import { checkNumericFieldMismatch } from '../utils/numeric-field-mismatch.js';
 
 interface SourceWithAdapter extends HTMLElement {
   getAdapter?: () => SearchClauseAdapter | null;
+  /** L'adresse de la table, pour le partage d'une clause selon ses types (#1325). */
+  getAdapterParams?: () => { baseUrl?: string } | null;
 }
 
 let contextSeq = 0;
@@ -668,7 +670,8 @@ export class DsfrDataContext extends LitElement {
     if (!colonWhere) return { where: '', clientWhere: '' };
     const sourceEl = document.getElementById(sourceId) as SourceWithAdapter | null;
     const adapter = sourceEl?.getAdapter?.();
-    const { server, client } = splitWhere(adapter, colonWhere);
+    const table = sourceEl?.getAdapterParams?.()?.baseUrl || undefined;
+    const { server, client } = splitWhere(adapter, colonWhere, table);
     return { where: translateWhere(adapter, server), clientWhere: client };
   }
 

@@ -1272,3 +1272,91 @@ describe('GristAdapter — SQL detection utilities', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// #1325 — une comparaison d'ordre suit le TYPE de la colonne
+// ---------------------------------------------------------------------------
+
+describe('GristAdapter — #1325 : comparaison d’ordre et type de colonne', () => {
+  const TABLE = 'https://grist.numerique.gouv.fr/api/docs/docTypes/tables/Codes/records';
+  const AUTRE = 'https://grist.numerique.gouv.fr/api/docs/docTypes/tables/Autre/records';
+  const params = { baseUrl: TABLE, where: 'code_dept:lt:5' } as AdapterParams;
+
+  function colonnes(cols: Array<[string, string]>) {
+    return {
+      ok: true,
+      json: async () => ({
+        columns: cols.map(([id, type]) => ({ id, fields: { label: id, type } })),
+      }),
+    };
+  }
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('sans comparaison d’ordre à borne numérique dans le filtre : aucune lecture de /columns', async () => {
+    const adapter = new GristAdapter();
+    await adapter.prepareClauses({ baseUrl: TABLE } as AdapterParams);
+    await adapter.prepareClauses({
+      baseUrl: TABLE,
+      where: 'code_dept:eq:5, nom:lt:B',
+    } as AdapterParams);
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(adapter.getColumnTypes(TABLE)).toBeNull();
+  });
+
+  it('sans types connus : la règle générale, tout part (statu quo)', () => {
+    const adapter = new GristAdapter();
+    expect(adapter.supportsServerClause('code_dept:lt:5', TABLE)).toBe(true);
+    expect(adapter.supportsServerClause('code_dept:lt:5')).toBe(true);
+    expect(adapter.supportsServerClause('nom:notcontains:x', TABLE)).toBe(false);
+  });
+
+  it('types lus une fois par table : Text à borne numérique → navigateur, Numeric → serveur', async () => {
+    const adapter = new GristAdapter();
+    mockFetch.mockResolvedValue(
+      colonnes([
+        ['code_dept', 'Text'],
+        ['valeur', 'Numeric'],
+        ['n', 'Int'],
+        ['quand', 'DateTime:Europe/Paris'],
+        ['ref', 'Ref:Autre'],
+        ['choix', 'Choice'],
+      ])
+    );
+    await adapter.prepareClauses(params);
+    await adapter.prepareClauses(params);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(String(mockFetch.mock.calls[0][0])).toContain('/tables/Codes/columns');
+
+    expect(adapter.supportsServerClause('code_dept:lt:5', TABLE)).toBe(false);
+    expect(adapter.supportsServerClause('code_dept:gte:10', TABLE)).toBe(false);
+    expect(adapter.supportsServerClause('choix:gt:1', TABLE)).toBe(false);
+    expect(adapter.supportsServerClause('inconnue:lt:5', TABLE)).toBe(false);
+    expect(adapter.supportsServerClause('valeur:lt:5', TABLE)).toBe(true);
+    expect(adapter.supportsServerClause('n:gt:5', TABLE)).toBe(true);
+    expect(adapter.supportsServerClause('quand:gte:1700000000', TABLE)).toBe(true);
+    expect(adapter.supportsServerClause('ref:lt:3', TABLE)).toBe(true);
+    // Borne TEXTE : SQLite et le navigateur comparent tous deux des textes.
+    expect(adapter.supportsServerClause('code_dept:lt:B', TABLE)).toBe(true);
+    // Autres opérateurs : inchangés.
+    expect(adapter.supportsServerClause('code_dept:eq:5', TABLE)).toBe(true);
+    expect(adapter.supportsServerClause('code_dept:in:5|6', TABLE)).toBe(true);
+    // Champs multiples : un seul champ de texte suffit à garder la clause.
+    expect(adapter.supportsServerClause('valeur|code_dept:lt:5', TABLE)).toBe(false);
+    // Une autre table, jamais lue : règle générale.
+    expect(adapter.supportsServerClause('code_dept:lt:5', AUTRE)).toBe(true);
+    expect(adapter.getColumnTypes(TABLE)?.get('code_dept')).toBe('Text');
+  });
+
+  it('lecture des colonnes en échec : null, règle générale, pas de relecture en boucle', async () => {
+    const adapter = new GristAdapter();
+    mockFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+    await adapter.prepareClauses(params);
+    expect(adapter.getColumnTypes(TABLE)).toBeNull();
+    expect(adapter.supportsServerClause('code_dept:lt:5', TABLE)).toBe(true);
+    await adapter.prepareClauses(params);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});

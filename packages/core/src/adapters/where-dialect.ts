@@ -113,12 +113,13 @@ export function whereDialectOf(adapter: WhereDialectCarrier | null | undefined):
  */
 export function canDelegateClause(
   adapter: WhereDialectCarrier | null | undefined,
-  clause: string
+  clause: string,
+  table?: string
 ): boolean {
   if (!adapter) return true;
   const defaultOdsql = adapter.capabilities?.whereFormat === 'odsql' && !adapter.translateWhere;
   return (
-    adapter.supportsServerClause?.(clause) ??
+    adapter.supportsServerClause?.(clause, table) ??
     (defaultOdsql ? canServerExpress('opendatasoft', clause) : true)
   );
 }
@@ -139,7 +140,8 @@ export interface WhereSplit {
  */
 export function splitWhereFor(
   adapter: WhereDialectCarrier | null | undefined,
-  colonWhere: string
+  colonWhere: string,
+  table?: string
 ): WhereSplit {
   const server: string[] = [];
   const client: string[] = [];
@@ -147,7 +149,7 @@ export function splitWhereFor(
     .split(',')
     .map((c) => c.trim())
     .filter(Boolean)) {
-    (canDelegateClause(adapter, clause) ? server : client).push(clause);
+    (canDelegateClause(adapter, clause, table) ? server : client).push(clause);
   }
   return { server: server.join(', '), client: client.join(', ') };
 }
@@ -174,6 +176,10 @@ export function describeClientWhere(
     /:notcontains:/.test(clientWhere) ? 'notcontains' : '',
     /:notin:/.test(clientWhere) ? 'notin' : '',
   ].filter(Boolean);
+  // Comparaison d'ordre à borne numérique sur une colonne de TEXTE (#1325) :
+  // SQLite compare des textes (`'50' < '5'`), le navigateur des nombres —
+  // l'adaptateur l'a su en lisant les types de la table (`prepareClauses`).
+  const ordreTexte = /:(?:gte?|lte?):\s*-?\d/.test(clientWhere);
   const sql = [
     negations.length > 0
       ? `${negations.join(' et ')} y écarterai${negations.length > 1 ? 'en' : ''}t les lignes ` +
@@ -181,6 +187,10 @@ export function describeClientWhere(
       : '',
     /:contains:[^,]*\*/.test(clientWhere)
       ? `un * dans la valeur de contains y serait un joker`
+      : '',
+    ordreTexte
+      ? `une comparaison d'ordre à borne numérique sur une colonne de texte y comparerait ` +
+        `des textes, là où le navigateur compare des nombres`
       : '',
   ].filter(Boolean);
   const cause =

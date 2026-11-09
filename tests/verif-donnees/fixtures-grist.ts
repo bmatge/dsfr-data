@@ -72,6 +72,32 @@ function trier(lignes: Row[], cles: Cle[], retourne = false): Row[] {
   });
 }
 
+/**
+ * Type Grist d'une colonne, déduit de ses valeurs (#1325) : des nombres →
+ * `Numeric`, sinon `Text`. C'est ce que `GET …/columns` déclare, et ce qui
+ * fixe l'AFFINITÉ SQLite de la colonne : sous une comparaison d'ordre, une
+ * colonne Text (affinité TEXT) convertit la borne numérique en texte et
+ * compare par code — `'10' < 5` est vrai, `'50' < 5` est faux (mesuré sur
+ * grist.numerique.gouv.fr : `code_dept:lt:5` → 50 lignes). Une colonne
+ * Numeric compare des nombres.
+ */
+export function typeColonneGrist(table: LigneGrist[], champ: string): 'Numeric' | 'Text' {
+  const valeurs = table.map((l) => l.fields[champ]).filter((v) => v !== null && v !== undefined);
+  return valeurs.length > 0 && valeurs.every((v) => typeof v === 'number') ? 'Numeric' : 'Text';
+}
+
+/** `GET {doc}/tables/{table}/columns` : identifiant, libellé et type de chaque colonne. */
+export function repondreGristColumns(table: LigneGrist[]): Record<string, unknown> {
+  const champs = new Set<string>();
+  for (const l of table) for (const c of Object.keys(l.fields)) champs.add(c);
+  return {
+    columns: [...champs].map((id) => ({
+      id,
+      fields: { label: id, type: typeColonneGrist(table, id), isFormula: false, formula: '' },
+    })),
+  };
+}
+
 /** Une ligne à plat, `id` compris — ce sur quoi trient `/records` et `/sql`. */
 function aPlat(table: LigneGrist[]): Row[] {
   return table.map(({ id, fields }) => ({ id, manualSort: id, ...fields }));
@@ -289,7 +315,11 @@ function predicat(clause: string, args: unknown[], curseur: { rang: number }): P
   const valeur = args[curseur.rang++] as Valeur;
   return (l) => {
     if (absent(l[champ])) return false;
-    const c = comparer(l[champ] as Valeur, valeur);
+    // Affinité TEXT (#1325) : une colonne de texte convertit une borne
+    // numérique en texte avant de comparer, par code.
+    const borne =
+      typeof l[champ] === 'string' && typeof valeur === 'number' ? String(valeur) : valeur;
+    const c = comparer(l[champ] as Valeur, borne);
     // Égalité à la SQLite d'une colonne sans type : `'3'` vaut `3`
     const egal = String(l[champ]) === String(valeur);
     switch (m[2]) {
@@ -422,6 +452,11 @@ export function repondreGristDocument(
     }
     const q = url.searchParams.get('q');
     return q ? repondreGristSql({ sql: q }, tables) : null;
+  }
+  const columns = /^\/tables\/([^/]+)\/columns$/.exec(chemin);
+  if (columns) {
+    const table = tables[decodeURIComponent(columns[1])];
+    return table ? repondreGristColumns(table) : null;
   }
   const records = /^\/tables\/([^/]+)\/records$/.exec(chemin);
   if (!records) return null;

@@ -105,10 +105,11 @@ export function translateWhere(
  */
 export function splitWhere(
   adapter: WhereDialectCarrier | null | undefined,
-  colonWhere: string
+  colonWhere: string,
+  table?: string
 ): WhereSplit {
   if (!colonWhere) return { server: '', client: '' };
-  return splitWhereFor(adapter, colonWhere);
+  return splitWhereFor(adapter, colonWhere, table);
 }
 
 /**

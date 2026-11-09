@@ -39,6 +39,8 @@ import {
   RESSOURCE_TABULAR_JOKERS,
   TERRITOIRES,
   URL_GRIST_EX_AEQUO,
+  URL_GRIST_CODES_TEXTE,
+  GRIST_CODES_TEXTE,
   URL_GRIST_JOKERS,
   urlJeu,
   urlJeuPagine,
@@ -3849,6 +3851,69 @@ const ALIAS_DELEGUE: Check[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Grist : une comparaison d'ordre suit le TYPE de la colonne (#1325)
+// ---------------------------------------------------------------------------
+
+const sourceGristCodesTexte = (id: string, attrs = ''): string =>
+  `<dsfr-data-source id="${id}" api-type="grist" base-url="${URL_GRIST_CODES_TEXTE}"${attrs ? ` ${attrs}` : ''}></dsfr-data-source>`;
+
+const CODE_LT_5: Step[] = [{ op: 'filter', filters: [{ field: 'code_dept', op: 'lt', value: 5 }] }];
+const VALEUR_LT_5: Step[] = [{ op: 'filter', filters: [{ field: 'valeur', op: 'lt', value: 5 }] }];
+
+const GRIST_TYPES_COLONNES: Check[] = [
+  {
+    id: 'grist-ordre-colonne-texte-borne-numerique',
+    mode: 'deterministic',
+    origin:
+      "#1325, ADR-159 (arbitrage du 2026-10-15) — `code_dept` est une colonne Grist de TEXTE à contenu numérique (`'01'` … `'60'`). Sous `code_dept:lt:5`, SQLite compare des textes par code (`'10' < '5'`) et rend 49 lignes ; le navigateur compare des nombres et en rend 4 (mesuré sur grist.numerique.gouv.fr : 50 au serveur, 6 dans le navigateur). L'adaptateur lit désormais les types des colonnes (`/columns`) et ne confie une comparaison d'ordre à borne numérique qu'à une colonne numérique : sur `code_dept`, la clause reste au navigateur — confiée par une query seule lectrice comme écrite sur la source. Sur `valeur`, colonne Numeric, elle part toujours au serveur (témoin).",
+    feed: { kind: 'fixture', datasets: { main: GRIST_CODES_TEXTE } },
+    markup: `
+  ${sourceGristCodesTexte('s-gri-texte')}
+  <dsfr-data-query id="q-gri-texte" source="s-gri-texte" where="code_dept:lt:5"></dsfr-data-query>${kpiLignes('k-gri-texte', 'q-gri-texte')}
+  <dsfr-data-list id="l-gri-texte" source="q-gri-texte" columns="code_dept:Code, valeur:Valeur"></dsfr-data-list>
+  ${sourceGristCodesTexte('s-gri-texte-source', 'where="code_dept:lt:5"')}${kpiLignes('k-gri-texte-source', 's-gri-texte-source')}
+  ${sourceGristCodesTexte('s-gri-numerique')}
+  <dsfr-data-query id="q-gri-numerique" source="s-gri-numerique" where="valeur:lt:5"></dsfr-data-query>${kpiLignes('k-gri-numerique', 'q-gri-numerique')}`,
+    expects: [
+      { kind: 'kpi', id: 'k-gri-texte', agg: 'count', pipeline: CODE_LT_5 },
+      {
+        kind: 'list',
+        id: 'l-gri-texte',
+        columns: [{ column: 'code_dept' }, { column: 'valeur', numeric: true }],
+        pipeline: CODE_LT_5,
+      },
+      { kind: 'kpi', id: 'k-gri-texte-source', agg: 'count', pipeline: CODE_LT_5 },
+      { kind: 'kpi', id: 'k-gri-numerique', agg: 'count', pipeline: VALEUR_LT_5 },
+    ],
+  },
+  {
+    id: 'grist-ordre-colonne-texte-server-side',
+    mode: 'deterministic',
+    origin:
+      "#1325, règle de #1242 — la même clause (`code_dept:lt:5`, colonne de texte) derrière une source Grist en `server-side` ne filtrerait qu'une page. La source passe en ERREUR DE CONFIGURATION, qui nomme la cause (SQLite comparerait des textes) et la correction, au lieu d'un chiffre partiel.",
+    feed: { kind: 'fixture', datasets: { main: GRIST_CODES_TEXTE } },
+    markup: `
+  ${sourceGristCodesTexte('s-gri-texte-page', `server-side page-size="${TAILLE_PAGE}"`)}
+  <dsfr-data-query id="q-gri-texte-page" source="s-gri-texte-page" where="code_dept:lt:5"></dsfr-data-query>
+  <dsfr-data-list id="l-gri-texte-page" source="q-gri-texte-page" columns="code_dept:Code"></dsfr-data-list>`,
+    expects: [
+      {
+        kind: 'diagnostic',
+        id: 's-gri-texte-page',
+        expect: 'config-error',
+        contains: 'Retirez server-side de dsfr-data-source "s-gri-texte-page"',
+      },
+      {
+        kind: 'diagnostic',
+        id: 's-gri-texte-page',
+        expect: 'config-error',
+        contains: 'comparerait des textes',
+      },
+    ],
+  },
+];
+
 export const DELEGATION: Manifest = {
   domain: 'delegation',
   checks: [
@@ -3875,5 +3940,6 @@ export const DELEGATION: Manifest = {
     ...JOKERS_SQL,
     ...NEGATIONS_ABSENTS,
     ...ALIAS_DELEGUE,
+    ...GRIST_TYPES_COLONNES,
   ],
 };
