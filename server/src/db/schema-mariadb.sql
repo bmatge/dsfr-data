@@ -31,8 +31,12 @@ CREATE TABLE IF NOT EXISTS group_members (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Sources
+-- id : identifiant CHOISI PAR LE CLIENT (grist_<doc>_<table>, api_<connexion>_<ressource>,
+-- ou UUID), pas un UUID serveur. 36 caractères ne suffisaient pas : une table
+-- Grist donnait 46 caractères, l'insertion échouait en mode strict, et aucune
+-- source Grist n'atteignait le serveur (migration v9).
 CREATE TABLE IF NOT EXISTS sources (
-  id VARCHAR(36) NOT NULL PRIMARY KEY,
+  id VARCHAR(255) NOT NULL PRIMARY KEY,
   owner_id VARCHAR(36) NOT NULL,
   name VARCHAR(255) NOT NULL,
   type VARCHAR(50) NOT NULL,
@@ -46,7 +50,7 @@ CREATE TABLE IF NOT EXISTS sources (
 
 -- Connections
 CREATE TABLE IF NOT EXISTS connections (
-  id VARCHAR(36) NOT NULL PRIMARY KEY,
+  id VARCHAR(255) NOT NULL PRIMARY KEY,
   owner_id VARCHAR(36) NOT NULL,
   name VARCHAR(255) NOT NULL,
   type VARCHAR(50) NOT NULL,
@@ -60,7 +64,7 @@ CREATE TABLE IF NOT EXISTS connections (
 
 -- Favorites
 CREATE TABLE IF NOT EXISTS favorites (
-  id VARCHAR(36) NOT NULL PRIMARY KEY,
+  id VARCHAR(255) NOT NULL PRIMARY KEY,
   owner_id VARCHAR(36) NOT NULL,
   name VARCHAR(255) NOT NULL,
   chart_type VARCHAR(50),
@@ -74,7 +78,7 @@ CREATE TABLE IF NOT EXISTS favorites (
 
 -- Dashboards
 CREATE TABLE IF NOT EXISTS dashboards (
-  id VARCHAR(36) NOT NULL PRIMARY KEY,
+  id VARCHAR(255) NOT NULL PRIMARY KEY,
   owner_id VARCHAR(36) NOT NULL,
   name VARCHAR(255) NOT NULL,
   description TEXT,
@@ -90,7 +94,7 @@ CREATE TABLE IF NOT EXISTS dashboards (
 CREATE TABLE IF NOT EXISTS shares (
   id VARCHAR(36) NOT NULL PRIMARY KEY,
   resource_type VARCHAR(50) NOT NULL,
-  resource_id VARCHAR(36) NOT NULL,
+  resource_id VARCHAR(255) NOT NULL,
   target_type ENUM('user', 'group', 'global', 'public') NOT NULL,
   target_id VARCHAR(36),
   permission ENUM('read', 'write') NOT NULL DEFAULT 'read',
@@ -104,8 +108,9 @@ CREATE TABLE IF NOT EXISTS shares (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Data cache (API fallback)
+-- source_id : identifiant client d'une source (jusqu'à 255, voir sources.id)
 CREATE TABLE IF NOT EXISTS data_cache (
-  source_id VARCHAR(36) NOT NULL PRIMARY KEY,
+  source_id VARCHAR(255) NOT NULL PRIMARY KEY,
   data_json LONGTEXT NOT NULL,
   data_hash VARCHAR(64),
   record_count INT UNSIGNED DEFAULT 0,

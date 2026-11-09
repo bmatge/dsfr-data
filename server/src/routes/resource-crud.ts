@@ -170,6 +170,13 @@ export function createResourceRouter(config: ResourceConfig): Router {
         _permissions: await getPermissions(authReq.user!.userId, type, id),
       });
     } catch (err) {
+      // Identifiant deja pris (par ce compte ou un autre : les ids Grist sont
+      // deterministes, grist_<doc>_<table>). 409 et non 500 : la file de
+      // synchronisation cliente sait rejouer un 409 en PUT (#321).
+      if (err instanceof Error && (err as { code?: string }).code === 'ER_DUP_ENTRY') {
+        res.status(409).json({ error: `${type} already exists`, code: 'ALREADY_EXISTS' });
+        return;
+      }
       console.error(`Create ${type} error:`, err);
       res.status(500).json({ error: 'Internal server error' });
     }

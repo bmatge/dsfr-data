@@ -103,6 +103,36 @@ describe('Sources CRUD routes', () => {
       expect(res.body.id).toBe('my-custom-id');
     });
 
+    it('accepte un identifiant client plus long qu’un UUID (table Grist, migration v9)', async () => {
+      // grist_<doc 22 car.>_<table> : 46 caractères ici. VARCHAR(36) le
+      // refusait en mode strict, la source restait locale et l'aperçu
+      // répondait 403 « Access denied ».
+      const user = await registerUser('alice@test.fr');
+      const id = 'grist_abco5sFGHdaxaKaBuMdUNF_Budget_ministeres';
+      expect(id.length).toBeGreaterThan(36);
+      const res = await createSource(user.cookie, { id, type: 'grist' });
+
+      expect(res.status).toBe(201);
+      expect(res.body.id).toBe(id);
+
+      const list = await request(app).get('/api/sources').set('Cookie', user.cookie);
+      expect(list.body.map((s: { id: string }) => s.id)).toContain(id);
+    });
+
+    it('répond 409 quand l’identifiant est déjà pris, pour que la file rejoue en PUT', async () => {
+      const alice = await registerUser('alice@test.fr');
+      const bob = await registerUser('bob@test.fr');
+      const id = 'grist_abco5sFGHdaxaKaBuMdUNF_Budget_ministeres';
+      expect((await createSource(alice.cookie, { id })).status).toBe(201);
+
+      const again = await createSource(alice.cookie, { id });
+      expect(again.status).toBe(409);
+      expect(again.body.code).toBe('ALREADY_EXISTS');
+
+      const other = await createSource(bob.cookie, { id });
+      expect(other.status).toBe(409);
+    });
+
     it('returns 401 without authentication', async () => {
       const res = await request(app)
         .post('/api/sources')
