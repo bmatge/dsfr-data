@@ -69,6 +69,22 @@ describe('le composant porte les trois modes', () => {
     }
   });
 
+  it('en fullscreen, la colonne droite est étirée : sans stretch, le Code ne défile pas', () => {
+    // La règle de base pose align-self: flex-start (colonne collante du mode
+    // page) et borne la colonne par max-height. Le mode fullscreen retire la
+    // max-height : si align-self reste flex-start, la colonne prend la
+    // hauteur de son contenu, le body en overflow: hidden coupe, et l'onglet
+    // Code du Builder ne défile jamais (5 000 px de colonne dans 700 de page).
+    const src = lire('packages/app-ui/src/app-layout-builder.ts').replace(/\/\*[\s\S]*?\*\//g, '');
+    const bloc = src.match(
+      /app-layout-builder\[mode='fullscreen'\] \.builder-layout-right \{([^}]*)\}/
+    );
+    expect(bloc, 'règle fullscreen de la colonne droite absente').not.toBeNull();
+    expect(bloc![1]).toMatch(/align-self:\s*stretch/);
+    expect(bloc![1]).toMatch(/max-height:\s*none/);
+    expect(bloc![1]).toMatch(/overflow:\s*auto/);
+  });
+
   it('cible la BALISE et non :host — le composant rend en light DOM', () => {
     // LE défaut qui a rendu les deux modes inertes : `createRenderRoot()`
     // renvoie `this`, donc il n'y a pas de shadow tree et `:host()` ne matche
