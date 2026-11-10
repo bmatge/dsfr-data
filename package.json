@@ -113,7 +113,7 @@
     "@custom-elements-manifest/analyzer": "^0.11.0",
     "@eslint/js": "^10.0.1",
     "@open-wc/testing": "^5.0.0",
-    "@playwright/test": "^1.64.1",
+    "@playwright/test": "^1.65.0",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.14.0",
     "eslint-plugin-lit": "^2.3.1",
@@ -127,7 +127,7 @@
     "tsx": "^4.23.15",
     "typescript": "^5.3.0",
     "typescript-eslint": "^8.72.1",
-    "vite": "^8.3.5",
+    "vite": "^8.3.6",
     "vite-node": "^6.0.0",
     "vitest": "^4.1.12"
   },
