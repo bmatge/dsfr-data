@@ -27,6 +27,15 @@
   list-style: none;
 }
 
+/* Aide « ? » de la clé serveur désactivée : une ligne en tête du panneau IA,
+   texte + infobulle DSFR (hors du summary : pas de contenu interactif dedans). */
+.studio-ia-config__aide {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
 .studio-bloc__ligne::-webkit-details-marker {
   display: none;
 }

@@ -64,6 +64,9 @@ services:
       - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-}
       - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-}
       # Proxy IA Albert par défaut (token reste côté serveur).
+      # IA_DEFAULT_ENABLED=false rend la clé serveur indisponible sans la
+      # retirer du .env (chaque usager saisit alors sa clé dans le Studio).
+      - IA_DEFAULT_ENABLED=${IA_DEFAULT_ENABLED:-}
       - IA_DEFAULT_TOKEN=${IA_DEFAULT_TOKEN:-}
       - IA_DEFAULT_API_URL=${IA_DEFAULT_API_URL:-https://albert.api.etalab.gouv.fr/v1/chat/completions}
       - IA_DEFAULT_MODEL=${IA_DEFAULT_MODEL:-openweight-large}

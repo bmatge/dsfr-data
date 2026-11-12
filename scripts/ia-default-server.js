@@ -21,11 +21,18 @@
 const http = require('http');
 const { request, EnvHttpProxyAgent, setGlobalDispatcher } = require('undici');
 const { creerDebit, lireMaxRpm, reponseRefus } = require('./lib/debit.cjs');
+const { lireConfigDefaut } = require('./lib/ia-defaut.cjs');
 
-const TOKEN = process.env.IA_DEFAULT_TOKEN || '';
-const API_URL =
-  process.env.IA_DEFAULT_API_URL || 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
-const MODEL = process.env.IA_DEFAULT_MODEL || 'openweight-large';
+// IA_DEFAULT_ENABLED=false : cle gardee dans le .env mais rendue indisponible
+// (le jeton n'est pas lu, /ia-proxy-default repond 503, /ia-server-config
+// annonce `disabled: true`). Voir scripts/lib/ia-defaut.cjs.
+const CONFIG = lireConfigDefaut(process.env, {
+  apiUrl: 'https://albert.api.etalab.gouv.fr/v1/chat/completions',
+  model: 'openweight-large',
+});
+const TOKEN = CONFIG.token;
+const API_URL = CONFIG.apiUrl;
+const MODEL = CONFIG.model;
 const PORT = 3003;
 const MAX_RPM = lireMaxRpm(process.env.IA_MAX_RPM);
 const debit = creerDebit({ maxParMinute: MAX_RPM });
@@ -66,11 +73,7 @@ const server = http.createServer(async (req, res) => {
   if (req.url === '/ia-server-config' && req.method === 'GET') {
     cors(res);
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify(
-        TOKEN ? { available: true, apiUrl: API_URL, model: MODEL } : { available: false }
-      )
-    );
+    res.end(JSON.stringify(CONFIG.reponse));
     return;
   }
 
@@ -92,7 +95,13 @@ const server = http.createServer(async (req, res) => {
 
     if (!TOKEN) {
       res.writeHead(503, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'IA default config not available (no token)' }));
+      res.end(
+        JSON.stringify({
+          error: CONFIG.desactivee
+            ? 'IA default config disabled (IA_DEFAULT_ENABLED=false)'
+            : 'IA default config not available (no token)',
+        })
+      );
       return;
     }
 
@@ -169,5 +178,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[ia-default-server] Listening on 127.0.0.1:${PORT} (IA_MAX_RPM=${MAX_RPM})`);
+  console.log(
+    `[ia-default-server] Listening on 127.0.0.1:${PORT} (IA_MAX_RPM=${MAX_RPM}` +
+      (CONFIG.desactivee ? ', IA_DEFAULT_ENABLED=false : cle serveur desactivee)' : ')')
+  );
 });
