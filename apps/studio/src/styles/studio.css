@@ -36,6 +36,13 @@
   margin-bottom: 0.75rem;
 }
 
+/* Le panneau de config est en content-box (hérité) : le bouton infobulle DSFR
+   (max-width 2rem, overflow hidden) prenait 3rem et laissait dépasser deux
+   lettres de son libellé à côté du « ? ». */
+.studio-ia-config__aide .fr-btn--tooltip {
+  box-sizing: border-box;
+}
+
 .studio-bloc__ligne::-webkit-details-marker {
   display: none;
 }
