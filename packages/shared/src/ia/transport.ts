@@ -28,7 +28,7 @@ export const IA_PROXY_ENDPOINT = '/ia-proxy';
 
 /** Cle localStorage partagee par toutes les apps (ne pas renommer). */
 export const IA_CONFIG_KEY = 'dsfr-data-ia-config';
-const DEFAULT_MODEL = 'openweight-large';
+const DEFAULT_MODEL = 'openweight-medium';
 
 /** Nombre de nouvelles tentatives sur 429 (soit 4 requetes au plus). */
 const MAX_429_RETRIES = 3;

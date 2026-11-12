@@ -13,7 +13,7 @@
  * READ-ONLY : n'ecrit aucun fichier, imprime sur stdout.
  *
  * Usage :
- *   npx tsx scripts/probe-albert.ts --token <TOKEN> [--url <chat-url>] [--model openweight-large]
+ *   npx tsx scripts/probe-albert.ts --token <TOKEN> [--url <chat-url>] [--model openweight-medium]
  *   IA_DEFAULT_TOKEN=xxx npx tsx scripts/probe-albert.ts
  */
 
@@ -24,7 +24,7 @@ function getArg(name: string): string | undefined {
 
 const TOKEN = getArg('--token') ?? process.env.IA_DEFAULT_TOKEN ?? '';
 const CHAT_URL = getArg('--url') ?? 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
-const MODEL = getArg('--model') ?? 'openweight-large';
+const MODEL = getArg('--model') ?? 'openweight-medium';
 
 if (!TOKEN) {
   console.error('Erreur : token requis (--token <T> ou IA_DEFAULT_TOKEN).');

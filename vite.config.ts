@@ -279,7 +279,7 @@ export default defineConfig({
         const configDefaut = () =>
           lireConfigDefaut(process.env, {
             apiUrl: 'https://albert.api.etalab.gouv.fr/v1/chat/completions',
-            model: 'albert-large',
+            model: 'openweight-medium',
           });
         server.middlewares.use('/ia-server-config', (_req, res) => {
           res.writeHead(200, {

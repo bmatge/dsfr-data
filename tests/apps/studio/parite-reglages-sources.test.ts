@@ -183,9 +183,9 @@ describe('configuration IA : rechargée dans le formulaire de la page', () => {
 describe('choix du modèle', () => {
   beforeEach(monterPage);
 
-  it('le modèle par défaut est openweight-large', () => {
-    expect(DEFAULT_MODEL).toBe('openweight-large');
-    expect(lireModele()).toBe('openweight-large');
+  it('le modèle par défaut est openweight-medium', () => {
+    expect(DEFAULT_MODEL).toBe('openweight-medium');
+    expect(lireModele()).toBe('openweight-medium');
   });
 
   it('la liste de la page est celle du code, plus « Personnalisé… »', () => {
