@@ -1,5 +1,0 @@
----
-'dsfr-data': minor
----
-
-Source publiée (ADR-165, #1361) : une table Grist à clé, ou dont le document n'est pas public, peut être **publiée** depuis l'app Sources en mode serveur (bouton « Publier », révocable). L'instance la sert par `GET /api/public/sources/<jeton>/records`, l'URL amont étant fixée par la configuration de la source et la clé déchiffrée côté serveur, jamais rendue. Le Builder, le Studio IA et l'export HTML d'une source publiée écrivent une `dsfr-data-source url="…/api/public/sources/<jeton>/records" transform="records"` sans `proxy-url`, utilisable telle quelle sur un site tiers. Avant publication, l'aperçu du Builder d'une table à clé lit la route authentifiée `GET /api/sources/<id>/records` (l'aperçu marchait à vide, alors que Sources affichait la table) et une alerte dit que le code copié ne contient pas la clé. Un favori dont la source est publiée redevient partageable par lien public (#148). Rien ne change dans la bibliothèque ni en mode statique. Ce que la route expose et ce qu'il faut dire à l'usager : `docs/SECURITY.md`.
