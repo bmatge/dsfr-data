@@ -47,6 +47,12 @@ export interface ServerIAConfig {
   available: boolean;
   apiUrl?: string;
   model?: string;
+  /**
+   * Cle serveur volontairement DESACTIVEE par le deploiement
+   * (`IA_DEFAULT_ENABLED=false`) : `available` est faux, mais le Studio peut
+   * le dire et guider vers la cle personnelle, plutot que « IA non configuree ».
+   */
+  disabled?: boolean;
 }
 
 /** En-tetes du mode utilisateur OpenAI-compatible (Albert, OpenAI, Mistral...). */

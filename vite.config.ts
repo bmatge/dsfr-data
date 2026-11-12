@@ -4,6 +4,7 @@ import { request as httpsRequest } from 'https';
 import { request as httpRequest } from 'http';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { creerDebit, lireMaxRpm, reponseRefus } from './scripts/lib/debit.cjs';
+import { lireConfigDefaut } from './scripts/lib/ia-defaut.cjs';
 import { creerRelais, METHODES } from './scripts/lib/garde-proxy.cjs';
 import { DEPS_PRE_OPTIMISEES } from './scripts/lib/deps-pre-optimisees';
 
@@ -273,25 +274,19 @@ export default defineConfig({
       name: 'ia-server-config',
       configureServer(server) {
         // GET /ia-server-config — returns default IA config (no token exposed)
+        // Meme lecture que scripts/ia-default-server.js (IA_DEFAULT_ENABLED=false
+        // = cle serveur desactivee, annoncee `disabled: true`).
+        const configDefaut = () =>
+          lireConfigDefaut(process.env, {
+            apiUrl: 'https://albert.api.etalab.gouv.fr/v1/chat/completions',
+            model: 'albert-large',
+          });
         server.middlewares.use('/ia-server-config', (_req, res) => {
-          const token = process.env.IA_DEFAULT_TOKEN || '';
           res.writeHead(200, {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
           });
-          res.end(
-            JSON.stringify(
-              token
-                ? {
-                    available: true,
-                    apiUrl:
-                      process.env.IA_DEFAULT_API_URL ||
-                      'https://albert.api.etalab.gouv.fr/v1/chat/completions',
-                    model: process.env.IA_DEFAULT_MODEL || 'albert-large',
-                  }
-                : { available: false }
-            )
-          );
+          res.end(JSON.stringify(configDefaut().reponse));
         });
 
         // POST /ia-proxy-default — proxy with server-side token injection.
@@ -310,15 +305,17 @@ export default defineConfig({
             return;
           }
 
-          const token = process.env.IA_DEFAULT_TOKEN || '';
-          const apiUrl =
-            process.env.IA_DEFAULT_API_URL ||
-            'https://albert.api.etalab.gouv.fr/v1/chat/completions';
-          const model = process.env.IA_DEFAULT_MODEL || 'albert-large';
+          const { token, apiUrl, model, desactivee } = configDefaut();
 
           if (!token) {
             res.writeHead(503, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'IA default config not available' }));
+            res.end(
+              JSON.stringify({
+                error: desactivee
+                  ? 'IA default config disabled (IA_DEFAULT_ENABLED=false)'
+                  : 'IA default config not available',
+              })
+            );
             return;
           }
 

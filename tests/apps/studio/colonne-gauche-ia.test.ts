@@ -43,6 +43,7 @@ const FORMULAIRE = `
     <summary>
       <span id="ia-config-badge"></span><span id="ia-config-resume"></span>
     </summary>
+    <div id="ia-config-aide" hidden><button id="ia-config-aide-btn"></button></div>
     <div id="ia-use-server" hidden><button id="ia-use-server-btn"></button></div>
     <input id="ia-api-url" value="">
     <select id="ia-model">
@@ -67,6 +68,7 @@ async function serveur(config: Record<string, unknown>): Promise<void> {
 const badge = () => document.getElementById('ia-config-badge')?.textContent;
 const resume = () => document.getElementById('ia-config-resume')?.textContent ?? '';
 const bascule = () => document.getElementById('ia-use-server') as HTMLElement;
+const aide = () => document.getElementById('ia-config-aide') as HTMLElement;
 
 beforeEach(() => {
   localStorage.clear();
@@ -103,11 +105,41 @@ describe('badge IA : mode effectif ET clé serveur disponible (#1142)', () => {
     expect(bascule().hidden).toBe(true);
   });
 
-  it('ni jeton ni serveur : « IA non configurée »', async () => {
+  it('clé serveur désactivée par le déploiement : « Clé serveur désactivée », aide « ? » visible', async () => {
+    await serveur({ available: false, disabled: true });
+    chargerConfigIA();
+    majBadgeIA();
+    expect(badge()).toBe('Clé serveur désactivée');
+    expect(resume()).toContain('clé Albert personnelle');
+    expect(aide().hidden).toBe(false);
+    expect(bascule().hidden).toBe(true);
+    expect(etatIA()).toMatchObject({
+      mode: 'none',
+      serveurDisponible: false,
+      serveurDesactive: true,
+    });
+  });
+
+  it('clé serveur désactivée + jeton perso : « Clé perso », l’aide disparaît', async () => {
+    localStorage.setItem(
+      IA_CONFIG_KEY,
+      JSON.stringify({ token: 'sk-perso', model: 'openweight-medium' })
+    );
+    await serveur({ available: false, disabled: true });
+    chargerConfigIA();
+    majBadgeIA();
+    expect(badge()).toBe('Clé perso');
+    expect(aide().hidden).toBe(true);
+    expect(bascule().hidden).toBe(true);
+  });
+
+  it('ni jeton ni serveur : « IA non configurée », sans aide « ? »', async () => {
     await serveur({ available: false });
     chargerConfigIA();
     majBadgeIA();
     expect(badge()).toBe('IA non configurée');
+    expect(aide().hidden).toBe(true);
+    expect(etatIA().serveurDesactive).toBe(false);
     expect(bascule().hidden).toBe(true);
   });
 
@@ -189,6 +221,18 @@ describe('colonne gauche compacte (#1142)', () => {
     expect(page.querySelector('h2.fr-sr-only')?.textContent).toBe('Assistant du Studio');
     // Aucun bouton dans un <summary> (contenu interactif interdit).
     expect(page.querySelector('summary button, summary a, summary select')).toBeNull();
+    // L'aide « ? » de la clé serveur désactivée : hors du summary, cachée par
+    // défaut, infobulle DSFR reliée au bouton, et le message attendu.
+    const aideBloc = ia?.querySelector('#ia-config-aide') as HTMLElement | null;
+    expect(aideBloc?.hidden).toBe(true);
+    expect(aideBloc?.closest('summary')).toBeNull();
+    const bouton = aideBloc?.querySelector('button.fr-btn--tooltip');
+    expect(bouton?.getAttribute('aria-describedby')).toBe('ia-config-aide-tooltip');
+    const infobulle = aideBloc?.querySelector('#ia-config-aide-tooltip');
+    expect(infobulle?.classList.contains('fr-tooltip')).toBe(true);
+    expect(infobulle?.getAttribute('role')).toBe('tooltip');
+    expect(infobulle?.textContent).toContain('clé Albert personnelle');
+    expect(infobulle?.textContent).toContain('ne peut être utilisée que dans votre session');
   });
 
   it('résumé de source en une ligne : nom, lignes, champs', () => {

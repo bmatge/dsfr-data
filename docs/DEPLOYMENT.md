@@ -90,6 +90,7 @@ Le fichier [`.env.example`](../.env.example) liste toutes les variables. Les pri
 | `APP_URL` | serveur **[REQUISE en mode serveur]** | URL publique de l'app, utilisee dans les emails de verification / reset (ex. `https://mondomaine.gouv.fr`). Sans cette variable, le serveur leve une erreur au demarrage si l'envoi d'email est tente. | throw si absent et SMTP configure |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | serveur | Configuration SMTP pour l'envoi d'emails de verification / reset | non configure |
 | `IA_DEFAULT_TOKEN`, `IA_DEFAULT_API_URL`, `IA_DEFAULT_MODEL` | les 2 | Cle Albert partagee cote serveur (le Studio IA fonctionne sans config utilisateur) | `albert-large` |
+| `IA_DEFAULT_ENABLED` | les 2 | `false` (ou `0`, `off`, `no`, `non`) **desactive** la cle serveur sans la retirer du `.env` : le jeton n'est pas lu, `/ia-proxy-default` repond `503`, `/ia-server-config` repond `{ available: false, disabled: true }` et le Studio affiche « Cle serveur desactivee » avec une aide « ? » invitant a saisir une cle Albert personnelle. Usage type : preserver le quota journalier de la cle partagee avant une demonstration. Absente ou toute autre valeur : cle active. Prise en compte au (re)demarrage du conteneur. | active |
 | `PUBLIC_SOURCE_CACHE_TTL` | serveur | Duree de cache, en secondes, des lignes servies par la route de source publiee `/api/public/sources/<jeton>/records` (ADR-165, #1361) : memoire du process et `Cache-Control` navigateur. `0` desactive le cache memoire (chaque lecture interroge Grist). | `300` |
 | `IA_MAX_RPM` | les 2 | Plafond global d'appels a `/ia-proxy-default` par minute glissante, **tous utilisateurs confondus** (#999). Au-dela, le proxy repond `429` avec un en-tete `Retry-After` en secondes entieres, **sans appeler Albert** : la cle partagee ne s'epuise pas sur la limite amont. Entier >= 1 ; toute autre valeur retombe sur le defaut. Le compteur vit en memoire du process (`scripts/ia-default-server.js` en production, middlewares Vite en dev) : il repart a zero au redemarrage. Voir ci-dessous. | `10` |
 
@@ -953,6 +954,7 @@ Ouvrir `https://${APP_DOMAIN}/playground/` dans un navigateur et charger un exem
 | 3 | URL d'une ancienne instance bakee dans le bundle | Verifier `VITE_PROXY_URL` dans `.env` ET rebuild avec `--no-cache` |
 | 4 | OPTIONS retourne 404 | Bloc nginx commente sans reverse externe configure (cf. [Scenario C](#scenario-c--reverse-externe-gerant-les-routes-de-proxying)) |
 | 5 | `available: false` | `IA_DEFAULT_TOKEN` non defini ou conteneur non redemarre apres ajout |
+| 5 | `available: false, disabled: true` | `IA_DEFAULT_ENABLED=false` dans le `.env` : desactivation volontaire, le Studio affiche « Cle serveur desactivee » (attendu) |
 | 6 | Headers manquants | Snippet `security-headers.conf` non charge ou Traefik qui les ecrase |
 | 7 | Pas de log "Outbound proxy enabled" | `HTTP_PROXY` non passe au runtime (`environment:` du docker-compose) |
 | 8 | Bundle servi en cache long | Conf nginx hors-date (cache 1y au lieu de no-cache, must-revalidate sur `/dist/*`) |

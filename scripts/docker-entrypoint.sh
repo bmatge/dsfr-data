@@ -68,8 +68,11 @@ if [ "$GOUV_WIDGETS_MODE" = "database" ] && [ -f /app/server/dist/index.js ]; th
   (cd /app/server && supervise "Express" node dist/index.js) &
 fi
 
-# IA default proxy (port 3003) — actif uniquement si IA_DEFAULT_TOKEN fourni.
-if [ -n "$IA_DEFAULT_TOKEN" ]; then
+# IA default proxy (port 3003) — actif si IA_DEFAULT_TOKEN fourni, ou si
+# IA_DEFAULT_ENABLED est pose : avec `false`, le proxy demarre quand meme pour
+# que /ia-server-config annonce la cle DESACTIVEE (le Studio affiche alors
+# « Cle serveur desactivee » et son aide, pas « IA non configuree »).
+if [ -n "$IA_DEFAULT_TOKEN" ] || [ -n "$IA_DEFAULT_ENABLED" ]; then
   echo "[entrypoint] Starting IA default proxy on port 3003 (supervised)..."
   supervise "IA-default" node /app/scripts/ia-default-server.js &
 fi

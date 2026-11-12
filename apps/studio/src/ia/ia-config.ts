@@ -190,6 +190,11 @@ export interface EtatIA {
   enAttente: boolean;
   /** Une clé serveur existe, qu'elle serve ou non. */
   serveurDisponible: boolean;
+  /**
+   * Le déploiement a DÉSACTIVÉ sa clé serveur (`IA_DEFAULT_ENABLED=false`) :
+   * seule une clé personnelle peut servir, et l'aide « ? » le dit.
+   */
+  serveurDesactive: boolean;
   /** Texte du badge. */
   badge: string;
   /** Classe DSFR du badge. */
@@ -203,8 +208,9 @@ export function etatIA(): EtatIA {
   const config = lireConfigFormulaire();
   const mode = modeIA();
   const serveurDisponible = server?.available === true;
+  const serveurDesactive = !serveurDisponible && server?.disabled === true;
   const enAttente = server === null && mode !== 'user';
-  const etat = { mode, enAttente, serveurDisponible };
+  const etat = { mode, enAttente, serveurDisponible, serveurDesactive };
   if (enAttente) {
     return { ...etat, badge: 'Vérification…', classe: '', resume: 'recherche d’une clé serveur' };
   }
@@ -226,6 +232,14 @@ export function etatIA(): EtatIA {
       resume: server?.model || config.model,
     };
   }
+  if (serveurDesactive) {
+    return {
+      ...etat,
+      badge: 'Clé serveur désactivée',
+      classe: 'fr-badge--warning',
+      resume: 'renseignez votre clé Albert personnelle',
+    };
+  }
   return {
     ...etat,
     badge: 'IA non configurée',
@@ -234,7 +248,10 @@ export function etatIA(): EtatIA {
   };
 }
 
-/** Badge, résumé et action « Utiliser la clé serveur » de la section IA. */
+/**
+ * Badge, aide « ? » (clé serveur désactivée), résumé et action « Utiliser la
+ * clé serveur » de la section IA.
+ */
 export function majBadgeIA(): void {
   const etat = etatIA();
   const badge = champ<HTMLElement>('ia-config-badge');
@@ -242,6 +259,10 @@ export function majBadgeIA(): void {
     badge.textContent = etat.badge;
     badge.className = `fr-badge fr-badge--sm ${etat.classe}`.trim();
   }
+  // L'aide « ? » n'accompagne que le badge « Clé serveur désactivée » : une
+  // clé perso saisie la rend sans objet.
+  const aide = champ<HTMLElement>('ia-config-aide');
+  if (aide) aide.hidden = !(etat.mode === 'none' && etat.serveurDesactive);
   const resume = champ<HTMLElement>('ia-config-resume');
   if (resume) {
     resume.textContent = etat.resume;
