@@ -109,6 +109,7 @@ COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY scripts/ia-default-server.js /app/scripts/ia-default-server.js
 # Plafond global d'appels IA (#999), require('./lib/debit.cjs') depuis ia-default-server.js
 COPY scripts/lib/debit.cjs /app/scripts/lib/debit.cjs
+COPY scripts/lib/ia-defaut.cjs /app/scripts/lib/ia-defaut.cjs
 
 # undici pour le proxy HTTP sortant côté Node (require('undici') depuis
 # /app/scripts/ia-default-server.js). undici n'a aucune dépendance runtime,
