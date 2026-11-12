@@ -75,9 +75,12 @@ ARG NO_PROXY=""
 USER root
 
 # Add Node.js for the MCP server
+# + brotli-libs < 1.2.1-r0 : CVE-2026-111497 (CRITICAL) dans l'image de base ;
+# le scan Trivy (docker-scan.yml) bloque tant que la base n'est pas republiee.
 RUN HTTP_PROXY=$HTTP_PROXY HTTPS_PROXY=$HTTPS_PROXY NO_PROXY=$NO_PROXY \
     http_proxy=$HTTP_PROXY https_proxy=$HTTPS_PROXY no_proxy=$NO_PROXY \
-    apk add --no-cache nodejs
+    apk add --no-cache nodejs && \
+    apk upgrade --no-cache brotli-libs
 
 # Copier la config nginx + le snippet security-headers (inclus dans chaque
 # location block — cf. docker/security-headers.conf pour le pourquoi)

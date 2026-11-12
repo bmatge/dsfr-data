@@ -84,10 +84,13 @@ USER root
 
 # Copy Node.js binary from builder (same version that compiled native modules)
 # and add C++ runtime libraries needed by bcrypt native addon
+# + brotli-libs < 1.2.1-r0 : CVE-2026-111497 (CRITICAL) dans l'image de base ;
+# le scan Trivy (docker-scan.yml) bloque tant que la base n'est pas republiee.
 COPY --from=builder /usr/local/bin/node /usr/local/bin/node
 RUN HTTP_PROXY=$HTTP_PROXY HTTPS_PROXY=$HTTPS_PROXY NO_PROXY=$NO_PROXY \
     http_proxy=$HTTP_PROXY https_proxy=$HTTPS_PROXY no_proxy=$NO_PROXY \
-    apk add --no-cache libstdc++ libgcc
+    apk add --no-cache libstdc++ libgcc && \
+    apk upgrade --no-cache brotli-libs
 
 # Nginx config (database mode with /api/ proxy) + security-headers snippet
 COPY docker/nginx-db.conf /etc/nginx/conf.d/default.conf
