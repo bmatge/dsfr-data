@@ -32,15 +32,19 @@ import {
 
 /** URL par défaut du gateway (Albert, Etalab). */
 export const DEFAULT_API_URL = 'https://albert.api.etalab.gouv.fr/v1/chat/completions';
-/** Modèle par défaut : openweight-large = gpt-oss-120b côté Albert. */
-export const DEFAULT_MODEL = 'openweight-large';
+/**
+ * Modèle par défaut : openweight-medium = Mistral-Small-24B côté Albert.
+ * Limite de jetons plus haute que openweight-large (gpt-oss-120b), qui raisonne
+ * davantage ; tool calling et structured outputs vérifiés sur le gateway.
+ */
+export const DEFAULT_MODEL = 'openweight-medium';
 /** Valeur de l'option « Personnalisé… » du select de modèle. */
 export const MODELE_PERSONNALISE = '__custom__';
 
 /** Modèles proposés dans la liste (les autres passent par « Personnalisé… »). */
 export const MODELES_PROPOSES = [
-  'openweight-large',
   'openweight-medium',
+  'openweight-large',
   'openweight-small',
   'albert-large',
 ] as const;

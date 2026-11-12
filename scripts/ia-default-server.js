@@ -28,7 +28,7 @@ const { lireConfigDefaut } = require('./lib/ia-defaut.cjs');
 // annonce `disabled: true`). Voir scripts/lib/ia-defaut.cjs.
 const CONFIG = lireConfigDefaut(process.env, {
   apiUrl: 'https://albert.api.etalab.gouv.fr/v1/chat/completions',
-  model: 'openweight-large',
+  model: 'openweight-medium',
 });
 const TOKEN = CONFIG.token;
 const API_URL = CONFIG.apiUrl;

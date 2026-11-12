@@ -219,13 +219,13 @@ describe('resolveTransport — { post, model, capacites }', () => {
     const t = await resolveTransport({
       user: {
         apiUrl: 'https://albert.api.etalab.gouv.fr/v1/chat/completions',
-        model: 'openweight-large',
+        model: 'openweight-medium',
         token: 'formulaire',
       },
     });
 
     expect(t.mode).toBe('user');
-    expect(t.model).toBe('openweight-large');
+    expect(t.model).toBe('openweight-medium');
     // Hote etalab : capacites Albert par defaut.
     expect(t.capacites).toMatchObject({ toolCalling: true, jsonSchema: true });
     fetchMock.mockResolvedValueOnce(jsonResponse(200, OK_BODY));
