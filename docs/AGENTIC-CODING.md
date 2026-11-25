@@ -30,7 +30,7 @@ l'autre ; tout ce qui doit survivre est écrit quelque part et relu.
 | Issues + PR (dernier numéro) | 1 389 | `gh pr list --limit 1` |
 | Issues | 572 (565 fermées, 7 ouvertes) | `gh issue list` |
 | PR fusionnées | 738 : 521 humaines, 146 Dependabot, 71 bots de release | `gh pr list --state merged` |
-| Releases | 150 tags ; version courante `0.52.0` ; `0.53.0` en attente (PR de release #1363 ouverte depuis le 2026-11-04) | `git tag`, `packages/core/package.json` |
+| Releases | 150 tags ; version courante `0.52.0` ; `0.53.0` en attente (PR de release #1363 ouverte depuis le 2026-11-04, fusionnée et publiée le 2026-11-25) | `git tag`, `packages/core/package.json` |
 | Workflows GitHub Actions | 12 | `.github/workflows/` |
 | Tests | 512 fichiers `*.test.ts`, 8 971 `it(`/`test(` ; 11 manifestes de vérification des données ; 1 021 attendus figés par l'oracle Python | `tests/` |
 | Composants publics | 29 `dsfr-data-*` ; 22 pages de specs ; 34 skills générées + 1 skill métier | `packages/core/src`, `specs/`, `skills/` |
@@ -156,7 +156,45 @@ en 8 à 10, `builder-e2e.yml` en 2, `e2e-layout.yml`) :
 | `verif` | la vérification des données en mode déterministe (voir ci-dessous) |
 | `attendus` | les attendus de l'oracle Python régénérés doivent être identiques à ceux commités |
 | cinq specs Playwright nommées | export HTML, diagnostic de mise en page, Studio (recette, navigation, parité) |
-| `sca`, `secrets`, `sast` | Trivy (dépendances et configuration), gitleaks, CodeQL (`security-and-quality`) |
+| `sca`, `secrets`, `sast` | Trivy (dépendances HIGH/CRITICAL et configuration des Dockerfiles), gitleaks (tout l'historique), Semgrep (`p/default`, `p/typescript`, `p/javascript`, `p/xss`, `p/security-audit`, SARIF remonté dans l'onglet Sécurité). CodeQL ne fait pas partie de `ci.yml` : il tourne à part dans `codeql.yml` |
+
+**Les douze workflows de `.github/workflows/`**, et ce que chacun garde. « Bloquant » veut dire :
+requis par la protection de `main` (voir ci-dessous) ; les autres informent, publient ou livrent.
+
+| Fichier | Nom | Déclencheurs | Bloquant sur PR | Ce qu'il garde |
+|---|---|---|---|---|
+| `ci.yml` | CI | PR vers `main`, push sur `main` | oui : `quality`, `Proxy générique — nginx réel`, `Relais cachable — extrait nginx, nginx réel`, `Security — SCA & config`, `Security — Secrets`, `Security — SAST` (non : `changeset-check`, avertissement seul ; `Security — SCA advisory`, `continue-on-error`) | typecheck, lint, format, 8 971 tests, builds lib et apps, gardes des artefacts générés, nginx réel, Trivy, gitleaks, Semgrep |
+| `verif-donnees.yml` | Vérification des données | PR vers `main`, push sur `main` | oui : `Chiffres affichés vs recalcul indépendant`, `Attendus figés de la troisième voix (Python stdlib)` | l'oracle déterministe (ADR-122) et les attendus Python identiques à ceux commités |
+| `builder-e2e.yml` | Builder E2E | PR vers `main`, push sur `main` | oui : `Recette Builder et export (Playwright)` | les cinq specs Playwright du Builder et du Studio (export HTML, diagnostic, recette, navigation, parité) |
+| `e2e-layout.yml` | E2E layout | PR vers `main`, push sur `main` | oui : `Mise en page mesurée (Playwright)` | seize specs qui mesurent des boîtes, des échelles et des pannes dans un vrai Chromium (ce que happy-dom ne calcule pas) |
+| `codeql.yml` | CodeQL | PR vers `main`, push sur `main`, lundi 06:00 UTC, à la demande | non (alertes dans l'onglet Sécurité) | analyse `security-and-quality` du JavaScript/TypeScript et des workflows Actions eux-mêmes |
+| `docker-scan.yml` | Docker image scan | push sur `main` et PR filtrés par chemins (`docker/**`…), lundi 07:00 UTC, à la demande | non (filtré par chemins ; CRITICAL fait échouer le job quand il tourne) | Trivy sur les deux images construites (`dsfr-data`, `dsfr-data-db`) |
+| `dast.yml` | DAST | lundi 08:00 UTC, à la demande | non (`continue-on-error`, ADR-004) | OWASP ZAP baseline sur la pile complète (MariaDB + Express + nginx) montée dans le runner |
+| `oracle.yml` | Oracle numérique (contrôles vivants) | chaque nuit 06:30 UTC, à la demande, PR portant le label `oracle` | jamais | les contrôles vivants contre les vraies API des portails (ADR-122) |
+| `banc-studio.yml` | Banc de pertinence du Studio IA | PR touchant `apps/studio/**` ou `shared/ia`, chaque nuit 03:00 UTC, à la demande | non (`continue-on-error`, un modèle n'est pas déterministe ; `bmatge/dsfr-data` seulement) | la pertinence des réponses du Studio sur des scénarios, modèle réel de l'instance (#1112) |
+| `guide-examples.yml` | Guide examples | chaque matin 06:00 UTC, à la demande | hors PR par choix (#632 : API tierces) | les exemples du guide chargent encore leurs données (un jeu renommé ou retiré casse la page sans commit) |
+| `changeset-release.yml` | Release | push sur `main` | ce n'est pas un contrôle | maintient la PR de release Changesets ; à sa fusion, publie sur npm et pose le tag `v*` |
+| `deploy-pages.yml` | Deploy to GitHub Pages | push sur `main` filtré par chemins (`specs/**`, `guide/**`, lib, widgets Grist), à la demande | ce n'est pas un contrôle | publie specs, guide et widgets Grist sur `bmatge.github.io/dsfr-data` |
+
+Deux choses sont en chantier au 2026-11-25 :
+
+- **Une exécution par PR, et `main` protégée.** Les quatre workflows bloquants tournaient **deux
+  fois** : sur la PR, puis de nouveau sur le push de fusion vers `main` (même commit, même résultat),
+  soit environ 20 minutes de calcul rejouées à chaque fusion, et sur le miroir en plus. Le chantier
+  passe à une exécution par PR, et remplace la seconde par une **protection de `main` par ruleset** :
+  toute modification passe par une PR ; les quatre contrôles (`quality`, nginx réel, sécurité,
+  vérification des données et attendus, recette Builder, mise en page mesurée) sont **requis** ; la
+  branche doit être **à jour** avec `main` au moment de fusionner (ce qui rend inutile la seconde
+  exécution : le commit testé est celui qui est fusionné) ; le `push --force` et la suppression de
+  `main` sont interdits, sans exception pour personne. Jusque-là, `main` n'avait **aucune**
+  protection : la CI était informative, et rien n'empêchait un `git push origin main` depuis un
+  poste.
+- **Six alertes CodeQL `actions/unpinned-tag`** (`ci.yml` ×3, `docker-scan.yml`, `dast.yml`,
+  `changeset-release.yml`) : les actions tierces `aquasecurity/trivy-action`, `zaproxy/action-baseline`
+  et `changesets/action` sont référencées par un tag mobile (`@v0.36.0`, `@v2`) qu'un mainteneur
+  compromis peut déplacer. Le traitement est l'**épinglage par SHA** du commit, avec le tag en
+  commentaire pour que Dependabot (groupe `github_actions`) continue de proposer les bumps — fait
+  par #1393 le 2026-11-25.
 
 **Les test-gardes d'architecture** : des tests Vitest qui lisent le source et refusent un motif.
 `tests/lib-app-boundary.test.ts` (aucun import app-side depuis la lib), `tests/transformer-mixin.test.ts`
@@ -311,6 +349,13 @@ version dans le registre (18 en 0.21.1, 15 en 0.22.0, 9 en 0.23.0...).
   fiche projet du vault pointe encore des chemins `file:///Users/bertrand/...` (macOS) alors que ce
   poste est Linux, et le dépôt existe en **deux clones** sur la machine (`~/Developer/GitHub/dsfr-data`
   et `~/Documents/bertrand/Github/dsfr-data`) : lequel fait foi n'est écrit nulle part.
+- **`main` n'était pas protégée** (constat du 2026-11-25). Ni protection de branche ni ruleset
+  (`gh api repos/bmatge/dsfr-data/rulesets` : vide). Les quatre workflows bloquants l'étaient par
+  convention : rien n'exigeait qu'ils soient verts pour fusionner, et rien n'interdisait un push
+  direct ou un `push --force` sur `main`. Pendant huit mois, « jamais de commit sur `main` » et
+  « la CI est bloquante » n'ont tenu que par la lecture du modèle et la discipline de l'auteur ;
+  aucune garantie que la CI ait été verte avant un merge. Le ruleset décrit en 2d (PR obligatoire,
+  quatre contrôles requis, branche à jour, force push interdit) répond à ce constat.
 - **L'enforcement mécanique des interdits globaux n'est pas en place sur ce poste.** ADR-075 et
   `50-Meta/HARNESS.md` annoncent des hooks `PreToolUse` bloquants (`guard-bash.py`, `guard-files.py`)
   et un journal d'audit (`audit-log.py`) comme « actifs ». Sur ce poste : pas de dossier
@@ -336,14 +381,15 @@ version dans le registre (18 en 0.21.1, 15 en 0.22.0, 9 en 0.23.0...).
   `npm run` citées dans `CLAUDE.md` et les docs existent dans `package.json` ; tous les fichiers cités
   existent). Les écarts trouvés sont plus bas :
   - `docs/AI-SKILLS.md` parle d'une « table des 33 références » ; `skills/dsfr-data/references/` en
-    compte 34 (34 skills dans `skills.ts`, 35 avec la skill métier dans `skills-meta.json`) ;
+    compte 34 (34 skills dans `skills.ts`, 35 avec la skill métier dans `skills-meta.json`) —
+    corrigé le 2026-11-25 ;
   - `.changeset/README.md` décrit une procédure de release (`npx changeset version`,
     `npm run sync-versions`, tag `vX.Y.Z`) différente de celle de `CLAUDE.md` (`npm run
     version-packages`, qui enchaîne aussi `build:shared` et `build:skills-claude`) ; deux schémas de
     tags coexistent (77 `v*`, 73 `dsfr-data@*`) ;
   - la section « Documentation » du `README.md` ne lie pas cinq fichiers de `docs/` (`RELAY`,
     `security-dev-guide`, `security-incident-response`, `RAPPORT-dsfr-chart-2.1-cartes`,
-    `PLAN_REMEDIATION_REVUE_2026-06`) ;
+    `PLAN_REMEDIATION_REVUE_2026-06`) — reliés le 2026-11-25 ;
   - la fiche projet du vault annonce « `dsfr-data` **v0.11.0** publiée » (réel : 0.52.0), liste
     `builder-ia` dans la stack et cite `apps/builder-ia/src/skills.ts` et
     `tests/apps/builder-ia/skills.test.ts` dans sa section Architecture (app retirée par #1081), donne
@@ -352,7 +398,7 @@ version dans le registre (18 en 0.21.1, 15 en 0.22.0, 9 en 0.23.0...).
     garde dans « Focus courant » un bloc « Prochaine action importante (2026-09-27) » tranché le
     2026-10-02, et pointe `open-data-viz/docs/rapport-dsfr-data-2026-09-27.md`, qui n'existe pas
     (le rapport vit dans `export/rapport-pour-dsfr-data.md`) ; sa `next-action` (« Dependabot
-    #1372-1375 ») est aux trois quarts faite ;
+    #1372-1375 ») est aux trois quarts faite — fiche remise d'équerre le 2026-11-25 ;
   - `~/.claude/CLAUDE.md` liste deux skills (`vibelab-new`, `vps-spawn`) ; le dossier en contient
     cinq, et `HARNESS.md` en nomme deux autres (`vibelab-access`, `vibe-lab-user`) qui ne sont pas sur
     ce poste.
