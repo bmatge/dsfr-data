@@ -14,9 +14,9 @@
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "csrf-csrf": "^4.0.3",
+    "csrf-csrf": "^4.1.0",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.2",
+    "express-rate-limit": "^8.7.5",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.24.6",
@@ -32,7 +32,7 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/nodemailer": "^8.0.2",
     "@types/supertest": "^7.2.1",
-    "supertest": "^7.3.1",
+    "supertest": "^7.3.2",
     "tsx": "^4.23.15",
     "typescript": "^5.3.0"
   }
