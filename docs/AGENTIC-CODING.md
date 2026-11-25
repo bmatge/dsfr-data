@@ -192,8 +192,9 @@ Deux choses sont en chantier au 2026-11-25 :
 - **Six alertes CodeQL `actions/unpinned-tag`** (`ci.yml` ×3, `docker-scan.yml`, `dast.yml`,
   `changeset-release.yml`) : les actions tierces `aquasecurity/trivy-action`, `zaproxy/action-baseline`
   et `changesets/action` sont référencées par un tag mobile (`@v0.36.0`, `@v2`) qu'un mainteneur
-  compromis peut déplacer. Le traitement, en cours, est l'**épinglage par SHA** du commit, avec le
-  tag en commentaire pour que Dependabot (groupe `github_actions`) continue de proposer les bumps.
+  compromis peut déplacer. Le traitement est l'**épinglage par SHA** du commit, avec le tag en
+  commentaire pour que Dependabot (groupe `github_actions`) continue de proposer les bumps — fait
+  par #1393 le 2026-11-25.
 
 **Les test-gardes d'architecture** : des tests Vitest qui lisent le source et refusent un motif.
 `tests/lib-app-boundary.test.ts` (aucun import app-side depuis la lib), `tests/transformer-mixin.test.ts`
