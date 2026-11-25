@@ -86,11 +86,19 @@ name: E2E layout
 # bouton, `aria-disabled="true"` et jamais `disabled`, couleur inactive du DSFR
 # calculee par la vraie feuille. Pagination cliente et serveur.
 
+# `pull_request` seulement : `main` n'accepte que des PR (ruleset), et ce qui
+# a ete vert sur la PR a jour l'est sur le merge. Le `push: main` doublait
+# chaque run pour rien. `workflow_dispatch` pour rejouer a la main.
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
+
+# Un seul run par PR : un nouveau push annule le precedent (cle = numero de
+# PR, ou la ref pour un lancement a la main).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

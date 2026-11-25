@@ -28,11 +28,19 @@ name: Builder E2E
 #     `add_blocks` validé par le Studio, code et aperçu des 16 types, `finish`.
 #     Modèle simulé par `page.route()` sur `/ia-proxy`. 17 cas, ~11 s.
 
+# `pull_request` seulement : `main` n'accepte que des PR (ruleset), et ce qui
+# a ete vert sur la PR a jour l'est sur le merge. Le `push: main` doublait
+# chaque run pour rien. `workflow_dispatch` pour rejouer a la main.
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch:
+
+# Un seul run par PR : un nouveau push annule le precedent (cle = numero de
+# PR, ou la ref pour un lancement a la main).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
