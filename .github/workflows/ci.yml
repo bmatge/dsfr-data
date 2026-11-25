@@ -206,7 +206,7 @@ jobs:
         run: ../scripts/npm-audit-ci.sh high
 
       - name: Trivy — filesystem (vulnerabilities)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scanners: vuln
@@ -216,7 +216,7 @@ jobs:
           trivyignores: .trivyignore
 
       - name: Trivy — config (Dockerfiles)
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: config
           severity: HIGH,CRITICAL
@@ -259,7 +259,7 @@ jobs:
 
       - name: Trivy — filesystem (MEDIUM+)
         continue-on-error: true
-        uses: aquasecurity/trivy-action@v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scanners: vuln
