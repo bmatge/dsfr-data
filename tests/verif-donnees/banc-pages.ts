@@ -206,7 +206,17 @@ const BFN_CORR: RawUrlSource = {
 // un rapport de deux sommes, jamais une moyenne de parts départementales.
 // ---------------------------------------------------------------------------
 
-const P2D_WHERE = "nature_de_l_etablissement like 'Collège'";
+// Requalification du 2026-11-25 (nuits rouges du 2026-10-27 au 2026-11-24) : le
+// jeu porte DEUX rentrées depuis le 2026-10-26 (`data_processed`) — 6 987
+// collèges en 2024, 6 995 en 2025, 13 982 lignes pour un plafond
+// `max-records="12000"` posé quand il n'y en avait qu'une. La bibliothèque
+// s'arrêtait au plafond (k-dep-etabs : 12 000 affiché, 13 982 à l'oracle et
+// au serveur ; k-etp : 503 823 contre 579 114), l'oracle lisait tout : verdict
+// mécanique « bibliothèque », cause réelle une clause de manifeste périmée.
+// La rentrée est désormais nommée — une somme sur deux rentrées n'est pas un
+// chiffre que la page veuille montrer — et le plafond garde sa marge.
+const P2D_RENTREE = '2025';
+const P2D_WHERE = `nature_de_l_etablissement like 'Collège' and annee_de_la_rentree_scolaire = '${P2D_RENTREE}'`;
 
 const P2D_CHAMPS = [
   'code_departement',

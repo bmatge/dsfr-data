@@ -693,7 +693,7 @@ const CHECKS: Check[] = [
     mode: 'live',
     constats: ['PG-033', 'PG-034'],
     origin:
-      'data.gouv / base départementale de la délinquance (SSMSI) — #1202, #1233, PG-033 et PG-034 du banc, contre la vraie API. Trois chargements, chacun avec un chiffre que seul l’ENSEMBLE exact des lignes rend juste. (1) Groupé et trié sur une colonne de regroupement non unique : 1 818 groupes, que l’API rend en 1 805 distincts quand le tri la suit de page en page — l’adaptateur les relit sans tri. (2) Tronqué à 600 et trié : l’API rend 550 lignes distinctes sur 600, et ignore un second `__sort` ; l’adaptateur compose un ordre total dans la VALEUR du tri (`Code_region__sort=asc,"__id".asc`), forme que l’API passe à PostgREST sans la documenter (mesuré le 2026-10-03 : 600 distinctes, les 600 premières). CE CONTRÔLE GARDE CETTE FORME : s’il rougit ici, l’API a cessé de l’honorer. (3) `in` / `notin` à parenthèse posés sur la source : la valeur part ENTRE GUILLEMETS (`indicateur__in=Homicides,"Usage de stupéfiants (AFD)"`), autre forme que l’API passe à PostgREST sans la documenter — 202 lignes en une requête, 101 quand la valeur part nue ; 1 717 pour `notin`, 1 818 quand plus rien n’est exclu (mesuré le 2026-10-04). CE CONTRÔLE GARDE AUSSI CETTE FORME : si l’API venait à l’ignorer sans erreur, rien d’autre ne rougirait (refusée, l’adaptateur replie sur le calcul côté client et le dit).',
+      'data.gouv / base départementale de la délinquance (SSMSI) — #1202, #1233, PG-033 et PG-034 du banc, contre la vraie API. Trois chargements, chacun avec un chiffre que seul l’ENSEMBLE exact des lignes rend juste. (1) Groupé et trié sur une colonne de regroupement non unique : 1 818 groupes, que l’API rend en 1 805 distincts quand le tri la suit de page en page — l’adaptateur les relit sans tri. (2) Tronqué à 600 et trié : l’API rend 550 lignes distinctes sur 600, et ignore un second `__sort` ; l’adaptateur compose un ordre total dans la VALEUR du tri (`Code_region__sort=asc,"__id".asc`), forme que l’API passe à PostgREST sans la documenter (mesuré le 2026-10-03 : 600 distinctes, les 600 premières). CE CONTRÔLE GARDE CETTE FORME : s’il rougit ici, l’API a cessé de l’honorer. (3) `in` / `notin` à parenthèse posés sur la source : la valeur part ENTRE GUILLEMETS (`indicateur__in=Homicides,"Usage de stupéfiants (AFD)"`), autre forme que l’API passe à PostgREST sans la documenter — 202 lignes en une requête, 101 quand la valeur part nue ; 1 717 pour `notin`, 1 818 quand plus rien n’est exclu (mesuré le 2026-10-04). CE CONTRÔLE GARDE AUSSI CETTE FORME pour `in` : si l’API venait à l’ignorer sans erreur, rien d’autre ne rougirait (refusée, l’adaptateur replie sur le calcul côté client et le dit). `notin`, lui, ne part plus au serveur depuis #1312 (son `not.in` écarterait les absents) : le contrôle vérifie qu’aucune URL ne le porte, et que le compte reste juste.',
     feed: {
       kind: 'raw',
       source: { url: SSMSI_URL, rowsPath: 'data', nextPath: 'links.next' },
@@ -785,12 +785,21 @@ const CHECKS: Check[] = [
         contains: 'indicateur__in=Homicides,"Usage de stupéfiants (AFD)"',
         verdict: 'some',
       },
+      // Requalification du 2026-11-25 (nuits rouges du 2026-10-15 au 2026-11-24) :
+      // depuis #1312 (2026-10-14), `notin` n'est plus confié à Tabular — son
+      // `not.in` écarterait les valeurs absentes, que le filtre garde —, la
+      // source le calcule dans le navigateur (spec de `where`). La forme entre
+      // guillemets ne peut donc plus apparaître dans une URL (0/27 chaque nuit,
+      // le compte 1 717 restant juste) : la clause attendait un comportement
+      // que la documentation ne promet plus. Le contrôle dit désormais
+      // l'inverse — aucune URL ne porte la clause —, et `k-ssmsi-notin`
+      // continue de tenir le chiffre.
       {
         kind: 'urls',
-        id: 'ssmsi-notin-entre-guillemets',
+        id: 'ssmsi-notin-jamais-delegue',
         among: `/api/resources/${SSMSI_RESSOURCE}/data/`,
-        contains: 'indicateur__notin="Usage de stupéfiants (AFD)"',
-        verdict: 'some',
+        contains: 'indicateur__notin',
+        verdict: 'none',
       },
       // Acceptée, la forme n'appelle aucun repli : la bibliothèque se tait.
       { kind: 'diagnostic', id: 's-ssmsi-in', expect: 'silence', contains: 'guillemets' },
