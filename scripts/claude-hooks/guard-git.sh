@@ -13,8 +13,10 @@
 #     mef-snum-miweb) reste permise
 #   - `git commit` (et `merge`, `cherry-pick`, `revert`, `am`) sur `main` / `master`
 #     — sauf dans un dépôt qui s'est déclaré (`git config harness.allow-main true`) :
-#     le vault Obsidian committe sur main par design (ADR-022) ; les autres règles
-#     y valent toujours
+#     le vault Obsidian committe sur main par design (ADR-022), et son
+#     `git pull --rebase --autostash` (skills /session-start, /session-end,
+#     /new-adr) y passe aussi : histoire linéaire à un seul auteur, aucune
+#     branche partagée. Les autres règles y valent toujours.
 #   - `git rebase`, sous toutes ses formes (les branches sont partagées)
 #   - `git stash` nu, `pop`, `save`, ou `push` sans `-m` : la pile est partagée
 #     entre les worktrees, une entrée sans étiquette est une entrée perdue
@@ -108,6 +110,21 @@ allows_main_commits() {
   [ "$(git -C "$1" config --get --type=bool harness.allow-main 2> /dev/null || true)" = true ]
 }
 
+# Résout un chemin tel qu'il apparaît dans la commande (`cd X`, `git -C X`) :
+# `~`, `~/…`, `$HOME/…` sont développés, un chemin relatif est pris depuis `base`.
+resolve_dir() {
+  local base=$1 p=$2
+  p=${p#\"}; p=${p%\"}; p=${p#\'}; p=${p%\'}
+  case "$p" in
+    '' | '~' | '$HOME' | '${HOME}') printf '%s\n' "$HOME" ;;
+    '~/'*) printf '%s\n' "$HOME/${p#\~/}" ;;
+    '$HOME/'*) printf '%s\n' "$HOME/${p#\$HOME/}" ;;
+    '${HOME}/'*) printf '%s\n' "$HOME/${p#\$\{HOME\}/}" ;;
+    /*) printf '%s\n' "$p" ;;
+    *) printf '%s\n' "$base/$p" ;;
+  esac
+}
+
 # Découpe en segments : && || ; | sauts de ligne, sous-shells et groupes.
 segments=$(printf '%s\n' "$cmd" \
   | sed -E 's/&&/\n/g; s/\|\|/\n/g; s/;/\n/g; s/\|/\n/g; s/\$\(/\n/g; s/`/\n/g; s/\(/\n/g; s/\{/\n/g')
@@ -138,9 +155,7 @@ while IFS= read -r seg; do
   case "$seg" in
     cd | cd\ *)
       target=${seg#cd}; target=$(printf '%s' "$target" | sed -E 's/^[[:space:]]+//; s/^["'"'"']//; s/["'"'"']$//')
-      if [ -z "$target" ] || [ "$target" = '~' ]; then dir=$HOME
-      elif [ "${target#/}" != "$target" ]; then dir=$target
-      else dir="$dir/$target"; fi
+      dir=$(resolve_dir "$dir" "$target")
       continue ;;
   esac
 
@@ -159,7 +174,7 @@ while IFS= read -r seg; do
   while [ $i -lt ${#words[@]} ]; do
     w=${words[$i]}
     case "$w" in
-      -C) i=$((i + 1)); seg_dir=${words[$i]:-$dir}; case "$seg_dir" in /*) ;; *) seg_dir="$dir/$seg_dir" ;; esac ;;
+      -C) i=$((i + 1)); [ -n "${words[$i]:-}" ] && seg_dir=$(resolve_dir "$dir" "${words[$i]}") ;;
       -c) i=$((i + 1)) ;;
       --git-dir | --work-tree | --namespace) i=$((i + 1)) ;;
       -*) ;;
@@ -175,6 +190,9 @@ while IFS= read -r seg; do
       deny "« git rebase » est interdit sur ce dépôt (branches partagées, PR ouvertes). Intégrer main par « git merge origin/main »." ;;
 
     pull)
+      # Un dépôt déclaré (harness.allow-main) n'a pas de branche partagée : son
+      # « pull --rebase --autostash » (skills du vault) n'est pas le rebase interdit.
+      allows_main_commits "$seg_dir" && continue
       for w in "${rest[@]}"; do
         case "$w" in
           --rebase=false | --no-rebase) ;;

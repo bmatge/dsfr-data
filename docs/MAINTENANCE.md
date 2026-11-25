@@ -155,13 +155,14 @@ vers `main`/`master` d'un remote qui pointe sur bmatge/dsfr-data (la resync du m
 la commande ne nomme pas `git`). Contournement humain : préfixe `HARNESS_ALLOW=1`, réservé à
 une autorisation explicite de Bertrand dans la conversation. Un dépôt qui committe sur main
 **par design** (le vault Obsidian, ADR-022) se déclare une fois, `git config harness.allow-main
-true` : seule la règle du commit sur main s'y relâche, les autres tiennent — c'est ce qui permet
+true` : les règles du commit sur main et du `pull --rebase` (celui des skills `/session-start`, `/session-end`, `/new-adr`) s'y
+relâchent, les autres tiennent — c'est ce qui permet
 d'installer le même script globalement sans casser `/session-end`.
 
 ```bash
 echo '{"tool_input":{"command":"git push --force origin x"}}' | bash scripts/claude-hooks/guard-git.sh; echo $?   # 2 + message
 echo '{"tool_input":{"command":"git status"}}' | bash scripts/claude-hooks/guard-git.sh; echo $?                  # 0, silence
-npm run test:run -- tests/hooks        # 68 cas : bloqués, autorisés, dépôt déclaré harness.allow-main, dépôts temporaires
+npm run test:run -- tests/hooks        # 78 cas : bloqués, autorisés, dépôt déclaré harness.allow-main, dépôts temporaires
 npm run typecheck:tests
 ```
 

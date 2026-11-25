@@ -11,7 +11,7 @@
  * pointe sur le miroir.
  */
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -23,13 +23,18 @@ interface Verdict {
   stderr: string;
 }
 
-function hook(command: string, cwd: string): Verdict {
+function hook(command: string, cwd: string, env: Record<string, string> = {}): Verdict {
   const input = JSON.stringify({
     tool_name: 'Bash',
     tool_input: { command },
     cwd,
   });
-  const r = spawnSync('bash', [HOOK], { input, encoding: 'utf8', timeout: 10_000 });
+  const r = spawnSync('bash', [HOOK], {
+    input,
+    encoding: 'utf8',
+    timeout: 10_000,
+    env: { ...process.env, ...env },
+  });
   return { code: r.status ?? -1, stderr: r.stderr };
 }
 
@@ -203,6 +208,75 @@ describe('guard-git.sh — dépôt déclaré « harness.allow-main » (le vault)
   it('git -C <vault> commit passe depuis un autre répertoire', () => {
     const v = hook(`git -C ${vault} commit -m x`, surBranche);
     expect(v.code, v.stderr).toBe(0);
+  });
+
+  // Les skills du vault (/session-start, /session-end, /new-adr) synchronisent par
+  // `pull --rebase --autostash` : histoire linéaire à un seul auteur, pas de branche partagée.
+  // (`vault` n'est connu qu'après beforeAll : les commandes sont construites à l'exécution.)
+  const pulls: Array<[string, () => string]> = [
+    ['git -C <vault> pull --rebase --autostash', () => `git -C ${vault} pull --rebase --autostash`],
+    [
+      'cd <vault> && git pull --rebase --autostash && git push',
+      () => `cd ${vault} && git pull --rebase --autostash && git push`,
+    ],
+    ['git pull --rebase --autostash', () => 'git pull --rebase --autostash'],
+  ];
+  for (const [nom, commande] of pulls) {
+    it(`${nom}  passe (dépôt déclaré)`, () => {
+      const v = hook(commande(), vault);
+      expect(v.code, v.stderr).toBe(0);
+    });
+  }
+
+  it('git pull --rebase reste bloqué dans un dépôt non déclaré', () => {
+    expect(hook('git pull --rebase --autostash', surBranche).code).toBe(2);
+  });
+
+  describe('chemins avec ~ et $HOME (cd, -C)', () => {
+    let home = '';
+    beforeAll(() => {
+      home = mkdtempSync(join(tmpdir(), 'guard-git-home-'));
+      const v = join(home, 'vault');
+      const d = join(home, 'depot');
+      mkdirSync(v);
+      mkdirSync(d);
+      for (const dir of [v, d]) {
+        git(dir, 'init', '-q', '-b', 'main');
+        git(
+          dir,
+          '-c',
+          'user.email=t@t',
+          '-c',
+          'user.name=t',
+          'commit',
+          '-q',
+          '--allow-empty',
+          '-m',
+          'init'
+        );
+      }
+      git(v, 'remote', 'add', 'origin', 'https://github.com/bmatge/vibecode-vault.git');
+      git(v, 'config', 'harness.allow-main', 'true');
+      git(d, 'remote', 'add', 'origin', 'https://github.com/bmatge/dsfr-data.git');
+    });
+    afterAll(() => {
+      if (home) rmSync(home, { recursive: true, force: true });
+    });
+
+    const cas: Array<[string, number]> = [
+      ['git -C ~/vault pull --rebase --autostash', 0],
+      ['cd ~/vault && git add -A && git commit -m x && git push', 0],
+      ['cd "$HOME/vault" && git commit -m x', 0],
+      ['git -C ~/depot commit -m x', 2],
+      ['cd ~/depot && git commit -m x', 2],
+      ['cd ~ && git -C vault commit -m x', 0],
+    ];
+    for (const [commande, attendu] of cas) {
+      it(`${commande}  → ${attendu}`, () => {
+        const v = hook(commande, surBranche, { HOME: home });
+        expect(v.code, v.stderr).toBe(attendu);
+      });
+    }
   });
 
   const restentBloquees: Array<[string, RegExp]> = [

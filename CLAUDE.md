@@ -355,7 +355,8 @@ le rappelle chaque lundi si l'instance est en retard sur `main`).
   Il BLOQUE (exit 2, message renvoyant ici) : `git push` forcé ; `git push` vers `main` d'un remote bmatge/dsfr-data (la resync du
   miroir `git push mef …` passe) ; `commit`/`merge`/`cherry-pick`/`revert` sur main ; `git rebase`, `pull --rebase` ; `git stash` nu,
   `pop`, ou `push` sans `-m`. Un dépôt qui committe sur main **par design** (le vault Obsidian, ADR-022) se déclare une
-  fois par `git config harness.allow-main true` : seule la règle du commit s'y relâche. Tester : `npm run test:run -- tests/hooks` (68 cas) ou
+  fois par `git config harness.allow-main true` : les règles du commit sur main et du `pull --rebase` (skills du vault) s'y relâchent, rien
+  d'autre ; `~/…` et `$HOME/…` sont compris dans `cd` et `-C`. Tester : `npm run test:run -- tests/hooks` (78 cas) ou
   `echo '{"tool_input":{"command":"git push -f"}}' | bash scripts/claude-hooks/guard-git.sh; echo $?` → 2.
 - Les mêmes interdits sont tenus **aussi côté GitHub** par le ruleset de `main` (PR + checks obligatoires, pas de push direct ni force) :
   le hook protège le poste, le ruleset protège le dépôt, et l'un ne depend pas de l'autre (ADR-169 du vault).
