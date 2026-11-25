@@ -110,6 +110,7 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 - [Guide utilisateur](https://bmatge.github.io/dsfr-data/guide/) — parcours interactifs + exemples live (HTML)
 - [Guide utilisateur (markdown)](docs/USER-GUIDE.md) — meme contenu en markdown, navigable depuis GitHub
 - [Evaluer une reproduction](docs/EVALUER-UNE-REPRODUCTION.md) — methode d'evaluation : les quatre verdicts, le chronometrage, la verification au navigateur
+- [Agentic coding : état des lieux](docs/AGENTIC-CODING.md) — comment le projet est construit avec Claude Code : contrat, mémoire, garde-fous, boucle externe, analyse critique et manques (2026-11-25)
 - [Architecture](docs/ARCHITECTURE.md) — pipeline, adapters, bundles, build
 - [Verification des donnees](tools/oracle/README.md) — l'oracle independant : doctrine, deux modes, ajouter un controle, prouver une mutation
 - [Guide de deploiement](docs/DEPLOYMENT.md) — Docker, 4 scenarios self-hosted, validation
