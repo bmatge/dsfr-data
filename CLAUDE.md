@@ -138,42 +138,48 @@ ssh vps "spawn up chartsbuilder git@github.com:bmatge/dsfr-data.git --dns api --
 
 ## Remotes Git (miroir mef-snum-miweb)
 
-Le repo est pousse simultanement sur **deux remotes GitHub** depuis 2026-05-24 :
-- `bmatge/dsfr-data` — repo historique (fetch + push)
-- `mef-snum-miweb/dsfr-data` — miroir org MEF SNUM (push uniquement)
+Deux depots GitHub : la **source** `bmatge/dsfr-data` et le **miroir** `mef-snum-miweb/dsfr-data` (presence
+du projet dans l'organisation MEF SNUM). Le miroir **recoit, il ne produit rien** (ADR-160, ADR-168, #1335) :
+aucune PR n'y est mergee, Dependabot y est en pause, le Default setup CodeQL n'y est **jamais** active (il
+desactive le `codeql.yml` du depot sans le reactiver au retrait, ADR-160).
 
-Configuration : un seul remote `origin` avec **multi-push URLs**. Un `git push origin <branche>` envoie aux deux destinations en une seule commande.
+**Configuration locale** : `origin` = bmatge **seul**. Le double push d'avant (deux URL de push sur `origin`)
+est **abandonne** : il poussait chaque branche de travail sur le miroir (74 branches mortes le 2026-09-02) et
+ne propageait pas les merges faits dans l'interface GitHub. Un remote `mef` **optionnel** sert au geste manuel.
 
 ```bash
 git remote -v
 # origin  https://github.com/bmatge/dsfr-data.git (fetch)
 # origin  https://github.com/bmatge/dsfr-data.git (push)
-# origin  https://github.com/mef-snum-miweb/dsfr-data.git (push)
-
-# Si la config est perdue (reclone, autre poste) :
-git remote set-url --add --push origin https://github.com/bmatge/dsfr-data.git
-git remote set-url --add --push origin https://github.com/mef-snum-miweb/dsfr-data.git
+git remote add mef https://github.com/mef-snum-miweb/dsfr-data.git   # optionnel, pour le resync manuel
 ```
 
-**Limites** :
-- Les merges effectues directement cote GitHub (UI bmatge, Dependabot, Changesets release PR...) **ne se propagent pas** au miroir. Resync ponctuel apres un merge UI :
-  ```bash
-  git fetch origin && git push origin refs/remotes/origin/main:refs/heads/main
-  ```
-- Les workflows GitHub Actions tournent **aussi cote miweb** sur chaque push ; les jobs dependant de secrets non configures la-bas vont failer (a desactiver dans `Settings → Actions` du repo miweb si besoin).
-- Tags : `git push origin --tags` apres une release pour les propager.
-- **Branches** : `gh pr merge --delete-branch` ne supprime la branche que sur bmatge. Apres chaque merge,
-  la supprimer aussi sur le miroir, sinon il accumule une branche par PR (74 branches mortes le 2026-09-02) :
-  ```bash
-  git push https://github.com/mef-snum-miweb/dsfr-data.git --delete <branche>
-  ```
-- **GitHub Releases** : une Release n'est pas un objet git, elle ne suit pas les tags. Le workflow changesets
-  la cree sur bmatge seulement (il echoue sur le miroir, secrets absents). Apres chaque release, la recreer
-  sur le miroir a partir des notes de bmatge (memes tags `dsfr-data@X.Y.Z`, deja pousses) :
-  ```bash
-  gh release view dsfr-data@X.Y.Z -R bmatge/dsfr-data --json body -q .body > /tmp/notes.md
-  gh release create dsfr-data@X.Y.Z -R mef-snum-miweb/dsfr-data --title dsfr-data@X.Y.Z --notes-file /tmp/notes.md --latest
-  ```
+**Ce qui est automatique** — `.github/workflows/mirror-sync.yml`, a chaque push sur `main`, sur un tag
+(`dsfr-data@*`, `v*`), a chaque Release publiee, et a la demande (`gh workflow run mirror-sync.yml`) :
+- `main` pousse sur le miroir en **avance rapide seulement** (jamais de `--force` : si le miroir a diverge, le
+  job echoue avec un message clair et c'est a traiter a la main, ci-dessous) ;
+- les tags, a chaque passage ;
+- la GitHub Release qui vient d'etre publiee, recreee a l'identique (meme tag, memes notes) ; `workflow_dispatch`
+  rattrape celles qui manquent (les 20 dernieres).
+Rien n'est jamais supprime sur le miroir. Il faut le secret **`AUTOMATION_TOKEN`** (PAT fine-grained, Contents
+en ecriture sur le miroir) ; sans lui le job le dit (`::notice::`) et ne pousse rien. `maintenance.yml` signale
+chaque lundi un miroir en retard, divergent, ou portant une branche autre que `main`.
+
+**Ce qui reste manuel** (sans le secret, ou apres un echec du workflow) :
+```bash
+git fetch origin && git push mef refs/remotes/origin/main:refs/heads/main && git push mef --tags
+gh release view dsfr-data@X.Y.Z -R bmatge/dsfr-data --json body -q .body > /tmp/notes.md
+gh release create dsfr-data@X.Y.Z -R mef-snum-miweb/dsfr-data --title dsfr-data@X.Y.Z --notes-file /tmp/notes.md --latest
+```
+
+**Divergence** (le miroir a un commit que la source n'a pas — cas du 2026-10-20, ses propres PR Dependabot) :
+lire ce qu'il a en plus (`git fetch mef && git log --oneline origin/main..mef/main`), le rapatrier ici par PR si
+cela vaut quelque chose, puis **demander l'autorisation** avant tout `push --force` vers le miroir. Si une
+branche autre que `main` s'y retrouve, la supprimer : `git push mef --delete <branche>`.
+
+**Limites** : les workflows tournent **aussi** cote miroir sur chaque push ; ceux qui ecrivent portent
+`if: github.repository == 'bmatge/dsfr-data'`, les autres echouent sur les secrets absents (a desactiver dans
+`Settings → Actions` du miroir si besoin). Le triage des alertes CodeQL n'est pas un objet git (ADR-160).
 
 ## Versioning et Releases (résumé)
 
@@ -229,8 +235,10 @@ git fetch origin changeset-release/main && git checkout changeset-release/main
 git commit --allow-empty -m "chore: déclencher la CI de la release" && git push origin changeset-release/main
 ```
 
-**Apres merge d'une PR** : resync du miroir (`git push origin refs/remotes/origin/main:refs/heads/main`) **et**
-suppression de la branche sur le miroir (voir Remotes Git). **Apres une release** : tags + Release recreee sur le miroir.
+**Apres merge d'une PR** : rien a faire pour le miroir — `mirror-sync.yml` pousse `main` (et les tags) des que le
+secret `AUTOMATION_TOKEN` est pose ; sinon, le geste manuel de la section Remotes Git. **Apres une release** : les
+tags et la Release sont propages par le meme workflow (`release: published`, ou `gh workflow run mirror-sync.yml`
+pour rattraper une Release publiee par `GITHUB_TOKEN`). Ce qui reste manuel : le redeploiement ci-dessous.
 
 **Apres une release : REDEPLOYER `chartsbuilder`.** Aucun workflow ne deploie le VPS ; sans cette etape,
 l'instance publique continue de servir les fiches (`/dist/skills.json`), le guide et les specs de la version
@@ -250,8 +258,9 @@ serveur MCP — il sert justement a constater qu'un redeploiement a bien eu lieu
 une release a l'utilisateur (ne pas releaser sans accord).
 
 **Recapitulatif des gestes de release**, dans l'ordre : changeset nommant les constats resolus → merge de
-la PR changesets (npm + tag + Release sur bmatge) → resync du miroir + tags + Release recreee sur le
-miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
+la PR changesets (npm + tag + Release sur bmatge ; miroir, tags et Release propages par `mirror-sync.yml`) →
+**redeploiement de `chartsbuilder`** verifie au `curl` (le seul geste qui reste manuel ; `maintenance.yml`
+le rappelle chaque lundi si l'instance est en retard sur `main`).
 
 ## Ce que Claude DOIT faire
 

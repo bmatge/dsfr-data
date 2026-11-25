@@ -1,0 +1,141 @@
+name: Miroir mef-snum-miweb
+
+# Le miroir `mef-snum-miweb/dsfr-data` RECOIT, il ne produit rien (ADR-160,
+# ADR-168, #1335). Ce workflow pousse vers lui, depuis la source bmatge :
+#   - `main`, en avance rapide seulement (jamais de --force : une divergence
+#     est une erreur a traiter a la main, voir CLAUDE.md § Remotes Git) ;
+#   - les tags (`dsfr-data@X.Y.Z` crees par changesets, `v*` par la release) ;
+#   - la GitHub Release qui vient d'etre publiee (une Release n'est pas un objet
+#     git : elle est recreee par l'API, avec les notes de la source).
+#
+# Rien n'est jamais supprime sur le miroir. Le double push local d'avant
+# (`origin` a deux URL de push) est abandonne : il poussait chaque branche de
+# travail sur le miroir (74 branches mortes le 2026-09-02) et ne propageait
+# pas les merges faits dans l'interface GitHub.
+#
+# Il faut le PAT fine-grained `AUTOMATION_TOKEN` (Contents en ecriture sur le
+# miroir). Sans lui, le job dit qu'il ne fait rien et renvoie au geste manuel.
+# Les tags et une Release creee par le workflow Release le sont par un token
+# qui ne redeclenche rien : le prochain push sur `main` rattrape les tags
+# (`--tags` a chaque passage), et `workflow_dispatch` rattrape les Releases.
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'dsfr-data@*'
+      - 'v*'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Deux pushes rapproches sur main : l'un apres l'autre, aucun n'est annule
+# (le second rejouerait de toute facon le meme etat).
+concurrency:
+  group: mirror-sync
+  cancel-in-progress: false
+
+env:
+  SOURCE: bmatge/dsfr-data
+  MIROIR: mef-snum-miweb/dsfr-data
+
+jobs:
+  sync:
+    name: Pousser main, tags et Releases vers le miroir
+    # Le miroir rejoue chaque workflow : il ne doit pas se pousser sur lui-meme.
+    if: github.repository == 'bmatge/dsfr-data'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Le secret AUTOMATION_TOKEN est-il posé ?
+        id: token
+        run: echo "has_token=${{ secrets.AUTOMATION_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Sans secret, rien ne part
+        if: steps.token.outputs.has_token != 'true'
+        run: |
+          echo "::notice::AUTOMATION_TOKEN absent : le miroir mef-snum-miweb n'est pas synchronisé par ce run. Geste manuel : CLAUDE.md § Remotes Git (git push mef refs/remotes/origin/main:refs/heads/main, puis --tags, puis la Release)."
+
+      - uses: actions/checkout@v7
+        if: steps.token.outputs.has_token == 'true'
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Le jeton part dans un en-tete, jamais dans l'URL du remote : une erreur
+      # git qui citerait l'URL ne le montrerait pas.
+      - name: Pousser main (avance rapide) et les tags
+        if: steps.token.outputs.has_token == 'true'
+        env:
+          AUTOMATION_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          set -u
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$AUTOMATION_TOKEN" | base64 -w0)"
+          miroir="https://github.com/${MIROIR}.git"
+          echo "::add-mask::$auth"
+
+          echo "main source : $(git rev-parse origin/main)"
+          echo "main miroir : $(git ls-remote "$miroir" refs/heads/main | cut -f1)"
+
+          if ! git -c "http.https://github.com/.extraheader=$auth" push "$miroir" refs/remotes/origin/main:refs/heads/main; then
+            echo "::error::Le miroir refuse main (pas une avance rapide) : il a divergé. Aucun --force ici. Relire la divergence (git fetch mef ; git log origin/main..mef/main) et suivre CLAUDE.md § Remotes Git."
+            exit 1
+          fi
+
+          # Les tags : tout ce que la source porte, le miroir le reçoit (les
+          # tags déjà présents sont ignorés, rien n'est réécrit).
+          git -c "http.https://github.com/.extraheader=$auth" push "$miroir" --tags
+
+          echo "main miroir après : $(git ls-remote "$miroir" refs/heads/main | cut -f1)"
+
+      # La Release qui vient d'etre publiee : recreee a l'identique sur le miroir
+      # (meme tag, meme titre, memes notes). Idempotent : si elle existe, elle
+      # est mise a jour. `--verify-tag` : le tag doit deja etre sur le miroir
+      # (il vient d'etre pousse ci-dessus), sinon gh en creerait un sur main.
+      - name: Recréer la Release sur le miroir
+        if: steps.token.outputs.has_token == 'true' && github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -eu
+          gh release view "$TAG" -R "$SOURCE" --json body -q .body > /tmp/notes.md
+          titre=$(gh release view "$TAG" -R "$SOURCE" --json name -q .name)
+          latest=$(gh release view "$TAG" -R "$SOURCE" --json isLatest -q .isLatest)
+          prerelease=$(gh release view "$TAG" -R "$SOURCE" --json isPrerelease -q .isPrerelease)
+          opts=()
+          [ "$latest" = "true" ] && opts+=(--latest)
+          [ "$prerelease" = "true" ] && opts+=(--prerelease)
+          if gh release view "$TAG" -R "$MIROIR" >/dev/null 2>&1; then
+            echo "Release $TAG déjà sur le miroir : mise à jour des notes."
+            gh release edit "$TAG" -R "$MIROIR" --title "$titre" --notes-file /tmp/notes.md "${opts[@]}"
+          else
+            gh release create "$TAG" -R "$MIROIR" --title "$titre" --notes-file /tmp/notes.md --verify-tag "${opts[@]}"
+          fi
+
+      # A la demande : les Releases de la source absentes du miroir (les
+      # 20 dernières) sont recréées. C'est le rattrapage d'une Release publiée
+      # par GITHUB_TOKEN, qui ne déclenche pas l'événement `release` ici.
+      - name: Rattraper les Releases manquantes
+        if: steps.token.outputs.has_token == 'true' && github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          set -eu
+          gh release list -R "$MIROIR" --limit 200 --json tagName -q '.[].tagName' | sort > /tmp/miroir.txt
+          gh release list -R "$SOURCE" --limit 20 --json tagName -q '.[].tagName' | sort > /tmp/source.txt
+          manquantes=$(comm -23 /tmp/source.txt /tmp/miroir.txt)
+          if [ -z "$manquantes" ]; then echo "Aucune Release manquante sur le miroir."; exit 0; fi
+          for tag in $manquantes; do
+            echo "Release $tag absente du miroir : création."
+            gh release view "$tag" -R "$SOURCE" --json body -q .body > /tmp/notes.md
+            titre=$(gh release view "$tag" -R "$SOURCE" --json name -q .name)
+            gh release create "$tag" -R "$MIROIR" --title "$titre" --notes-file /tmp/notes.md --verify-tag
+          done
+          # La plus récente de la source reste « Latest » sur le miroir.
+          derniere=$(gh release list -R "$SOURCE" --limit 1 --json tagName -q '.[0].tagName')
+          gh release edit "$derniere" -R "$MIROIR" --latest
