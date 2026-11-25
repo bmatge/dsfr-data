@@ -1,0 +1,17 @@
+{
+  "$comment": "Configuration Claude Code du PROJET, versionnée (ADR-169 du vault, docs/MAINTENANCE.md § 7). Les interdits git du CLAUDE.md sont tenus par un hook PreToolUse : scripts/claude-hooks/guard-git.sh, testé par tests/hooks/guard-git.test.ts. Les préférences locales (permissions, modèle) vont dans .claude/settings.local.json, non versionné.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/claude-hooks/guard-git.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
