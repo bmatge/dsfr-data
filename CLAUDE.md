@@ -161,8 +161,9 @@ git remote add mef https://github.com/mef-snum-miweb/dsfr-data.git   # optionnel
 - les tags, a chaque passage ;
 - la GitHub Release qui vient d'etre publiee, recreee a l'identique (meme tag, memes notes) ; `workflow_dispatch`
   rattrape celles qui manquent (les 20 dernieres).
-Rien n'est jamais supprime sur le miroir. Il faut le secret **`AUTOMATION_TOKEN`** (PAT fine-grained, Contents
-en ecriture sur le miroir) ; sans lui le job le dit (`::notice::`) et ne pousse rien. `maintenance.yml` signale
+Rien n'est jamais supprime sur le miroir. Il faut le secret **`AUTOMATION_TOKEN`** : un PAT **classic** (scopes
+`repo` et `workflow`), car un PAT fine-grained n'a qu'un proprietaire de ressources et ne peut pas ecrire a la fois
+sur bmatge et sur l'organisation (403 constate le 2026-11-25). Sans lui le job le dit (`::notice::`) et ne pousse rien. `maintenance.yml` signale
 chaque lundi un miroir en retard, divergent, ou portant une branche autre que `main`.
 
 **Ce qui reste manuel** (sans le secret, ou apres un echec du workflow) :
@@ -353,7 +354,8 @@ le rappelle chaque lundi si l'instance est en retard sur `main`).
 - **Hook Claude Code** : `.claude/settings.json` (versionné) câble `scripts/claude-hooks/guard-git.sh` en `PreToolUse` sur Bash.
   Il BLOQUE (exit 2, message renvoyant ici) : `git push` forcé ; `git push` vers `main` d'un remote bmatge/dsfr-data (la resync du
   miroir `git push mef …` passe) ; `commit`/`merge`/`cherry-pick`/`revert` sur main ; `git rebase`, `pull --rebase` ; `git stash` nu,
-  `pop`, ou `push` sans `-m`. Tester : `npm run test:run -- tests/hooks` (59 cas) ou
+  `pop`, ou `push` sans `-m`. Un dépôt qui committe sur main **par design** (le vault Obsidian, ADR-022) se déclare une
+  fois par `git config harness.allow-main true` : seule la règle du commit s'y relâche. Tester : `npm run test:run -- tests/hooks` (68 cas) ou
   `echo '{"tool_input":{"command":"git push -f"}}' | bash scripts/claude-hooks/guard-git.sh; echo $?` → 2.
 - Les mêmes interdits sont tenus **aussi côté GitHub** par le ruleset de `main` (PR + checks obligatoires, pas de push direct ni force) :
   le hook protège le poste, le ruleset protège le dépôt, et l'un ne depend pas de l'autre (ADR-169 du vault).

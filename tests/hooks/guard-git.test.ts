@@ -61,14 +61,19 @@ function depotTemporaire(branche: string): string {
 
 let surMain = '';
 let surBranche = '';
+let vault = '';
 
 beforeAll(() => {
   surMain = depotTemporaire('main');
   surBranche = depotTemporaire('feat/travail');
+  // Le vault Obsidian committe sur main par design (ADR-022) : il se déclare.
+  vault = depotTemporaire('main');
+  git(vault, 'remote', 'set-url', 'origin', 'https://github.com/bmatge/vibecode-vault.git');
+  git(vault, 'config', 'harness.allow-main', 'true');
 });
 
 afterAll(() => {
-  for (const d of [surMain, surBranche]) if (d) rmSync(d, { recursive: true, force: true });
+  for (const d of [surMain, surBranche, vault]) if (d) rmSync(d, { recursive: true, force: true });
 });
 
 describe('guard-git.sh — bloque (exit 2, message en français)', () => {
@@ -178,6 +183,51 @@ describe('guard-git.sh — laisse passer (exit 0, silence)', () => {
   it('un stdin vide ne bloque rien', () => {
     const r = spawnSync('bash', [HOOK], { input: '', encoding: 'utf8' });
     expect(r.status).toBe(0);
+  });
+});
+
+describe('guard-git.sh — dépôt déclaré « harness.allow-main » (le vault)', () => {
+  const passent = [
+    'git commit -m "session: 2026-11-25"',
+    'git add -A && git commit -m x && git push',
+    'git merge --no-ff feat/travail',
+  ];
+  for (const commande of passent) {
+    it(`${commande}  passe sur main`, () => {
+      const v = hook(commande, vault);
+      expect(v.code, v.stderr).toBe(0);
+      expect(v.stderr).toBe('');
+    });
+  }
+
+  it('git -C <vault> commit passe depuis un autre répertoire', () => {
+    const v = hook(`git -C ${vault} commit -m x`, surBranche);
+    expect(v.code, v.stderr).toBe(0);
+  });
+
+  const restentBloquees: Array<[string, RegExp]> = [
+    ['git push --force origin main', /push forcé/],
+    ['git rebase origin/main', /rebase/],
+    ['git stash', /stash/],
+    ['git push https://github.com/bmatge/dsfr-data.git HEAD:main', /bmatge\/dsfr-data/],
+  ];
+  for (const [commande, motif] of restentBloquees) {
+    it(`${commande}  reste bloquée`, () => {
+      const v = hook(commande, vault);
+      expect(v.code, v.stderr).toBe(2);
+      expect(v.stderr).toMatch(motif);
+    });
+  }
+
+  it('la clé à false ne déclare rien', () => {
+    git(vault, 'config', 'harness.allow-main', 'false');
+    try {
+      const v = hook('git commit -m x', vault);
+      expect(v.code).toBe(2);
+      expect(v.stderr).toMatch(/harness\.allow-main/);
+    } finally {
+      git(vault, 'config', 'harness.allow-main', 'true');
+    }
   });
 });
 
