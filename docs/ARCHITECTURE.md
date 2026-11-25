@@ -1784,6 +1784,7 @@ Le repo s'appelle `dsfr-data` mais le projet Docker historique s'appelle `dataso
      playground), ADR-136 (skill markdown servie par `skills.json`).
   6. **Ids conserves, validation empirique** — ADR-096, ADR-101, ADR-108 (mesure avant decision).
   7. **Web-first, poste de bureau** — ADR-070 (plus de desktop), ADR-108 (apps de creation hors mobile).
+- Dispositif de travail avec Claude Code (contrat, mémoire, garde-fous, boucle externe, manques) : `docs/AGENTIC-CODING.md` (état des lieux du 2026-11-25).
 - Feature vault (cross-repo) : `~/Documents/Obsidian/30-Knowledge/Features/proxy-cors-3-dimensions.md`.
 - Fiche projet : `~/Documents/Obsidian/10-Projects/dsfr-data.md`.
 - Déploiement / self-hosting : `docs/DEPLOYMENT.md`.
