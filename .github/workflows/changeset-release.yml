@@ -16,7 +16,15 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+      # Le PAT `AUTOMATION_TOKEN` (fine-grained, Contents + Pull requests + Workflows
+      # en ecriture) quand il est pose, `GITHUB_TOKEN` sinon. La difference : une PR
+      # ou un tag pousses par GITHUB_TOKEN ne declenchent AUCUN workflow — la PR de
+      # release n'avait donc aucun check, et le ruleset de `main` la bloque. Avec le
+      # PAT, ses checks partent seuls et le tag `v*` declenche mirror-sync.yml.
+      # Sans PAT : geste de secours dans CLAUDE.md § Versioning.
       - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v7
         with:
@@ -35,7 +43,7 @@ jobs:
           version-script: npm run version-packages
           publish-script: npm run release-publish
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -48,4 +56,4 @@ jobs:
           git tag "${TAG}"
           git push origin "${TAG}"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.AUTOMATION_TOKEN || secrets.GITHUB_TOKEN }}
