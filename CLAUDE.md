@@ -212,7 +212,22 @@ git push && git push --tags
 
 **Publication npm** : au merge de la PR changesets (`changeset-release.yml`, `release-publish`), qui pousse aussi le tag `v*` (historique/pins ; ne déclenche plus rien — cible desktop Tauri retirée, ADR-070 et capsule de restauration du vault, #403). Les sous-repos de distribution (`dsfr-data-grist/proxy/mcp`) sont **archivés depuis 2026-04** — plus de publication séparée ; seul le miroir `mef-snum-miweb/dsfr-data` est synchronisé.
 
-**CI** : un warning est emis sur les PRs si `packages/core/src/` ou `packages/shared/` sont modifies sans changeset.
+**CI** : la CI bloquante tourne **une fois par PR** — `ci.yml` (jobs `quality`, `proxy-nginx`, `relais-nginx`),
+`verif-donnees.yml`, `builder-e2e.yml` et `e2e-layout.yml` ne se declenchent que sur `pull_request`, et un
+nouveau push annule le run precedent (`concurrency`). Seuls les jobs de securite de `ci.yml` (`sca`, `secrets`,
+`sast` : SARIF) tournent aussi sur `main`, sans quoi les alertes de l'onglet Security ne seraient pas rattachees a
+la branche par defaut. **`main` est protegee par ruleset** (PR obligatoire, quatre controles requis : CI,
+Verification des donnees, Builder E2E, E2E layout ; branche a jour exigee ; force push interdit). Un warning est
+emis sur les PRs si `packages/core/src/` ou `packages/shared/` sont modifies sans changeset.
+
+**PR de release (`changeset-release/main`)** : `changeset-release.yml` l'ouvre avec le PAT `AUTOMATION_TOKEN`
+quand il est pose (`secrets.AUTOMATION_TOKEN || secrets.GITHUB_TOKEN`) et ses checks partent seuls. Sans le PAT,
+elle est poussee par `GITHUB_TOKEN`, qui ne declenche **aucun** workflow : la PR n'a aucun check et le ruleset la
+bloque. Geste de secours : un push vide sur sa branche, ou l'exempter dans le ruleset.
+```bash
+git fetch origin changeset-release/main && git checkout changeset-release/main
+git commit --allow-empty -m "chore: déclencher la CI de la release" && git push origin changeset-release/main
+```
 
 **Apres merge d'une PR** : resync du miroir (`git push origin refs/remotes/origin/main:refs/heads/main`) **et**
 suppression de la branche sur le miroir (voir Remotes Git). **Apres une release** : tags + Release recreee sur le miroir.

@@ -1,10 +1,22 @@
 name: CI
 
+# `push: main` est GARDE pour les jobs de securite (sca, sca-advisory, secrets,
+# sast) : ils televersent des SARIF, et les alertes de l'onglet Security ne
+# sont rattachees a la branche par defaut que si l'analyse tourne sur elle.
+# Les autres jobs (quality, proxy-nginx, relais-nginx, changeset-check) ne
+# tournent que sur PR : `main` n'accepte que des PR a jour (ruleset), un
+# second passage sur le merge ne verifiait rien de plus.
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
+# Un seul run par PR : un nouveau push annule le precedent (cle = numero de
+# PR, ou la ref pour un lancement a la main).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 # Droits du GITHUB_TOKEN au plus bas pour tout le workflow (#1334) : lecture du
 # depot seulement. Les jobs qui publient des resultats d'analyse (SARIF) elargissent
@@ -51,6 +63,7 @@ jobs:
           fi
 
   quality:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -155,6 +168,7 @@ jobs:
   # aucune requete ne sort. Detail : docs/SECURITY.md §"Proxy générique".
   proxy-nginx:
     name: Proxy générique — nginx réel
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -177,6 +191,7 @@ jobs:
   # ne sort de la machine. Detail : docs/RELAY.md §10, proxy/relay/nginx/README.md.
   relais-nginx:
     name: Relais cachable — extrait nginx, nginx réel
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
