@@ -320,3 +320,16 @@ miroir → **redeploiement de `chartsbuilder`** verifie au `curl`.
 - Self-hosting et chemins de proxying : `docs/DEPLOYMENT.md` §"Configuration self-hosted".
 - Docker : `docker compose up -d --build` (volume `beacon-logs` pour persister le monitoring).
 - Detail complet (composants, proxy, bundles, beacon, MariaDB, mcp-server, deploiement) : **`docs/ARCHITECTURE.md`**.
+
+## Maintenance et garde-fous du harnais
+
+- **Calendrier** : [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md) — chaque jour la nuit de l'oracle (règle des 24 h : geler ou
+  requalifier, jamais un troisième état) et le banc Studio ; chaque lundi les issues `maintenance` ; chaque mois `/audit-vault`,
+  Dependabot, `.env` du VPS, PAT qui expirent ; chaque trimestre ADR et jalons ; à chaque release ce qui reste manuel (`spawn up` + `curl`).
+- **Hook Claude Code** : `.claude/settings.json` (versionné) câble `scripts/claude-hooks/guard-git.sh` en `PreToolUse` sur Bash.
+  Il BLOQUE (exit 2, message renvoyant ici) : `git push` forcé ; `git push` vers `main` d'un remote bmatge/dsfr-data (la resync du
+  miroir `git push mef …` passe) ; `commit`/`merge`/`cherry-pick`/`revert` sur main ; `git rebase`, `pull --rebase` ; `git stash` nu,
+  `pop`, ou `push` sans `-m`. Tester : `npm run test:run -- tests/hooks` (59 cas) ou
+  `echo '{"tool_input":{"command":"git push -f"}}' | bash scripts/claude-hooks/guard-git.sh; echo $?` → 2.
+- Les mêmes interdits sont tenus **aussi côté GitHub** par le ruleset de `main` (PR + checks obligatoires, pas de push direct ni force) :
+  le hook protège le poste, le ruleset protège le dépôt, et l'un ne depend pas de l'autre (ADR-169 du vault).

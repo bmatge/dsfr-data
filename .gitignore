@@ -50,8 +50,9 @@ guide/examples/_list.json
 *.temp
 app-dist/
 
-# Local Claude Code agent state
-.claude/
+# Local Claude Code agent state — sauf la configuration du projet (hooks, ADR-169), versionnée
+.claude/*
+!.claude/settings.json
 audit-ui-*/
 
 # Liens symboliques posés par les worktrees d'agents (le motif avec / ne couvre que les dossiers)
