@@ -10,6 +10,23 @@ name: Oracle numérique (contrôles vivants)
 # nuit, a la demande, et sur une PR portant le label `oracle` (une PR de
 # refactor, typiquement). Le volet DETERMINISTE, lui, est bloquant sur chaque
 # PR — voir verif-donnees.yml.
+#
+# LA SUITE D'UNE NUIT ROUGE (ADR-168) n'est plus un geste du matin : apres la
+# verification, `tools/oracle/resume-nuit.mjs` lit out/report.json et out/gel/.
+#   - verdict « bibliotheque » : branche `oracle/gel-<date>` depuis main, les
+#     gels copies sous tests/verif-donnees/gel/, PR « verif: gel de la nuit du
+#     <date> » (il faut le PAT AUTOMATION_TOKEN : une PR poussee par
+#     GITHUB_TOKEN n'aurait aucun check ; sans lui, warning et issue seule) ;
+#   - tout echec : UNE issue « Oracle : nuit rouge du <date> » (label
+#     verif-donnees), avec le resume des verdicts, le run et la PR de gel.
+#     Les verdicts « donnee » et « indetermine » n'y mettent qu'un commentaire.
+# La PR de gel est un MARQUEUR, ouverte en draft et ROUGE par construction (le
+# controle fige echoue tant que la lib n'est pas corrigee) : elle se merge avec
+# le correctif de la lib (le correctif l'integre ou la ferme), JAMAIS par une
+# modification du ruleset ni en adoucissant le controle. Idempotent : un
+# controle deja porte par une PR de gel ouverte recoit un commentaire, pas
+# une seconde PR. Le run d'une PR portant le label `oracle` ne declenche
+# rien de tout cela.
 
 on:
   workflow_dispatch:
@@ -27,13 +44,23 @@ jobs:
     if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'oracle')
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      # L'issue de la nuit rouge est ecrite par GITHUB_TOKEN ; la branche et la
+      # PR de gel, par le PAT.
+      issues: write
     # Pas de `continue-on-error` : ce job n'est requis sur aucune PR (il se
     # declenche par label, par cron ou a la main), donc « jamais bloquant » est
     # deja acquis. L'ajouter rendrait vert un run nocturne en ecart — c'est-a-dire
     # invisible, ce qui est exactement ce que la verification vient empecher.
 
     steps:
+      # `persist-credentials: false` : la branche de gel est poussee avec le
+      # PAT, pas avec le jeton du run — deux en-tetes d'autorisation se
+      # marcheraient dessus.
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
@@ -63,3 +90,136 @@ jobs:
             test-results/
           if-no-files-found: ignore
           retention-days: 14
+
+      # ------------------------------------------------------------------
+      # La suite d'une nuit (ADR-168). `!cancelled()` et pas `always()` : un
+      # run annule n'a rien a dire. Jamais sur une PR au label `oracle`.
+      # ------------------------------------------------------------------
+      - name: Résumé de la nuit
+        id: nuit
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        run: node tools/oracle/resume-nuit.mjs tools/oracle/out --github-output "$GITHUB_OUTPUT"
+
+      - name: Le secret AUTOMATION_TOKEN est-il posé ?
+        id: token
+        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        run: echo "has_token=${{ secrets.AUTOMATION_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Gel automatique — branche oracle/gel-<date> et PR
+        id: gel
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.nuit.outputs.bibliotheque != '0' && steps.nuit.outputs.gels != '' }}
+        env:
+          AUTOMATION_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+          HAS_TOKEN: ${{ steps.token.outputs.has_token }}
+          DATE: ${{ steps.nuit.outputs.date }}
+          GELS: ${{ steps.nuit.outputs.gels }}
+          RESUME: ${{ steps.nuit.outputs.resume }}
+        run: |
+          set -euo pipefail
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::warning::Verdict « bibliothèque » cette nuit, mais AUTOMATION_TOKEN est absent : pas de branche ni de PR de gel. Récupérer l'artefact oracle-results et copier out/gel/*.json sous tests/verif-donnees/gel/ à la main (tools/oracle/README.md § La règle de vie)."
+            echo "pr=" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$AUTOMATION_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          export GH_TOKEN="$AUTOMATION_TOKEN"
+
+          # Idempotence PAR CONTRÔLE : un gel déjà porté par une PR de gel ouverte
+          # (branche oracle/gel-*) reçoit un commentaire ; seuls les gels nouveaux
+          # font une branche. Un contrôle qui rougit chaque nuit n'ouvre qu'une PR.
+          gh pr list --state open --limit 50 --json number,url,headRefName,files \
+            | jq -c '.[] | select(.headRefName | startswith("oracle/gel-"))' > /tmp/pr-gel-ouvertes.jsonl
+          nouveaux=""; deja=""
+          for g in $GELS; do
+            porteuse=$(jq -r --arg f "tests/verif-donnees/gel/$g" 'select(.files | map(.path) | index($f)) | .url' /tmp/pr-gel-ouvertes.jsonl | head -1)
+            if [ -n "$porteuse" ]; then deja="$deja $porteuse"; else nouveaux="$nouveaux $g"; fi
+          done
+          deja=$(echo $deja | tr ' ' '\n' | sort -u | tr '\n' ' ')
+          for url in $deja; do
+            {
+              echo "Nuit du $DATE : le contrôle gelé ici est **de nouveau rouge** au verdict « bibliothèque » ([run $GITHUB_RUN_ID]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)). Pas de nouvelle PR : celle-ci reste le marqueur jusqu'au correctif."
+              echo
+              cat "$RESUME"
+            } > /tmp/pr-gel-commentaire.md
+            gh pr comment "${url##*/}" --body-file /tmp/pr-gel-commentaire.md >/dev/null
+            echo "::notice::Gel déjà porté par $url : commentaire ajouté."
+          done
+          if [ -z "${nouveaux// /}" ]; then
+            echo "pr=$deja" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          branche="oracle/gel-$DATE"
+          if git -c "http.https://github.com/.extraheader=$auth" ls-remote --exit-code --heads origin "$branche" >/dev/null 2>&1; then
+            pr=$(gh pr list --head "$branche" --state all --limit 1 --json url -q '.[0].url // empty')
+            echo "::notice::La branche $branche existe déjà (PR : ${pr:-aucune}) : rien de nouveau n'est poussé."
+            echo "pr=$deja $pr" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -c "http.https://github.com/.extraheader=$auth" fetch --depth=1 origin main
+          git checkout -q -b "$branche" FETCH_HEAD
+          mkdir -p tests/verif-donnees/gel
+          for g in $nouveaux; do cp "tools/oracle/out/gel/$g" tests/verif-donnees/gel/; done
+          git add tests/verif-donnees/gel
+          git commit -q -F - <<EOF
+          verif: gel de la nuit du $DATE (rouge jusqu'au correctif)
+
+          Verdict « bibliothèque » du mode vivant (oracle.yml, run $GITHUB_RUN_ID) :
+          les contrôles gelés ($nouveaux) sont copiés sous tests/verif-donnees/gel/ et
+          tournent désormais sur chaque PR, sans réseau, rouges jusqu'au correctif.
+          Cette PR est un marqueur : elle se merge avec le correctif de la lib.
+
+          Co-Authored-By: oracle.yml <noreply@github.com>
+          EOF
+          git -c "http.https://github.com/.extraheader=$auth" push origin "$branche"
+          {
+            echo "Gel automatique de la nuit rouge (ADR-168, [run $GITHUB_RUN_ID]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID))."
+            echo
+            echo "Les contrôles vivants au verdict « bibliothèque » sont copiés tels que l'oracle les a gelés (lignes brutes en fixtures, balisage tourné vers \`gel.verif.invalid\`, sans clé)."
+            echo
+            echo "**Cette PR est un marqueur, rouge par construction** : le contrôle figé échoue tant que la bibliothèque n'est pas corrigée. Elle se merge **avec le correctif de la lib** (le correctif l'intègre, ou la ferme en apportant le même gel) — jamais par une modification du ruleset, jamais en adoucissant le contrôle (tools/oracle/README.md § La règle de vie). Tant qu'elle est ouverte, les nuits suivantes au même verdict y laissent un commentaire plutôt qu'une nouvelle PR."
+            echo
+            cat "$RESUME"
+          } > /tmp/pr-gel.md
+          url=$(gh pr create --draft --base main --head "$branche" --title "verif: gel de la nuit du $DATE (rouge jusqu'au correctif)" --body-file /tmp/pr-gel.md --label verif-donnees)
+          echo "::notice::PR de gel (draft) ouverte : $url"
+          echo "pr=$deja $url" >> "$GITHUB_OUTPUT"
+
+      - name: "Issue « Oracle : nuit rouge du <date> »"
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.nuit.outputs.rouge == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DATE: ${{ steps.nuit.outputs.date }}
+          RESUME: ${{ steps.nuit.outputs.resume }}
+          BIBLIOTHEQUE: ${{ steps.nuit.outputs.bibliotheque }}
+          PR_GEL: ${{ steps.gel.outputs.pr }}
+          HAS_TOKEN: ${{ steps.token.outputs.has_token }}
+        run: |
+          set -euo pipefail
+          titre="Oracle : nuit rouge du $DATE"
+          label=verif-donnees
+          gh label list --search "$label" --json name -q '.[].name' | grep -qx "$label" || label=bug
+          numero=$(gh issue list --state open --label "$label" --limit 50 --json number,title \
+            | jq --arg t "$titre" '[.[] | select(.title == $t)] | .[0].number // empty')
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          {
+            if [ -f "$RESUME" ]; then cat "$RESUME"; else echo "Aucun résumé produit (le run est tombé avant la vérification)."; fi
+            echo
+            echo "---"
+            echo "- Run : $run_url (artefact \`oracle-results\` : out/report.txt, out/banc.md, out/gel/)"
+            if [ "$BIBLIOTHEQUE" != "0" ]; then
+              if [ -n "$PR_GEL" ]; then echo "- PR de gel : $PR_GEL"
+              elif [ "$HAS_TOKEN" != "true" ]; then echo "- PR de gel : **non ouverte, AUTOMATION_TOKEN absent** — gel à faire à la main depuis l'artefact (tools/oracle/README.md § La règle de vie)."
+              else echo "- PR de gel : non ouverte (voir le job)."; fi
+            else
+              echo "- Pas de gel : aucun verdict « bibliothèque » (donnée ou indéterminé seulement — à requalifier sous 24 h : contrôle mis à jour, ou \`skip\` avec la raison et les deux chiffres)."
+            fi
+            echo "- Règle de vie : tools/oracle/README.md § « Le verdict d'une nuit rouge, et le gel ». Jamais un troisième état."
+          } > /tmp/issue.md
+          if [ -n "$numero" ]; then
+            gh issue comment "$numero" --body-file /tmp/issue.md >/dev/null
+            echo "::notice::Issue #$numero mise à jour."
+          else
+            url=$(gh issue create --title "$titre" --label "$label" --body-file /tmp/issue.md)
+            echo "::warning::Nuit rouge : $url"
+          fi
