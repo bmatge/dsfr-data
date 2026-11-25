@@ -1,0 +1,247 @@
+name: Maintenance planifiée
+
+# Les gestes de maintenance que personne ne voit passer quand ils manquent
+# (ADR-168, docs/MAINTENANCE.md) : chaque lundi matin, un contrôle par étape,
+# et UNE issue récurrente par contrôle (titre fixe, label `maintenance`,
+# .github/scripts/maintenance-issue.sh) :
+#   - quelque chose à faire → l'issue est ouverte, ou l'état du jour est ajouté
+#     en commentaire si elle l'est déjà ;
+#   - tout est en ordre → l'issue ouverte, s'il y en a une, est fermée.
+# Les deux rappels calendaires (audit du vault, relecture des ADR) ne sont
+# jamais fermés par le job : c'est l'humain qui ferme.
+#
+# Les étapes sont indépendantes (`continue-on-error`) : un portail injoignable
+# ne doit pas masquer une PR de release oubliée. Aucun secret : GITHUB_TOKEN
+# suffit (issues en écriture), le miroir est lu en clair.
+
+on:
+  schedule:
+    # Lundi 07:00 UTC = 08:00 Paris (09:00 l'été : le cron ne connaît pas l'heure d'été).
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+  MIROIR: mef-snum-miweb/dsfr-data
+  INSTANCE: https://chartsbuilder.miweb.run
+  ISSUE: .github/scripts/maintenance-issue.sh
+
+jobs:
+  controles:
+    name: Contrôles hebdomadaires
+    # Le miroir rejoue chaque workflow : ses issues ne sont pas les nôtres.
+    if: github.repository == 'bmatge/dsfr-data'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # a. La PR de release (changeset-release/main) ne doit pas traîner : tant
+      #    qu'elle est ouverte, les changesets s'accumulent et la note de
+      #    version grossit sans que le banc ne lise rien.
+      - name: a. PR de release ouverte depuis plus de 7 jours
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          titre="PR de release en attente depuis plus de 7 jours"
+          pr=$(gh pr list --head changeset-release/main --state open --json number,url,createdAt,title --jq '.[0] // empty')
+          if [ -z "$pr" ]; then bash "$ISSUE" en-ordre "$titre"; exit 0; fi
+          creee=$(echo "$pr" | jq -r .createdAt)
+          age=$(( ( $(date -u +%s) - $(date -u -d "$creee" +%s) ) / 86400 ))
+          if [ "$age" -le 7 ]; then echo "PR de release ouverte depuis $age jour(s) : rien à signaler."; bash "$ISSUE" en-ordre "$titre"; exit 0; fi
+          {
+            echo "La PR de release $(echo "$pr" | jq -r .url) est ouverte depuis **$age jours** (créée le ${creee%T*})."
+            echo
+            echo "Soit la merger (elle publie sur npm, pousse le tag et crée la Release), soit dire pourquoi elle attend."
+            echo
+            echo '```bash'
+            echo "gh pr view $(echo "$pr" | jq -r .number) -R $GH_REPO"
+            echo "gh pr checks $(echo "$pr" | jq -r .number) -R $GH_REPO     # sans AUTOMATION_TOKEN : push vide pour déclencher la CI, CLAUDE.md § Versioning"
+            echo '```'
+            echo
+            echo "Après le merge : redéployer \`chartsbuilder\` (CLAUDE.md § Versioning)."
+          } > /tmp/corps.md
+          bash "$ISSUE" a-faire "$titre" /tmp/corps.md
+
+      # b. Le miroir reçoit main par mirror-sync.yml. S'il n'est pas sur le même
+      #    commit, soit le secret manque (en retard), soit il a divergé (#1335).
+      #    Une branche autre que main sur le miroir est une scorie du double
+      #    push d'avant : à supprimer.
+      - name: b. Miroir mef-snum-miweb (main et branches)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          titre="Miroir mef-snum-miweb à resynchroniser"
+          source=$(git rev-parse origin/main)
+          miroir=$(git ls-remote "https://github.com/$MIROIR.git" refs/heads/main | cut -f1)
+          branches=$(git ls-remote --heads "https://github.com/$MIROIR.git" | awk '{print $2}' | sed 's#refs/heads/##' | grep -vx main || true)
+          etat=""
+          if [ -z "$miroir" ]; then etat="le miroir est injoignable ou n'a pas de main"
+          elif [ "$miroir" != "$source" ]; then
+            if git merge-base --is-ancestor "$miroir" "$source" 2>/dev/null; then
+              etat="le miroir est **en retard** : \`${miroir:0:8}\` contre \`${source:0:8}\` ici ($(git rev-list --count "$miroir".."$source") commit(s))"
+            else
+              etat="le miroir a **divergé** : \`${miroir:0:8}\` n'est pas un ancêtre de \`${source:0:8}\` (il a reçu un commit qui n'est pas ici)"
+            fi
+          fi
+          if [ -z "$etat" ] && [ -z "$branches" ]; then
+            echo "Miroir au même commit que main, aucune branche parasite."
+            bash "$ISSUE" en-ordre "$titre"; exit 0
+          fi
+          {
+            echo "Source : \`bmatge/dsfr-data\` → miroir : \`$MIROIR\`."
+            echo
+            if [ -n "$etat" ]; then
+              echo "- **main** : $etat."
+              echo
+              echo "  En retard : vérifier que le secret \`AUTOMATION_TOKEN\` est posé (\`gh secret list -R $GH_REPO\`) et relancer \`gh workflow run mirror-sync.yml -R $GH_REPO\`, ou pousser à la main :"
+              echo '  ```bash'
+              echo '  git remote add mef https://github.com/mef-snum-miweb/dsfr-data.git 2>/dev/null; git fetch origin'
+              echo '  git push mef refs/remotes/origin/main:refs/heads/main && git push mef --tags'
+              echo '  ```'
+              echo "  Divergé : lire ce que le miroir a en plus (\`git fetch mef && git log --oneline origin/main..mef/main\`), le rapatrier ici par PR s'il vaut quelque chose, puis demander l'autorisation avant tout \`push --force\` (CLAUDE.md § Remotes Git). Dependabot doit être en pause sur le miroir (#1335)."
+            fi
+            if [ -n "$branches" ]; then
+              echo
+              echo "- **Branches sur le miroir autres que main** ($(echo "$branches" | wc -l)) — à supprimer, rien ne doit y vivre :"
+              echo '  ```bash'
+              echo "$branches" | head -60 | sed "s#^#  git push https://github.com/$MIROIR.git --delete #"
+              [ "$(echo "$branches" | wc -l)" -gt 60 ] && echo "  # … et $(( $(echo "$branches" | wc -l) - 60 )) autres"
+              echo '  ```'
+            fi
+          } > /tmp/corps.md
+          bash "$ISSUE" a-faire "$titre" /tmp/corps.md
+
+      # c. L'instance publique sert-elle la version de main ? Le tampon de
+      #    fraîcheur (dist/skills-meta.json) est fait pour cette question (#733).
+      #    Aucun workflow ne déploie le VPS : le redéploiement est un geste.
+      - name: c. Tampon de fraîcheur de chartsbuilder
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          titre="Redéployer chartsbuilder"
+          attendue=$(node -p "require('./packages/core/package.json').version")
+          meta=$(curl -sS --max-time 20 "$INSTANCE/dist/skills-meta.json" || true)
+          servie=$(echo "$meta" | jq -r '.libVersion // empty' 2>/dev/null || true)
+          if [ -z "$servie" ]; then
+            printf 'L'\''instance %s ne répond pas (ou sans tampon de fraîcheur `dist/skills-meta.json`).\n\nVérifier `ssh vps "spawn list"` et les logs, puis :\n\n```bash\nssh vps "spawn up chartsbuilder git@github.com:bmatge/dsfr-data.git --dns api --mail real --keep"\ncurl -s %s/dist/skills-meta.json\n```\n' "$INSTANCE" "$INSTANCE" > /tmp/corps.md
+            bash "$ISSUE" a-faire "$titre" /tmp/corps.md; exit 0
+          fi
+          if [ "$servie" = "$attendue" ]; then
+            echo "chartsbuilder sert $servie = main."; bash "$ISSUE" en-ordre "$titre"; exit 0
+          fi
+          generee=$(echo "$meta" | jq -r '.generatedAt // "?"')
+          commit=$(echo "$meta" | jq -r '.commit // "?"')
+          {
+            echo "L'instance publique sert **dsfr-data $servie** (généré le $generee, commit \`$commit\`) alors que \`main\` est en **$attendue**."
+            echo
+            echo "Le banc d'essai et les agents lisent l'instance, pas le dépôt : tant qu'elle n'est pas redéployée, les fiches (\`/dist/skills.json\`), le guide et les specs sont ceux de la version précédente (#733)."
+            echo
+            echo '```bash'
+            echo 'ssh vps "spawn up chartsbuilder git@github.com:bmatge/dsfr-data.git --dns api --mail real --keep"'
+            echo "curl -s $INSTANCE/dist/skills-meta.json   # doit annoncer libVersion $attendue"
+            echo '```'
+          } > /tmp/corps.md
+          bash "$ISSUE" a-faire "$titre" /tmp/corps.md
+
+      # d. Les issues qui n'ont pas bougé depuis 90 jours : listées, jamais
+      #    fermées par le job — c'est une revue, pas un nettoyage.
+      - name: d. Issues dormantes (90 jours)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          titre="Revue des issues dormantes"
+          limite=$(date -u -d '90 days ago' +%FT%TZ)
+          gh issue list --state open --limit 1000 --json number,title,updatedAt,url,labels \
+            | jq --arg l "$limite" '[.[] | select(.updatedAt < $l) | select((.labels | map(.name) | index("maintenance")) | not)] | sort_by(.updatedAt)' > /tmp/dormantes.json
+          n=$(jq length /tmp/dormantes.json)
+          if [ "$n" -eq 0 ]; then echo "Aucune issue dormante."; bash "$ISSUE" en-ordre "$titre"; exit 0; fi
+          {
+            echo "**$n issue(s)** ouverte(s) sans mise à jour depuis 90 jours. Pour chacune : toujours d'actualité (un mot en commentaire), à fermer, ou à requalifier. Rien n'est fermé automatiquement."
+            echo
+            echo "| Issue | Dernière activité | Titre |"
+            echo "|---|---|---|"
+            jq -r '.[:80][] | "| #\(.number) | \(.updatedAt[:10]) | \(.title | gsub("\\|"; "/")) |"' /tmp/dormantes.json
+            [ "$n" -gt 80 ] && echo "| … | | et $(( n - 80 )) autres |"
+            echo
+            echo '```bash'
+            echo "gh issue list -R $GH_REPO --state open --search \"updated:<${limite%T*}\" --limit 200"
+            echo '```'
+          } > /tmp/corps.md
+          bash "$ISSUE" a-faire "$titre" /tmp/corps.md
+
+      # e. Les PR Dependabot qui attendent : plus elles attendent, plus elles
+      #    se chevauchent (lots du 2026-11-25 : 7 PR). Le ruleset exige une
+      #    branche à jour : les rebaser (`@dependabot rebase`) ou les grouper.
+      - name: e. PR Dependabot ouvertes depuis plus de 14 jours
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          titre="PR Dependabot en attente depuis plus de 14 jours"
+          limite=$(date -u -d '14 days ago' +%FT%TZ)
+          gh pr list --author app/dependabot --state open --limit 100 --json number,title,createdAt,url \
+            | jq --arg l "$limite" '[.[] | select(.createdAt < $l)] | sort_by(.createdAt)' > /tmp/dependabot.json
+          n=$(jq length /tmp/dependabot.json)
+          if [ "$n" -eq 0 ]; then echo "Aucune PR Dependabot de plus de 14 jours."; bash "$ISSUE" en-ordre "$titre"; exit 0; fi
+          {
+            echo "**$n PR Dependabot** ouverte(s) depuis plus de 14 jours. Les merger (après CI verte et branche à jour), les grouper en un lot, ou les fermer avec la raison."
+            echo
+            echo "| PR | Ouverte le | Titre |"
+            echo "|---|---|---|"
+            jq -r '.[] | "| #\(.number) | \(.createdAt[:10]) | \(.title | gsub("\\|"; "/")) |"' /tmp/dependabot.json
+            echo
+            echo '```bash'
+            echo "gh pr list -R $GH_REPO --author app/dependabot --state open"
+            echo "gh pr comment <n> -R $GH_REPO --body '@dependabot rebase'   # branche à jour exigée par le ruleset"
+            echo '```'
+          } > /tmp/corps.md
+          bash "$ISSUE" a-faire "$titre" /tmp/corps.md
+
+      # f. Rappels calendaires : le premier lundi du mois (jour ≤ 7), l'audit
+      #    du vault ; le premier lundi de janvier, avril, juillet, octobre, la
+      #    relecture des ADR. Ouverts par le job, fermés par l'humain.
+      - name: f. Rappels calendaires (audit du vault, relecture des ADR)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          jour=$(date -u +%-d); mois=$(date -u +%m); annee_mois=$(date -u +%Y-%m)
+          if [ "$jour" -gt 7 ]; then echo "Pas le premier lundi du mois ($(date -u +%F)) : aucun rappel."; exit 0; fi
+          {
+            echo "Premier lundi de $annee_mois : lancer l'audit du vault Obsidian et traiter ses constats (fiches stub, fiches sans \`next-action\`, sessions sans lien projet, ADR orphelines)."
+            echo
+            echo '```'
+            echo '/audit-vault          # dans une session Claude Code ouverte sur ~/Documents/Obsidian'
+            echo '/audit-vault --fix    # corrections interactives'
+            echo '```'
+            echo
+            echo "Fermer cette issue une fois l'audit fait (elle n'est pas fermée automatiquement)."
+          } > /tmp/corps.md
+          bash "$ISSUE" rappel "Audit mensuel du vault (/audit-vault)" /tmp/corps.md
+          case "$mois" in
+            01|04|07|10)
+              {
+                echo "Premier lundi du trimestre ($annee_mois) : relire les ADR de \`~/Documents/Obsidian/30-Knowledge/ADR/\` liées à dsfr-data et les recouper avec le code — statut (\`accepted\` / \`deprecated\` / \`superseded\`), promesses tenues ou non, lignes de force de \`docs/ARCHITECTURE.md\` §13 à mettre à jour. Modèle : la revue du 2026-10-22 (#1340)."
+                echo
+                echo '```bash'
+                echo 'ls ~/Documents/Obsidian/30-Knowledge/ADR/ | tail -30'
+                echo 'grep -l "project: .*dsfr-data" ~/Documents/Obsidian/30-Knowledge/ADR/*.md | wc -l'
+                echo '```'
+                echo
+                echo "Fermer cette issue une fois la relecture faite (elle n'est pas fermée automatiquement)."
+              } > /tmp/corps.md
+              bash "$ISSUE" rappel "Relecture trimestrielle des ADR" /tmp/corps.md
+              ;;
+          esac
