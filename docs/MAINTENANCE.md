@@ -98,6 +98,14 @@ on change le rituel (ou on automatise le geste), on ne laisse pas l'issue.
   gh api repos/bmatge/dsfr-data/milestones --jq '.[] | "\(.number) \(.title) open=\(.open_issues)"'
   gh api -X PATCH repos/bmatge/dsfr-data/milestones/<n> -f state=closed
   ```
+- **Tableau Project « dsfr-data — roadmap »** (<https://github.com/users/bmatge/projects/4>, créé le
+  2026-11-25) : la vue de priorisation unique, lisible par un tiers. Toute issue nouvelle y entre ;
+  à la revue, vérifier qu'il dit la même chose que les jalons. Il faut le scope `project` de `gh`
+  (`gh auth refresh -s project`, code device).
+  ```bash
+  gh project item-add 4 --owner bmatge --url https://github.com/bmatge/dsfr-data/issues/<n>
+  gh project view 4 --owner bmatge --web
+  ```
 
 ## 5. À chaque release
 
