@@ -118,6 +118,11 @@ Pour le detail du monorepo, des conventions, du workflow de release Changesets e
 - [Skills IA pour les développeurs](docs/AI-SKILLS.md) — skill Claude Code (`npm run skills:install`), serveur MCP, `skills.json`
 - [Fiche produit](docs/DATASHEET.md) — positionnement, comparatif, cibles
 - [Politique de securite](docs/SECURITY.md) + [baseline](docs/security-baseline.md) — signalement, pipeline CI/CD, defenses
+- [Scans de securite en local](docs/security-dev-guide.md) — lancer avec Docker, avant de pousser, les memes scans que la CI (Gitleaks, Trivy, Semgrep)
+- [Runbook fuite de secret](docs/security-incident-response.md) — procedure quand un secret est detecte dans le repo : revoquer et regenerer d'abord, reecrire l'historique ensuite
+- [Relais cachable par le site hote](docs/RELAY.md) — le contrat qu'un relais doit respecter (ADR-155), le relais Node de reference, l'extrait nginx et la suite de conformance
+- [Rapport DSFR Chart 2.1.x et cartes](docs/RAPPORT-dsfr-chart-2.1-cartes.md) — analyse du 2026-07-16 : integration des nouveautes de DSFR Chart 2.1 et avenir de `dsfr-data-world-map` (retire depuis)
+- [Plan de remediation, revue de juin 2026](docs/PLAN_REMEDIATION_REVUE_2026-06.md) — issu d'une revue complete de `packages/core/src/` : code mutualise, architecture coherente, separation lib / apps
 
 ## Credits
 
