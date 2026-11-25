@@ -442,6 +442,28 @@ elles remettent le dispositif en accord avec ce qu'il dit de lui-même). L'autom
 et la transmissibilité sont les deux chantiers qui comptent si quelqu'un d'autre doit un jour tenir
 le projet.
 
+**Suites, le soir même (2026-11-25).** Le tableau ci-dessus est l'état du matin ; six lignes ont bougé
+dans la journée, par trois chantiers d'agents puis quelques gestes du propriétaire :
+
+- *Traitement des nuits rouges* : `oracle.yml` gèle lui-même une nuit « bibliothèque » en PR brouillon
+  avec son issue (#1402) ; une routine cloud Claude Code « oracle du matin » lit le run de la veille
+  chaque jour à 07:15 UTC et commente l'issue. Les neuf nuits rouges du constat étaient une donnée qui
+  avait changé et une clause périmée, pas la lib (#1397, #1396).
+- *Enforcement des interdits* : hook `guard-git.sh` versionné dans le dépôt (#1398, #1403, #1404) et
+  installé globalement ; `main` protégée par ruleset.
+- *Automatisation post-release* : `mirror-sync.yml` (#1399) pousse `main`, tags et Releases vers le
+  miroir ; `maintenance.yml` rappelle le redéploiement si l'instance est en retard. Un seul secret,
+  `AUTOMATION_TOKEN`, PAT **classic** : un fine-grained n'a qu'un propriétaire et ne couvre pas l'org.
+- *Maintenance préventive* : [`MAINTENANCE.md`](MAINTENANCE.md) et `maintenance.yml` (#1400), issues
+  `maintenance` chaque lundi.
+- *Roadmap* : onze jalons livrés fermés, jalons `0.54.0` et « Maintenance du dispositif », et un
+  **GitHub Project « dsfr-data — roadmap »** (<https://github.com/users/bmatge/projects/4>) comme
+  vue de priorisation unique.
+- *Documentation non reliée* : #1394.
+
+Restent ouverts : transmissibilité, observabilité du dispositif, sécurité hors CI, tests du harnais,
+hygiène mécanique de la fiche projet, les deux clones.
+
 ## 5. Reproduire ailleurs : le kit minimal
 
 Pour un collègue qui démarre un projet avec Claude Code, dans l'ordre, et avec le pourquoi.
