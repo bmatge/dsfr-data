@@ -12,6 +12,9 @@
 #     (`git push mef refs/remotes/origin/main:refs/heads/main`, ou une URL
 #     mef-snum-miweb) reste permise
 #   - `git commit` (et `merge`, `cherry-pick`, `revert`, `am`) sur `main` / `master`
+#     — sauf dans un dépôt qui s'est déclaré (`git config harness.allow-main true`) :
+#     le vault Obsidian committe sur main par design (ADR-022) ; les autres règles
+#     y valent toujours
 #   - `git rebase`, sous toutes ses formes (les branches sont partagées)
 #   - `git stash` nu, `pop`, `save`, ou `push` sans `-m` : la pile est partagée
 #     entre les worktrees, une entrée sans étiquette est une entrée perdue
@@ -95,6 +98,14 @@ is_protected_branch() {
     main | master | refs/heads/main | refs/heads/master) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+# Un dépôt qui committe sur main PAR DESIGN (le vault Obsidian, ADR-022) se
+# déclare une fois : `git config harness.allow-main true`. Seule la règle du
+# commit sur main s'y relâche ; push forcé, rebase et stash restent interdits,
+# et le push vers main de bmatge/dsfr-data aussi.
+allows_main_commits() {
+  [ "$(git -C "$1" config --get --type=bool harness.allow-main 2> /dev/null || true)" = true ]
 }
 
 # Découpe en segments : && || ; | sauts de ligne, sous-shells et groupes.
@@ -204,8 +215,8 @@ while IFS= read -r seg; do
       for w in "${rest[@]}"; do case "$w" in --ff-only) ff_only=1 ;; esac; done
       [ "$sub" = merge ] && [ $ff_only -eq 1 ] && continue
       branch=${virtual_branch:-$(branch_of "$seg_dir")}
-      if is_protected_branch "$branch"; then
-        deny "« git $sub » sur la branche « $branch » : jamais de commit direct sur main/master sans autorisation explicite. Créer une branche (git checkout -b <type>/<sujet>) et ouvrir une PR."
+      if is_protected_branch "$branch" && ! allows_main_commits "$seg_dir"; then
+        deny "« git $sub » sur la branche « $branch » : jamais de commit direct sur main/master sans autorisation explicite. Créer une branche (git checkout -b <type>/<sujet>) et ouvrir une PR. (Un dépôt qui committe sur main par design, comme le vault, se déclare : git config harness.allow-main true.)"
       fi ;;
 
     push)

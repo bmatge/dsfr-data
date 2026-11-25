@@ -13,8 +13,11 @@ name: Miroir mef-snum-miweb
 # travail sur le miroir (74 branches mortes le 2026-09-02) et ne propageait
 # pas les merges faits dans l'interface GitHub.
 #
-# Il faut le PAT fine-grained `AUTOMATION_TOKEN` (Contents en ecriture sur le
-# miroir). Sans lui, le job dit qu'il ne fait rien et renvoie au geste manuel.
+# Il faut le PAT `AUTOMATION_TOKEN`, un PAT **classic** (scopes `repo` et
+# `workflow`) : un PAT fine-grained n'a qu'un seul proprietaire de ressources et
+# ne peut pas ecrire a la fois sur bmatge et sur l'organisation mef-snum-miweb
+# (403 « Permission denied to bmatge » constate le 2026-11-25). Sans secret, le
+# job dit qu'il ne fait rien et renvoie au geste manuel.
 # Les tags et une Release creee par le workflow Release le sont par un token
 # qui ne redeclenche rien : le prochain push sur `main` rattrape les tags
 # (`--tags` a chaque passage), et `workflow_dispatch` rattrape les Releases.
@@ -81,8 +84,16 @@ jobs:
           echo "main source : $(git rev-parse origin/main)"
           echo "main miroir : $(git ls-remote "$miroir" refs/heads/main | cut -f1)"
 
-          if ! git -c "http.https://github.com/.extraheader=$auth" push "$miroir" refs/remotes/origin/main:refs/heads/main; then
-            echo "::error::Le miroir refuse main (pas une avance rapide) : il a divergé. Aucun --force ici. Relire la divergence (git fetch mef ; git log origin/main..mef/main) et suivre CLAUDE.md § Remotes Git."
+          # Deux refus se distinguent : le jeton (403, un PAT fine-grained ne couvre
+          # pas l'organisation) et l'historique (pas une avance rapide : divergence).
+          if ! sortie=$(git -c "http.https://github.com/.extraheader=$auth" push "$miroir" refs/remotes/origin/main:refs/heads/main 2>&1); then
+            printf '%s\n' "$sortie"
+            case "$sortie" in
+              *403* | *denied* | *"Permission to"*)
+                echo "::error::Le miroir refuse le jeton (403) : AUTOMATION_TOKEN n'écrit pas sur ${MIROIR}. Il faut un PAT classic (scopes repo + workflow) : un PAT fine-grained n'a qu'un propriétaire et ne couvre pas l'organisation. CLAUDE.md § Remotes Git." ;;
+              *)
+                echo "::error::Le miroir refuse main (pas une avance rapide) : il a divergé. Aucun --force ici. Relire la divergence (git fetch mef ; git log origin/main..mef/main) et suivre CLAUDE.md § Remotes Git." ;;
+            esac
             exit 1
           fi
 

@@ -71,14 +71,15 @@ on change le rituel (ou on automatise le geste), on ne laisse pas l'issue.
    curl -s https://chartsbuilder.miweb.run/ia-server-config     # doit rester available:true
    ```
 4. **Secrets qui expirent** :
-   - **`AUTOMATION_TOKEN`** (PAT GitHub du compte bmatge, utilisé par les workflows qui
-     écrivent sur le dépôt ou le miroir) : un PAT a une **date d'expiration**. La lire sur
+   - **`AUTOMATION_TOKEN`** (PAT GitHub **classic** du compte bmatge, scopes `repo` + `workflow`,
+     utilisé par les workflows qui écrivent sur le dépôt ou le miroir — un PAT fine-grained n'a
+     qu'un propriétaire de ressources et ne peut pas écrire sur le miroir de l'organisation, 403
+     constaté le 2026-11-25) : un PAT a une **date d'expiration**. La lire sur
      https://github.com/settings/tokens (compte bmatge, le jeton nommé pour ce dépôt) ; le
      secret est posé dans Settings → Secrets and variables → Actions du dépôt (`gh secret list`
      donne la date de mise à jour, pas l'expiration — seule la page des tokens la connaît).
      Régénérer **avant** l'échéance et reposer : `gh secret set AUTOMATION_TOKEN`.
    - **`NPM_TOKEN`** (publication) : même vérification sur https://www.npmjs.com/settings/~/tokens.
-   - **`MIRROR_TOKEN`** (si `mirror-sync.yml` l'exige) : même règle que `AUTOMATION_TOKEN`.
    - Clé Albert du `.env` du VPS (`IA_DEFAULT_KEY`) : pas d'expiration connue, mais un quota ;
      `IA_DEFAULT_ENABLED=false` la préserve avant une démonstration (#1377).
 
@@ -152,12 +153,15 @@ vers `main`/`master` d'un remote qui pointe sur bmatge/dsfr-data (la resync du m
 `git rebase` et `git pull --rebase` ; `git stash` nu, `pop`, `save`, ou `push` sans `-m`
 (pile partagée entre les worktrees). Tout le reste passe sans ralentir (sortie immédiate si
 la commande ne nomme pas `git`). Contournement humain : préfixe `HARNESS_ALLOW=1`, réservé à
-une autorisation explicite de Bertrand dans la conversation.
+une autorisation explicite de Bertrand dans la conversation. Un dépôt qui committe sur main
+**par design** (le vault Obsidian, ADR-022) se déclare une fois, `git config harness.allow-main
+true` : seule la règle du commit sur main s'y relâche, les autres tiennent — c'est ce qui permet
+d'installer le même script globalement sans casser `/session-end`.
 
 ```bash
 echo '{"tool_input":{"command":"git push --force origin x"}}' | bash scripts/claude-hooks/guard-git.sh; echo $?   # 2 + message
 echo '{"tool_input":{"command":"git status"}}' | bash scripts/claude-hooks/guard-git.sh; echo $?                  # 0, silence
-npm run test:run -- tests/hooks        # 59 cas : bloqués, autorisés, dépôts temporaires sur main et sur branche
+npm run test:run -- tests/hooks        # 68 cas : bloqués, autorisés, dépôt déclaré harness.allow-main, dépôts temporaires
 npm run typecheck:tests
 ```
 

@@ -16,8 +16,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      # Le PAT `AUTOMATION_TOKEN` (fine-grained, Contents + Pull requests + Workflows
-      # en ecriture) quand il est pose, `GITHUB_TOKEN` sinon. La difference : une PR
+      # Le PAT `AUTOMATION_TOKEN` (classic, scopes `repo` + `workflow` : le meme
+      # jeton ecrit sur le miroir de l'organisation, qu'un fine-grained ne couvre
+      # pas) quand il est pose, `GITHUB_TOKEN` sinon. La difference : une PR
       # ou un tag pousses par GITHUB_TOKEN ne declenchent AUCUN workflow — la PR de
       # release n'avait donc aucun check, et le ruleset de `main` la bloque. Avec le
       # PAT, ses checks partent seuls et le tag `v*` declenche mirror-sync.yml.
